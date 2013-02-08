@@ -1,0 +1,3 @@
+class Act {
+    public Act() {}
+}
