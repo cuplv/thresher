@@ -513,7 +513,7 @@ public class Main {
     	
 	    for (String srcString : srcStrings) {
 	    	IClass srcClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, srcString));
-	    	if (Options.CHECK_ASSERTS) Util.Assert(srcClass != null, "couldn't find base class " + srcClass);
+	    	if (Options.CHECK_ASSERTS) Util.Assert(srcClass != null, "couldn't find base class " + srcString);
 	    	staticFields.addAll(srcClass.getAllStaticFields());
 	    	// find all subclasses of the src Class	
 			for (IClass subclass : cha.computeSubClasses(srcClass.getReference())) {

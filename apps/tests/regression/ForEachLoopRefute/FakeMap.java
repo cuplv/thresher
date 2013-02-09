@@ -1,6 +1,5 @@
 import java.util.List;
 import java.util.LinkedList;
-import java.nio.Charset;
 
 public class FakeMap {
 

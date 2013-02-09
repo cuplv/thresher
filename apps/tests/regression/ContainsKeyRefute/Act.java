@@ -10,7 +10,7 @@ public class Act {
     public static Map<String,Object> storyCache = new HashMap<String,Object>();
 
     public static void main(String[] args) {
-	Map<String,Act> localMap = new HashMap<String,Act>();
+	Map<String,Object> localMap = new HashMap<String,Object>();
 	if (localMap.containsKey("b")) {
 	    localMap.put("b", new Object());
 	}

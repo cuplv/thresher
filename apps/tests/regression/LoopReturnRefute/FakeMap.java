@@ -17,11 +17,12 @@ public class FakeMap {
     }
 
     public void bar() {
+	int count = 0;
 	while (count > 0) {
 	    count--;
 	    return;
 	}
-	foo();
+	foo(new Object());
     }
 
 
