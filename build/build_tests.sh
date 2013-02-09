@@ -8,6 +8,8 @@ cd $BASE/apps/tests/regression
 for dir in $( ls -d */);
 do
     echo 'Building' $dir
-    cd $dir && make
+    cd $dir 
+    mkdir bin
+    make
     cd $BASE/apps/tests/regression
 done

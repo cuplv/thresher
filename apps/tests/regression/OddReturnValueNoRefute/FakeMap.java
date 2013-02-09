@@ -1,4 +1,4 @@
-import android.content.Intent;
+//import android.content.Intent;
 public class FakeMap {
 
     private final static Object[] EMPTY_TABLE = new Object[1];
@@ -17,11 +17,12 @@ public class FakeMap {
 	if (bar(count)) {
 	    count++;
 	}
-
+	/*
 	Intent j = null;
 	if (j.hasExtra("FOO")) {
 	    count--;
 	}
+	*/
 	table[count] = value;
 	return null;
     }
