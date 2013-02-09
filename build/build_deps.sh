@@ -11,7 +11,7 @@ cd lib/WALA/ && make
 # build z3 
 cd $BASE/lib/z3 && python scripts/mk_make.py && cd build && make
 # move z3 components where ScalaZ3 wants them
-cd $BASE/lib/ScalaZ3/z3/x64/ && mkdir Z3_VERSION && cd Z3_VERSION
+cd $BASE/lib/ScalaZ3/z3/x64/ && mkdir $Z3_VERSION && cd $Z3_VERSION
 mkdir lib
 mkdir include
 cp $BASE/lib/z3/build/libz3.so lib/

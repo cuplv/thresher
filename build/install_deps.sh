@@ -2,6 +2,7 @@
 
 # should be run only from Makefile in Thresher root directory
 
+mkdir lib
 # get WALA
 git clone https://github.com/wala/WALA.git && mv WALA lib
 # get z3
