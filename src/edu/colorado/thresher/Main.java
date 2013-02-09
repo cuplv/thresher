@@ -408,7 +408,7 @@ public class Main {
 		//System.setErr(new PrintStream("../log.txt"));
 		long start = System.currentTimeMillis();
 		File exclusionsFile = null;
-		if (Options.USE_EXCLUSIONS) exclusionsFile = new File("exclusions.txt");
+		if (Options.USE_EXCLUSIONS) exclusionsFile = new File("config/exclusions.txt");
 		AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
 		JarFile file = new JarFile(Options.ANDROID_JAR);// new JarFile();
 		scope.addToScope(scope.getPrimordialLoader(), file);

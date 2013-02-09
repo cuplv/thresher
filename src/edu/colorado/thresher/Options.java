@@ -154,7 +154,7 @@ public class Options {
 	}
 	
 	private static void dumpHelpInfo() {
-		String optionStr = "USAGE:\n";
+		String optionStr = "USAGE: .\thresher.sh <options>. Use ! to negate boolean flags (e.g. -check_asserts!) \n";
 		for (Field field : Options.class.getDeclaredFields()) {
 			Annotation[] annots = field.getAnnotations();
 			if (annots.length > 0) {
