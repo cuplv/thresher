@@ -25,7 +25,8 @@ to build Thresher and its regression tests.
 Running Thresher on an Android app
 -----------------------------------
 
-Run 
+Run: 
+    
     ./thresher.sh -app <path_to_bin_dir_for_your_app>. 
 
 It will compute a points-to graph for your app, find all heap paths from static fields to object instances of subtype Activity, and attempt to use symbolic execution to refute some of these paths. It will print all heap paths that might correspond to memory leaks between \<Err Path\> tags (better visualization coming soon!).
@@ -33,4 +34,8 @@ It will compute a points-to graph for your app, find all heap paths from static 
 Using a different version of Android
 ------------------------------------
 By default, Thresher analyzes apps using the Android 2.3 (Gingerbread) source code. To use a different Android version, you can use the -useAndroidJar \<path_to_jar\> flag. The Soot project has JAR files for most Android versions at https://github.com/Sable/android-platforms.
+
+
+cp ./lib/WALA/com.ibm.wala.core/dat/natives.xml ./lib/WALA/com.ibm.wala.core/bin/natives.xml
+Add Test.java to ScalaZ3
 

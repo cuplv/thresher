@@ -144,7 +144,7 @@ public class Logger {
 	}
 	
 	public void logTimeout() {
-		System.err.println("logged timeout");
+		Util.Debug("logged timeout");
 		curErrorTimeouts++;
 		this.timeouts++;
 	}

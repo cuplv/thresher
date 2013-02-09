@@ -44,7 +44,7 @@ public class Options {
 
 	// not currently enabled
 	//@boolOpt( description="use piecewise symbolic executor", _default=false )
-	public static final boolean PIECEWISE_EXECUTION = false;
+	public static final boolean PIECEWISE_EXECUTION = true;
 
 	// not currently enabled
 	//@boolOpt( description="perform callgraph pruning based on constraint set at function boundaries", _default=false )
