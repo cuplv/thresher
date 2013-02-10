@@ -55,6 +55,7 @@ import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.AnalysisScopeReader;
+import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
@@ -410,6 +411,7 @@ public class Main {
 		File exclusionsFile = null;
 		if (Options.USE_EXCLUSIONS) exclusionsFile = new File("config/exclusions.txt");
 		AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+		if (exclusionsFile != null) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
 		JarFile file = new JarFile(Options.ANDROID_JAR);// new JarFile();
 		scope.addToScope(scope.getPrimordialLoader(), file);
 		//scope.addToScope(scope.getPrimordialLoader(), new JarFile("primordial.jar.model"));
@@ -417,7 +419,7 @@ public class Main {
 		scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 		
 		
-	    //AnalysisScope scope = AnalysisScopeReader.readJavaScope(appPath + "testScope.txt", exclusionsFile, Options.class.getClassLoader());
+	    AnalysisScope scoope = AnalysisScopeReader.readJavaScope(appPath + "testScope.txt", exclusionsFile, Options.class.getClassLoader());
 	    System.out.println("making class hierarchy");
 	    IClassHierarchy cha = ClassHierarchy.make(scope);
 	    
