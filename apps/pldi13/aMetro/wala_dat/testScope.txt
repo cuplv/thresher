@@ -1,0 +1,3 @@
+Primordial,Java,jarFile,primordial.jar.model
+Primordial,Java,jarFile,../android.jar
+Application,Java,binaryDir,../apps/fdroid/aMetro/bin

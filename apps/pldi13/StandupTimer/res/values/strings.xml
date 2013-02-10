@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+   <string name="app_name">Standup Timer</string>
+   <string name="timer">Timer</string>
+
+   <string name="number_of_participants">Number of participants</string>
+   <string name="length_of_meeting">Length of meeting</string>
+   <string name="team">Team</string>
+   <string name="start">Start</string>
+
+   <string name="five_min">5 min</string>
+   <string name="ten_min">10 min</string>
+   <string name="fifteen_min">15 min</string>
+   <string name="twenty_min">20 min</string>
+
+   <string name="valid_num_participants_warning">Number of participants must be between 1 and 20.</string>
+   <string name="valid_num_participants_warning_unlimited">Number of participants must be greater than 1.</string>
+   <string name="ok">OK</string>
+   <string name="add">Add</string>
+   <string name="revert">Revert</string>
+   <string name="done">Done</string>
+   <string name="delete">Delete</string>
+   <string name="delete_meeting">Delete Meeting</string>
+   <string name="delete_team">Delete Team</string>
+
+   <string name="participant">Participant</string>
+   <string name="individual_status_complete">Individual status complete</string>
+   <string name="total_time_remaining">Total time remaining</string>
+   <string name="next">Next</string>
+   <string name="finished">Finished</string>
+
+   <string name="settings_label">Settings</string>
+   <string name="settings_title">Standup Timer Settings</string>
+   <string name="play_sounds">Play sounds</string>
+   <string name="play_sounds_summary">Play sounds when time is running out</string>
+   <string name="warning_time">Warning time</string>
+   <string name="warning_time_summary">When to notify that time is running out (in seconds / per participant)</string>
+   <string name="unlimited_participants">Unlimited participants</string>
+   <string name="unlimited_participants_summary">Allow meetings with any number of participants</string>
+   <string name="variable_meeting_length">Variable meeting length</string>
+   <string name="variable_meeting_length_summary">Allow meetings of any length</string>
+
+   <string name="team_label">Teams</string>
+   <string name="add_team">Add Team</string>
+   <string name="no_teams">No teams configured</string>
+
+   <string name="about_label">About</string>
+   <string name="about_title">About</string>
+   <string name="about_text">\
+Standup Timer is a simple application that can be
+used to keep your stand-up meetings on track.  It is free
+and open source.
+   </string>
+   <string name="about_version">Standup Timer v1.4</string>
+   <string name="about_copyright">&#169;2011 by John Wood</string>
+   <string name="about_author_email">john@johnpwood.net</string>
+   <string name="about_project_url">http://johnpwood.net/standup-timer</string>
+
+   <string name="help_label">Help</string>
+   <string name="help_title">Help</string>
+   <string name="help_text">\
+<b>General</b>
+\n\n\
+Simply specify the number of participants and the
+meeting length, and press <b>Start</b> to get
+started. On the timer screen, press <b>Next</b>
+to restart the timer for a new meeting participant,
+or <b>Finish</b> to stop the timer and end the meeting.
+\n\n\
+<b>Teams</b>
+\n\n\
+Standup Timer can be configured to keep track of
+stand-up meetings for one or more teams.  Keeping
+track of meetings for teams allows you to see average
+statistics (average meeting length, average individual
+status length, etc) for a given team.  You are also
+able to see the detailed statistics for each meeting
+that team has held.
+\n\n\
+<b>Creating a team</b>
+\n\n\
+To create a new team, select the <b>Teams</b> option from the
+main menu.  On the Teams screen, select the <b>Add</b> option
+from the menu to add a new team.
+\n\n\
+<b>Specifying a team when starting a timer</b>
+\n\n\
+Once a team has been created, you will be able to select
+that team from the <b>Team</b> drop down menu when starting
+a new meeting timer.  When the meeting is finished, statistics
+for that meeting will be written to the database.
+\n\n\
+<b>Average meeting statistics for a team</b>
+\n\n\
+To access the statistics for a particular team, select
+the <b>Teams</b> option from the main menu, and select
+the team you wish to see statistics for.  The <b>Stats</b>
+tab will show you the average statistics for that team.
+The <b>Meetings</b> tab will show you the list of
+meetings that team has held.
+\n\n\
+<b>Statistics for a specific meeting</b>
+\n\n\
+To see details about a specific meeting, select the meeting
+from the list of meetings in the <b>Meetings</b> tab for
+a given team.
+   </string>
+
+   <string name="stats">Stats</string>
+   <string name="meetings">Meetings</string>
+   <string name="no_meetings">This team has no meetings</string>
+   <string name="no_meeting_stats">This team has no stats</string>
+
+   <string name="team_name">Team name</string>
+   <string name="number_of_meetings">Number of meetings</string>
+   <string name="avg_number_of_participants">Average number\nof participants</string>
+   <string name="avg_meeting_length">Average meeting\nlength</string>
+   <string name="avg_individual_status_length">Average individual\nstatus length</string>
+   <string name="avg_quickest_status">Average quickest\nindividual status</string>
+   <string name="avg_longest_status">Average longest\nindividual status</string>
+
+   <string name="meeting_stats">Meeting Stats</string>
+   <string name="meeting_details">Meeting details</string>
+   <string name="meeting_time">Meeting time</string>
+   <string name="meeting_length">Meeting length</string>
+   <string name="individual_status_length">Individual status length</string>
+   <string name="quickest_status">Quickest individual status</string>
+   <string name="longest_status">Longest individual status</string>
+</resources>

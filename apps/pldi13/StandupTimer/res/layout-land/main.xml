@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout android:layout_width="fill_parent"
+   android:orientation="vertical" android:layout_height="fill_parent"
+   xmlns:android="http://schemas.android.com/apk/res/android"
+   android:gravity="center">
+
+   <TableRow android:gravity="center">
+      <TextView android:text="@string/number_of_participants" android:padding="3dp" android:textSize="17sp"/>
+      <View android:layout_width="30dp" android:layout_height="1dp" />
+      <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content">
+         <EditText android:id="@+id/num_participants" android:digits="0123456789"
+            android:inputType="phone" android:layout_width="60dp" android:layout_height="wrap_content"
+            android:gravity="center" android:lines="1" />
+      </LinearLayout>
+   </TableRow>
+
+   <TableRow android:gravity="center" android:paddingTop="10dp">
+      <TextView android:text="@string/length_of_meeting" android:padding="3dp" android:textSize="17sp"/>
+      <View android:layout_width="30dp" android:layout_height="1dp" />
+      <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content"
+         android:id="@+id/meeting_length_container" />
+   </TableRow>
+
+   <TableRow android:gravity="center" android:paddingTop="10dp">
+      <TextView android:text="@string/team" android:padding="3dp" android:textSize="17sp"/>
+      <View android:layout_width="30dp" android:layout_height="1dp" />
+      <Spinner android:id="@+id/team_names" android:drawSelectorOnTop="true"
+         android:prompt="@string/team" android:layout_width="wrap_content" />
+   </TableRow>
+
+   <TableRow android:gravity="center" android:paddingTop="10dp">
+      <Button android:text="@string/start" android:id="@+id/start_button"
+         android:layout_width="wrap_content" android:layout_height="wrap_content"
+         android:layout_gravity="center_horizontal" android:width="80dp" />
+   </TableRow>
+
+</TableLayout>

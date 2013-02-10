@@ -1,0 +1,6267 @@
+< Application, Lorg/ametro/ui/MapViewActivity, isUpdateNeeded()Z >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB25
+BB2[2..3]
+    -> BB24
+    -> BB3
+BB3[4..5]
+    -> BB4
+    -> BB25
+BB4[6..7]
+    -> BB24
+    -> BB5
+BB5[8..8]
+    -> BB6
+    -> BB25
+BB6[9..11]
+    -> BB7
+    -> BB25
+BB7[12..12]
+    -> BB8
+    -> BB25
+BB8[13..15]
+    -> BB9
+    -> BB25
+BB9[16..17]
+    -> BB13
+    -> BB10
+BB10[18..19]
+    -> BB11
+    -> BB25
+BB11[20..22]
+    -> BB12
+    -> BB25
+BB12[23..24]
+    -> BB25
+BB13[25..26]
+    -> BB14
+    -> BB25
+BB14[27..28]
+    -> BB15
+    -> BB25
+BB15[29..31]
+    -> BB17
+    -> BB16
+BB16[32..33]
+    -> BB25
+BB17[34..35]
+    -> BB18
+    -> BB25
+BB18[36..36]
+    -> BB19
+    -> BB25
+BB19[37..40]
+    -> BB24
+    -> BB20
+BB20[41..42]
+    -> BB21
+    -> BB25
+BB21[43..46]
+    -> BB22
+    -> BB25
+BB22[47..49]
+    -> BB24
+    -> BB23
+BB23[50..51]
+    -> BB25
+BB24[52..53]
+    -> BB25
+BB25[-1..-2]
+Instructions:
+BB0
+BB1
+1   v3 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModelFileName, <Application,Ljava/lang/String> > v1(line 353) {1=[this]}
+BB2
+3   conditional branch(eq) v3,v4:#null       (line 353)
+BB3
+5   v5 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModel, <Application,Lorg/ametro/model/Model> > v1(line 353) {1=[this]}
+BB4
+7   conditional branch(eq) v5,v4:#null       (line 353)
+BB5
+8   v6 = new <Application,Ljava/io/File>@14  (line 354)
+BB6
+11   v7 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModelFileName, <Application,Ljava/lang/String> > v1(line 354) {1=[this]}
+BB7
+12   invokespecial < Application, Ljava/io/File, <init>(Ljava/lang/String;)V > v6,v7 @22 exception:v8(line 354)
+BB8
+15   v10 = invokevirtual < Application, Ljava/io/File, exists()Z > v6 @27 exception:v9(line 355) {6=[file]}
+BB9
+17   conditional branch(ne) v10,v11:#0       (line 355)
+BB10
+19   invokevirtual < Application, Lorg/ametro/ui/MapViewActivity, clearDefaultMapName()V > v1 @34 exception:v23(line 356) {1=[this]}
+BB11
+22   invokevirtual < Application, Lorg/ametro/ui/MapViewActivity, setContentView(I)V > v1,v24:#2130903063 @41 exception:v25(line 357) {1=[this]}
+BB12
+24   return v11:#0                           (line 358)
+BB13
+26   v13 = invokevirtual < Application, Ljava/io/File, lastModified()J > v6 @47 exception:v12(line 360) {6=[file]}
+BB14
+28   v14 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModelLastModified, <Primordial,J> > v1(line 360) {1=[this]}
+BB15
+29   v15 = compare v13,v14 opcode=cmp        (line 360)
+31   conditional branch(eq) v15,v11:#0       (line 360)
+BB16
+33   return v22:#1                           (line 362)
+BB17
+35   v16 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModelFileName, <Application,Ljava/lang/String> > v1(line 364) {1=[this]}
+BB18
+36   v18 = invokestatic < Application, Lorg/ametro/model/storage/ModelBuilder, loadModelDescription(Ljava/lang/String;)Lorg/ametro/model/Model; > v16 @64 exception:v17(line 364)
+BB19
+40   conditional branch(eq) v18,v4:#null     (line 365) {18=[description]}
+BB20
+42   v19 = getfield < Application, Lorg/ametro/model/Model, timestamp, <Primordial,J> > v18(line 366) {18=[description]}
+BB21
+46   v20 = getfield < Application, Lorg/ametro/ui/MapViewActivity, mModelTimestamp, <Primordial,J> > v1(line 367) {1=[this]}
+BB22
+47   v21 = compare v19,v20 opcode=cmp        (line 367) {19=[timestamp]}
+49   conditional branch(eq) v21,v11:#0       (line 367)
+BB23
+51   return v22:#1                           (line 368)
+BB24
+53   return v11:#0                           (line 372)
+BB25
+
+< Primordial, Landroid/app/Activity, onCreate(Landroid/os/Bundle;)V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..2]
+    -> BB2
+    -> BB10
+BB2[3..3]
+    -> BB3
+    -> BB10
+BB3[4..6]
+    -> BB4
+    -> BB10
+BB4[7..8]
+    -> BB6
+    -> BB5
+BB5[9..10]
+    -> BB7
+BB6[11..11]
+    -> BB7
+BB7[12..12]
+    -> BB8
+    -> BB10
+BB8[13..15]
+    -> BB9
+    -> BB10
+BB9[16..16]
+    -> BB10
+BB10[-1..-2]
+Instructions:
+BB0
+BB1
+2   v4 = getfield < Primordial, Landroid/app/Activity, mWindow, <Primordial,Landroid/view/Window> > v1(line 802) {1=[this]}
+BB2
+3   v6 = invokevirtual < Primordial, Landroid/view/Window, getWindowStyle()Landroid/content/res/TypedArray; > v4 @5 exception:v5(line 802)
+BB3
+6   v10 = invokevirtual < Primordial, Landroid/content/res/TypedArray, getBoolean(IZ)Z > v6,v7:#10,v8:#0 @11 exception:v9(line 802)
+BB4
+8   conditional branch(ne) v10,v8:#0         (line 802)
+BB5
+10   goto                                    (line 802)
+BB6
+BB7
+           v12 = phi  v11:#1,v8:#0
+12   putfield v1 = v12 < Primordial, Landroid/app/Activity, mVisibleFromClient, <Primordial,Z> >(line 802) {1=[this]}
+BB8
+15   putfield v1 = v11:#1 < Primordial, Landroid/app/Activity, mCalled, <Primordial,Z> >(line 804) {1=[this]}
+BB9
+16   return                                  (line 805)
+BB10
+
+synthetic < Primordial, Lcom/ibm/wala/FakeRootClass, fakeWorldClinit()V >
+CFG:
+BB0[0..0]
+    -> BB1
+    -> BB368
+BB1[1..1]
+    -> BB2
+    -> BB368
+BB2[2..2]
+    -> BB3
+    -> BB368
+BB3[3..3]
+    -> BB4
+    -> BB368
+BB4[4..4]
+    -> BB5
+    -> BB368
+BB5[5..5]
+    -> BB6
+    -> BB368
+BB6[6..6]
+    -> BB7
+    -> BB368
+BB7[7..7]
+    -> BB8
+    -> BB368
+BB8[8..8]
+    -> BB9
+    -> BB368
+BB9[9..9]
+    -> BB10
+    -> BB368
+BB10[10..10]
+    -> BB11
+    -> BB368
+BB11[11..11]
+    -> BB12
+    -> BB368
+BB12[12..12]
+    -> BB13
+    -> BB368
+BB13[13..13]
+    -> BB14
+    -> BB368
+BB14[14..14]
+    -> BB15
+    -> BB368
+BB15[15..15]
+    -> BB16
+    -> BB368
+BB16[16..16]
+    -> BB17
+    -> BB368
+BB17[17..17]
+    -> BB18
+    -> BB368
+BB18[18..18]
+    -> BB19
+    -> BB368
+BB19[19..19]
+    -> BB20
+    -> BB368
+BB20[20..20]
+    -> BB21
+    -> BB368
+BB21[21..21]
+    -> BB22
+    -> BB368
+BB22[22..22]
+    -> BB23
+    -> BB368
+BB23[23..23]
+    -> BB24
+    -> BB368
+BB24[24..24]
+    -> BB25
+    -> BB368
+BB25[25..25]
+    -> BB26
+    -> BB368
+BB26[26..26]
+    -> BB27
+    -> BB368
+BB27[27..27]
+    -> BB28
+    -> BB368
+BB28[28..28]
+    -> BB29
+    -> BB368
+BB29[29..29]
+    -> BB30
+    -> BB368
+BB30[30..30]
+    -> BB31
+    -> BB368
+BB31[31..31]
+    -> BB32
+    -> BB368
+BB32[32..32]
+    -> BB33
+    -> BB368
+BB33[33..33]
+    -> BB34
+    -> BB368
+BB34[34..34]
+    -> BB35
+    -> BB368
+BB35[35..35]
+    -> BB36
+    -> BB368
+BB36[36..36]
+    -> BB37
+    -> BB368
+BB37[37..37]
+    -> BB38
+    -> BB368
+BB38[38..38]
+    -> BB39
+    -> BB368
+BB39[39..39]
+    -> BB40
+    -> BB368
+BB40[40..40]
+    -> BB41
+    -> BB368
+BB41[41..41]
+    -> BB42
+    -> BB368
+BB42[42..42]
+    -> BB43
+    -> BB368
+BB43[43..43]
+    -> BB44
+    -> BB368
+BB44[44..44]
+    -> BB45
+    -> BB368
+BB45[45..45]
+    -> BB46
+    -> BB368
+BB46[46..46]
+    -> BB47
+    -> BB368
+BB47[47..47]
+    -> BB48
+    -> BB368
+BB48[48..48]
+    -> BB49
+    -> BB368
+BB49[49..49]
+    -> BB50
+    -> BB368
+BB50[50..50]
+    -> BB51
+    -> BB368
+BB51[51..51]
+    -> BB52
+    -> BB368
+BB52[52..52]
+    -> BB53
+    -> BB368
+BB53[53..53]
+    -> BB54
+    -> BB368
+BB54[54..54]
+    -> BB55
+    -> BB368
+BB55[55..55]
+    -> BB56
+    -> BB368
+BB56[56..56]
+    -> BB57
+    -> BB368
+BB57[57..57]
+    -> BB58
+    -> BB368
+BB58[58..58]
+    -> BB59
+    -> BB368
+BB59[59..59]
+    -> BB60
+    -> BB368
+BB60[60..60]
+    -> BB61
+    -> BB368
+BB61[61..61]
+    -> BB62
+    -> BB368
+BB62[62..62]
+    -> BB63
+    -> BB368
+BB63[63..63]
+    -> BB64
+    -> BB368
+BB64[64..64]
+    -> BB65
+    -> BB368
+BB65[65..65]
+    -> BB66
+    -> BB368
+BB66[66..66]
+    -> BB67
+    -> BB368
+BB67[67..67]
+    -> BB68
+    -> BB368
+BB68[68..68]
+    -> BB69
+    -> BB368
+BB69[69..69]
+    -> BB70
+    -> BB368
+BB70[70..70]
+    -> BB71
+    -> BB368
+BB71[71..71]
+    -> BB72
+    -> BB368
+BB72[72..72]
+    -> BB73
+    -> BB368
+BB73[73..73]
+    -> BB74
+    -> BB368
+BB74[74..74]
+    -> BB75
+    -> BB368
+BB75[75..75]
+    -> BB76
+    -> BB368
+BB76[76..76]
+    -> BB77
+    -> BB368
+BB77[77..77]
+    -> BB78
+    -> BB368
+BB78[78..78]
+    -> BB79
+    -> BB368
+BB79[79..79]
+    -> BB80
+    -> BB368
+BB80[80..80]
+    -> BB81
+    -> BB368
+BB81[81..81]
+    -> BB82
+    -> BB368
+BB82[82..82]
+    -> BB83
+    -> BB368
+BB83[83..83]
+    -> BB84
+    -> BB368
+BB84[84..84]
+    -> BB85
+    -> BB368
+BB85[85..85]
+    -> BB86
+    -> BB368
+BB86[86..86]
+    -> BB87
+    -> BB368
+BB87[87..87]
+    -> BB88
+    -> BB368
+BB88[88..88]
+    -> BB89
+    -> BB368
+BB89[89..89]
+    -> BB90
+    -> BB368
+BB90[90..90]
+    -> BB91
+    -> BB368
+BB91[91..91]
+    -> BB92
+    -> BB368
+BB92[92..92]
+    -> BB93
+    -> BB368
+BB93[93..93]
+    -> BB94
+    -> BB368
+BB94[94..94]
+    -> BB95
+    -> BB368
+BB95[95..95]
+    -> BB96
+    -> BB368
+BB96[96..96]
+    -> BB97
+    -> BB368
+BB97[97..97]
+    -> BB98
+    -> BB368
+BB98[98..98]
+    -> BB99
+    -> BB368
+BB99[99..99]
+    -> BB100
+    -> BB368
+BB100[100..100]
+    -> BB101
+    -> BB368
+BB101[101..101]
+    -> BB102
+    -> BB368
+BB102[102..102]
+    -> BB103
+    -> BB368
+BB103[103..103]
+    -> BB104
+    -> BB368
+BB104[104..104]
+    -> BB105
+    -> BB368
+BB105[105..105]
+    -> BB106
+    -> BB368
+BB106[106..106]
+    -> BB107
+    -> BB368
+BB107[107..107]
+    -> BB108
+    -> BB368
+BB108[108..108]
+    -> BB109
+    -> BB368
+BB109[109..109]
+    -> BB110
+    -> BB368
+BB110[110..110]
+    -> BB111
+    -> BB368
+BB111[111..111]
+    -> BB112
+    -> BB368
+BB112[112..112]
+    -> BB113
+    -> BB368
+BB113[113..113]
+    -> BB114
+    -> BB368
+BB114[114..114]
+    -> BB115
+    -> BB368
+BB115[115..115]
+    -> BB116
+    -> BB368
+BB116[116..116]
+    -> BB117
+    -> BB368
+BB117[117..117]
+    -> BB118
+    -> BB368
+BB118[118..118]
+    -> BB119
+    -> BB368
+BB119[119..119]
+    -> BB120
+    -> BB368
+BB120[120..120]
+    -> BB121
+    -> BB368
+BB121[121..121]
+    -> BB122
+    -> BB368
+BB122[122..122]
+    -> BB123
+    -> BB368
+BB123[123..123]
+    -> BB124
+    -> BB368
+BB124[124..124]
+    -> BB125
+    -> BB368
+BB125[125..125]
+    -> BB126
+    -> BB368
+BB126[126..126]
+    -> BB127
+    -> BB368
+BB127[127..127]
+    -> BB128
+    -> BB368
+BB128[128..128]
+    -> BB129
+    -> BB368
+BB129[129..129]
+    -> BB130
+    -> BB368
+BB130[130..130]
+    -> BB131
+    -> BB368
+BB131[131..131]
+    -> BB132
+    -> BB368
+BB132[132..132]
+    -> BB133
+    -> BB368
+BB133[133..133]
+    -> BB134
+    -> BB368
+BB134[134..134]
+    -> BB135
+    -> BB368
+BB135[135..135]
+    -> BB136
+    -> BB368
+BB136[136..136]
+    -> BB137
+    -> BB368
+BB137[137..137]
+    -> BB138
+    -> BB368
+BB138[138..138]
+    -> BB139
+    -> BB368
+BB139[139..139]
+    -> BB140
+    -> BB368
+BB140[140..140]
+    -> BB141
+    -> BB368
+BB141[141..141]
+    -> BB142
+    -> BB368
+BB142[142..142]
+    -> BB143
+    -> BB368
+BB143[143..143]
+    -> BB144
+    -> BB368
+BB144[144..144]
+    -> BB145
+    -> BB368
+BB145[145..145]
+    -> BB146
+    -> BB368
+BB146[146..146]
+    -> BB147
+    -> BB368
+BB147[147..147]
+    -> BB148
+    -> BB368
+BB148[148..148]
+    -> BB149
+    -> BB368
+BB149[149..149]
+    -> BB150
+    -> BB368
+BB150[150..150]
+    -> BB151
+    -> BB368
+BB151[151..151]
+    -> BB152
+    -> BB368
+BB152[152..152]
+    -> BB153
+    -> BB368
+BB153[153..153]
+    -> BB154
+    -> BB368
+BB154[154..154]
+    -> BB155
+    -> BB368
+BB155[155..155]
+    -> BB156
+    -> BB368
+BB156[156..156]
+    -> BB157
+    -> BB368
+BB157[157..157]
+    -> BB158
+    -> BB368
+BB158[158..158]
+    -> BB159
+    -> BB368
+BB159[159..159]
+    -> BB160
+    -> BB368
+BB160[160..160]
+    -> BB161
+    -> BB368
+BB161[161..161]
+    -> BB162
+    -> BB368
+BB162[162..162]
+    -> BB163
+    -> BB368
+BB163[163..163]
+    -> BB164
+    -> BB368
+BB164[164..164]
+    -> BB165
+    -> BB368
+BB165[165..165]
+    -> BB166
+    -> BB368
+BB166[166..166]
+    -> BB167
+    -> BB368
+BB167[167..167]
+    -> BB168
+    -> BB368
+BB168[168..168]
+    -> BB169
+    -> BB368
+BB169[169..169]
+    -> BB170
+    -> BB368
+BB170[170..170]
+    -> BB171
+    -> BB368
+BB171[171..171]
+    -> BB172
+    -> BB368
+BB172[172..172]
+    -> BB173
+    -> BB368
+BB173[173..173]
+    -> BB174
+    -> BB368
+BB174[174..174]
+    -> BB175
+    -> BB368
+BB175[175..175]
+    -> BB176
+    -> BB368
+BB176[176..176]
+    -> BB177
+    -> BB368
+BB177[177..177]
+    -> BB178
+    -> BB368
+BB178[178..178]
+    -> BB179
+    -> BB368
+BB179[179..179]
+    -> BB180
+    -> BB368
+BB180[180..180]
+    -> BB181
+    -> BB368
+BB181[181..181]
+    -> BB182
+    -> BB368
+BB182[182..182]
+    -> BB183
+    -> BB368
+BB183[183..183]
+    -> BB184
+    -> BB368
+BB184[184..184]
+    -> BB185
+    -> BB368
+BB185[185..185]
+    -> BB186
+    -> BB368
+BB186[186..186]
+    -> BB187
+    -> BB368
+BB187[187..187]
+    -> BB188
+    -> BB368
+BB188[188..188]
+    -> BB189
+    -> BB368
+BB189[189..189]
+    -> BB190
+    -> BB368
+BB190[190..190]
+    -> BB191
+    -> BB368
+BB191[191..191]
+    -> BB192
+    -> BB368
+BB192[192..192]
+    -> BB193
+    -> BB368
+BB193[193..193]
+    -> BB194
+    -> BB368
+BB194[194..194]
+    -> BB195
+    -> BB368
+BB195[195..195]
+    -> BB196
+    -> BB368
+BB196[196..196]
+    -> BB197
+    -> BB368
+BB197[197..197]
+    -> BB198
+    -> BB368
+BB198[198..198]
+    -> BB199
+    -> BB368
+BB199[199..199]
+    -> BB200
+    -> BB368
+BB200[200..200]
+    -> BB201
+    -> BB368
+BB201[201..201]
+    -> BB202
+    -> BB368
+BB202[202..202]
+    -> BB203
+    -> BB368
+BB203[203..203]
+    -> BB204
+    -> BB368
+BB204[204..204]
+    -> BB205
+    -> BB368
+BB205[205..205]
+    -> BB206
+    -> BB368
+BB206[206..206]
+    -> BB207
+    -> BB368
+BB207[207..207]
+    -> BB208
+    -> BB368
+BB208[208..208]
+    -> BB209
+    -> BB368
+BB209[209..209]
+    -> BB210
+    -> BB368
+BB210[210..210]
+    -> BB211
+    -> BB368
+BB211[211..211]
+    -> BB212
+    -> BB368
+BB212[212..212]
+    -> BB213
+    -> BB368
+BB213[213..213]
+    -> BB214
+    -> BB368
+BB214[214..214]
+    -> BB215
+    -> BB368
+BB215[215..215]
+    -> BB216
+    -> BB368
+BB216[216..216]
+    -> BB217
+    -> BB368
+BB217[217..217]
+    -> BB218
+    -> BB368
+BB218[218..218]
+    -> BB219
+    -> BB368
+BB219[219..219]
+    -> BB220
+    -> BB368
+BB220[220..220]
+    -> BB221
+    -> BB368
+BB221[221..221]
+    -> BB222
+    -> BB368
+BB222[222..222]
+    -> BB223
+    -> BB368
+BB223[223..223]
+    -> BB224
+    -> BB368
+BB224[224..224]
+    -> BB225
+    -> BB368
+BB225[225..225]
+    -> BB226
+    -> BB368
+BB226[226..226]
+    -> BB227
+    -> BB368
+BB227[227..227]
+    -> BB228
+    -> BB368
+BB228[228..228]
+    -> BB229
+    -> BB368
+BB229[229..229]
+    -> BB230
+    -> BB368
+BB230[230..230]
+    -> BB231
+    -> BB368
+BB231[231..231]
+    -> BB232
+    -> BB368
+BB232[232..232]
+    -> BB233
+    -> BB368
+BB233[233..233]
+    -> BB234
+    -> BB368
+BB234[234..234]
+    -> BB235
+    -> BB368
+BB235[235..235]
+    -> BB236
+    -> BB368
+BB236[236..236]
+    -> BB237
+    -> BB368
+BB237[237..237]
+    -> BB238
+    -> BB368
+BB238[238..238]
+    -> BB239
+    -> BB368
+BB239[239..239]
+    -> BB240
+    -> BB368
+BB240[240..240]
+    -> BB241
+    -> BB368
+BB241[241..241]
+    -> BB242
+    -> BB368
+BB242[242..242]
+    -> BB243
+    -> BB368
+BB243[243..243]
+    -> BB244
+    -> BB368
+BB244[244..244]
+    -> BB245
+    -> BB368
+BB245[245..245]
+    -> BB246
+    -> BB368
+BB246[246..246]
+    -> BB247
+    -> BB368
+BB247[247..247]
+    -> BB248
+    -> BB368
+BB248[248..248]
+    -> BB249
+    -> BB368
+BB249[249..249]
+    -> BB250
+    -> BB368
+BB250[250..250]
+    -> BB251
+    -> BB368
+BB251[251..251]
+    -> BB252
+    -> BB368
+BB252[252..252]
+    -> BB253
+    -> BB368
+BB253[253..253]
+    -> BB254
+    -> BB368
+BB254[254..254]
+    -> BB255
+    -> BB368
+BB255[255..255]
+    -> BB256
+    -> BB368
+BB256[256..256]
+    -> BB257
+    -> BB368
+BB257[257..257]
+    -> BB258
+    -> BB368
+BB258[258..258]
+    -> BB259
+    -> BB368
+BB259[259..259]
+    -> BB260
+    -> BB368
+BB260[260..260]
+    -> BB261
+    -> BB368
+BB261[261..261]
+    -> BB262
+    -> BB368
+BB262[262..262]
+    -> BB263
+    -> BB368
+BB263[263..263]
+    -> BB264
+    -> BB368
+BB264[264..264]
+    -> BB265
+    -> BB368
+BB265[265..265]
+    -> BB266
+    -> BB368
+BB266[266..266]
+    -> BB267
+    -> BB368
+BB267[267..267]
+    -> BB268
+    -> BB368
+BB268[268..268]
+    -> BB269
+    -> BB368
+BB269[269..269]
+    -> BB270
+    -> BB368
+BB270[270..270]
+    -> BB271
+    -> BB368
+BB271[271..271]
+    -> BB272
+    -> BB368
+BB272[272..272]
+    -> BB273
+    -> BB368
+BB273[273..273]
+    -> BB274
+    -> BB368
+BB274[274..274]
+    -> BB275
+    -> BB368
+BB275[275..275]
+    -> BB276
+    -> BB368
+BB276[276..276]
+    -> BB277
+    -> BB368
+BB277[277..277]
+    -> BB278
+    -> BB368
+BB278[278..278]
+    -> BB279
+    -> BB368
+BB279[279..279]
+    -> BB280
+    -> BB368
+BB280[280..280]
+    -> BB281
+    -> BB368
+BB281[281..281]
+    -> BB282
+    -> BB368
+BB282[282..282]
+    -> BB283
+    -> BB368
+BB283[283..283]
+    -> BB284
+    -> BB368
+BB284[284..284]
+    -> BB285
+    -> BB368
+BB285[285..285]
+    -> BB286
+    -> BB368
+BB286[286..286]
+    -> BB287
+    -> BB368
+BB287[287..287]
+    -> BB288
+    -> BB368
+BB288[288..288]
+    -> BB289
+    -> BB368
+BB289[289..289]
+    -> BB290
+    -> BB368
+BB290[290..290]
+    -> BB291
+    -> BB368
+BB291[291..291]
+    -> BB292
+    -> BB368
+BB292[292..292]
+    -> BB293
+    -> BB368
+BB293[293..293]
+    -> BB294
+    -> BB368
+BB294[294..294]
+    -> BB295
+    -> BB368
+BB295[295..295]
+    -> BB296
+    -> BB368
+BB296[296..296]
+    -> BB297
+    -> BB368
+BB297[297..297]
+    -> BB298
+    -> BB368
+BB298[298..298]
+    -> BB299
+    -> BB368
+BB299[299..299]
+    -> BB300
+    -> BB368
+BB300[300..300]
+    -> BB301
+    -> BB368
+BB301[301..301]
+    -> BB302
+    -> BB368
+BB302[302..302]
+    -> BB303
+    -> BB368
+BB303[303..303]
+    -> BB304
+    -> BB368
+BB304[304..304]
+    -> BB305
+    -> BB368
+BB305[305..305]
+    -> BB306
+    -> BB368
+BB306[306..306]
+    -> BB307
+    -> BB368
+BB307[307..307]
+    -> BB308
+    -> BB368
+BB308[308..308]
+    -> BB309
+    -> BB368
+BB309[309..309]
+    -> BB310
+    -> BB368
+BB310[310..310]
+    -> BB311
+    -> BB368
+BB311[311..311]
+    -> BB312
+    -> BB368
+BB312[312..312]
+    -> BB313
+    -> BB368
+BB313[313..313]
+    -> BB314
+    -> BB368
+BB314[314..314]
+    -> BB315
+    -> BB368
+BB315[315..315]
+    -> BB316
+    -> BB368
+BB316[316..316]
+    -> BB317
+    -> BB368
+BB317[317..317]
+    -> BB318
+    -> BB368
+BB318[318..318]
+    -> BB319
+    -> BB368
+BB319[319..319]
+    -> BB320
+    -> BB368
+BB320[320..320]
+    -> BB321
+    -> BB368
+BB321[321..321]
+    -> BB322
+    -> BB368
+BB322[322..322]
+    -> BB323
+    -> BB368
+BB323[323..323]
+    -> BB324
+    -> BB368
+BB324[324..324]
+    -> BB325
+    -> BB368
+BB325[325..325]
+    -> BB326
+    -> BB368
+BB326[326..326]
+    -> BB327
+    -> BB368
+BB327[327..327]
+    -> BB328
+    -> BB368
+BB328[328..328]
+    -> BB329
+    -> BB368
+BB329[329..329]
+    -> BB330
+    -> BB368
+BB330[330..330]
+    -> BB331
+    -> BB368
+BB331[331..331]
+    -> BB332
+    -> BB368
+BB332[332..332]
+    -> BB333
+    -> BB368
+BB333[333..333]
+    -> BB334
+    -> BB368
+BB334[334..334]
+    -> BB335
+    -> BB368
+BB335[335..335]
+    -> BB336
+    -> BB368
+BB336[336..336]
+    -> BB337
+    -> BB368
+BB337[337..337]
+    -> BB338
+    -> BB368
+BB338[338..338]
+    -> BB339
+    -> BB368
+BB339[339..339]
+    -> BB340
+    -> BB368
+BB340[340..340]
+    -> BB341
+    -> BB368
+BB341[341..341]
+    -> BB342
+    -> BB368
+BB342[342..342]
+    -> BB343
+    -> BB368
+BB343[343..343]
+    -> BB344
+    -> BB368
+BB344[344..344]
+    -> BB345
+    -> BB368
+BB345[345..345]
+    -> BB346
+    -> BB368
+BB346[346..346]
+    -> BB347
+    -> BB368
+BB347[347..347]
+    -> BB348
+    -> BB368
+BB348[348..348]
+    -> BB349
+    -> BB368
+BB349[349..349]
+    -> BB350
+    -> BB368
+BB350[350..350]
+    -> BB351
+    -> BB368
+BB351[351..351]
+    -> BB352
+    -> BB368
+BB352[352..352]
+    -> BB353
+    -> BB368
+BB353[353..353]
+    -> BB354
+    -> BB368
+BB354[354..354]
+    -> BB355
+    -> BB368
+BB355[355..355]
+    -> BB356
+    -> BB368
+BB356[356..356]
+    -> BB357
+    -> BB368
+BB357[357..357]
+    -> BB358
+    -> BB368
+BB358[358..358]
+    -> BB359
+    -> BB368
+BB359[359..359]
+    -> BB360
+    -> BB368
+BB360[360..360]
+    -> BB361
+    -> BB368
+BB361[361..361]
+    -> BB362
+    -> BB368
+BB362[362..362]
+    -> BB363
+    -> BB368
+BB363[363..363]
+    -> BB364
+    -> BB368
+BB364[364..364]
+    -> BB365
+    -> BB368
+BB365[365..365]
+    -> BB366
+    -> BB368
+BB366[366..366]
+    -> BB367
+    -> BB368
+BB367[367..367]
+    -> BB368
+BB368[-1..-2]
+Instructions:
+BB0
+0   invokestatic < Primordial, Landroid/app/Activity, <clinit>()V > @0 exception:v2
+BB1
+1   invokestatic < Primordial, Landroid/os/Bundle, <clinit>()V > @1 exception:v3
+BB2
+2   invokestatic < Primordial, Landroid/view/View, <clinit>()V > @2 exception:v4
+BB3
+3   invokestatic < Application, Lorg/ametro/service/CatalogTaskQueueService, <clinit>()V > @3 exception:v5
+BB4
+4   invokestatic < Primordial, Landroid/content/Intent, <clinit>()V > @4 exception:v6
+BB5
+5   invokestatic < Primordial, Landroid/view/ViewGroup, <clinit>()V > @5 exception:v7
+BB6
+6   invokestatic < Primordial, Landroid/os/AsyncTask, <clinit>()V > @6 exception:v8
+BB7
+7   invokestatic < Primordial, Landroid/view/KeyEvent, <clinit>()V > @7 exception:v9
+BB8
+8   invokestatic < Primordial, Landroid/view/InputEvent, <clinit>()V > @8 exception:v10
+BB9
+9   invokestatic < Primordial, Landroid/view/MotionEvent, <clinit>()V > @9 exception:v11
+BB10
+10   invokestatic < Primordial, Ljava/lang/String, <clinit>()V > @10 exception:v12
+BB11
+11   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask, <clinit>()V > @11 exception:v13
+BB12
+12   invokestatic < Primordial, Ljava/io/File, <clinit>()V > @12 exception:v14
+BB13
+13   invokestatic < Application, Lorg/ametro/ui/StationListActivity, <clinit>()V > @13 exception:v15
+BB14
+14   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/LoadWebCatalogTask, <clinit>()V > @14 exception:v16
+BB15
+15   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadMapTask, <clinit>()V > @15 exception:v17
+BB16
+16   invokestatic < Primordial, Landroid/location/Location, <clinit>()V > @16 exception:v18
+BB17
+17   invokestatic < Primordial, Landroid/widget/ExpandableListView, <clinit>()V > @17 exception:v19
+BB18
+18   invokestatic < Primordial, Ljava/lang/Void, <clinit>()V > @18 exception:v20
+BB19
+19   invokestatic < Application, Lorg/ametro/service/AutoUpdateService, <clinit>()V > @19 exception:v21
+BB20
+20   invokestatic < Primordial, Ljava/util/HashMap, <clinit>()V > @20 exception:v22
+BB21
+21   invokestatic < Primordial, Ljava/util/Collections, <clinit>()V > @21 exception:v23
+BB22
+22   invokestatic < Primordial, Ljava/lang/ThreadLocal, <clinit>()V > @22 exception:v24
+BB23
+23   invokestatic < Primordial, Ljava/lang/Integer, <clinit>()V > @23 exception:v25
+BB24
+24   invokestatic < Primordial, Landroid/app/Notification, <clinit>()V > @24 exception:v26
+BB25
+25   invokestatic < Primordial, Ljava/lang/Boolean, <clinit>()V > @25 exception:v27
+BB26
+26   invokestatic < Primordial, Landroid/util/Log, <clinit>()V > @26 exception:v28
+BB27
+27   invokestatic < Application, Lorg/ametro/app/GlobalSettings, <clinit>()V > @27 exception:v29
+BB28
+28   invokestatic < Primordial, Landroid/graphics/RectF, <clinit>()V > @28 exception:v30
+BB29
+29   invokestatic < Primordial, Landroid/view/animation/Transformation, <clinit>()V > @29 exception:v31
+BB30
+30   invokestatic < Primordial, Ljava/util/ArrayList, <clinit>()V > @30 exception:v32
+BB31
+31   invokestatic < Application, Lorg/ametro/util/StringUtil, <clinit>()V > @31 exception:v33
+BB32
+32   invokestatic < Application, Lorg/ametro/app/Constants, <clinit>()V > @32 exception:v34
+BB33
+33   invokestatic < Primordial, Landroid/widget/TextView, <clinit>()V > @33 exception:v35
+BB34
+34   invokestatic < Primordial, Ljava/util/Locale, <clinit>()V > @34 exception:v36
+BB35
+35   invokestatic < Primordial, Landroid/net/Uri, <clinit>()V > @35 exception:v37
+BB36
+36   invokestatic < Primordial, Ljava/util/concurrent/ThreadPoolExecutor, <clinit>()V > @36 exception:v38
+BB37
+37   invokestatic < Primordial, Ljava/util/concurrent/AbstractExecutorService, <clinit>()V > @37 exception:v39
+BB38
+38   invokestatic < Primordial, Ljava/util/concurrent/TimeUnit, <clinit>()V > @38 exception:v40
+BB39
+39   invokestatic < Primordial, Landroid/os/AsyncTask$Status, <clinit>()V > @39 exception:v41
+BB40
+40   invokestatic < Primordial, Ljava/util/Date, <clinit>()V > @40 exception:v42
+BB41
+41   invokestatic < Primordial, Ljava/lang/System, <clinit>()V > @41 exception:v43
+BB42
+42   invokestatic < Primordial, Landroid/graphics/Paint, <clinit>()V > @42 exception:v44
+BB43
+43   invokestatic < Primordial, Landroid/graphics/Paint$Align, <clinit>()V > @43 exception:v45
+BB44
+44   invokestatic < Primordial, Landroid/view/ViewConfiguration, <clinit>()V > @44 exception:v46
+BB45
+45   invokestatic < Application, Lorg/ametro/catalog/storage/CatalogDeserializer, <clinit>()V > @45 exception:v47
+BB46
+46   invokestatic < Application, Lorg/ametro/ui/controllers/MotionEventWrapper, <clinit>()V > @46 exception:v48
+BB47
+47   invokestatic < Application, Lorg/ametro/model/TransportType, <clinit>()V > @47 exception:v49
+BB48
+48   invokestatic < Primordial, Ljava/lang/Thread, <clinit>()V > @48 exception:v50
+BB49
+49   invokestatic < Primordial, Ljava/lang/Float, <clinit>()V > @49 exception:v51
+BB50
+50   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicInteger, <clinit>()V > @50 exception:v52
+BB51
+51   invokestatic < Primordial, Landroid/app/PendingIntent, <clinit>()V > @51 exception:v53
+BB52
+52   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask$Holder, <clinit>()V > @52 exception:v54
+BB53
+53   invokestatic < Primordial, Landroid/app/ActivityManagerNative, <clinit>()V > @53 exception:v55
+BB54
+54   invokestatic < Primordial, Landroid/view/LayoutInflater, <clinit>()V > @54 exception:v56
+BB55
+55   invokestatic < Primordial, Ljava/text/SimpleDateFormat, <clinit>()V > @55 exception:v57
+BB56
+56   invokestatic < Primordial, Lcom/android/tools/layoutlib/create/OverrideMethod, <clinit>()V > @56 exception:v58
+BB57
+57   invokestatic < Primordial, Landroid/os/Environment, <clinit>()V > @57 exception:v59
+BB58
+58   invokestatic < Primordial, Landroid/content/ComponentName, <clinit>()V > @58 exception:v60
+BB59
+59   invokestatic < Primordial, Landroid/graphics/Rect, <clinit>()V > @59 exception:v61
+BB60
+60   invokestatic < Primordial, Landroid/text/SpannableStringInternal, <clinit>()V > @60 exception:v62
+BB61
+61   invokestatic < Primordial, Ljava/util/PropertyPermission, <clinit>()V > @61 exception:v63
+BB62
+62   invokestatic < Primordial, Ljava/security/AccessController, <clinit>()V > @62 exception:v64
+BB63
+63   invokestatic < Primordial, Landroid/net/Uri$Part, <clinit>()V > @63 exception:v65
+BB64
+64   invokestatic < Primordial, Landroid/net/Uri$PathPart, <clinit>()V > @64 exception:v66
+BB65
+65   invokestatic < Primordial, Ljava/lang/RuntimePermission, <clinit>()V > @65 exception:v67
+BB66
+66   invokestatic < Primordial, Ljava/util/TimeZone, <clinit>()V > @66 exception:v68
+BB67
+67   invokestatic < Primordial, Ljava/lang/SecurityManager, <clinit>()V > @67 exception:v69
+BB68
+68   invokestatic < Primordial, Landroid/text/util/Linkify, <clinit>()V > @68 exception:v70
+BB69
+69   invokestatic < Primordial, Landroid/text/method/LinkMovementMethod, <clinit>()V > @69 exception:v71
+BB70
+70   invokestatic < Primordial, Landroid/graphics/Canvas_Delegate, <clinit>()V > @70 exception:v72
+BB71
+71   invokestatic < Primordial, Landroid/graphics/Paint$Style, <clinit>()V > @71 exception:v73
+BB72
+72   invokestatic < Primordial, Landroid/graphics/Paint$Cap, <clinit>()V > @72 exception:v74
+BB73
+73   invokestatic < Primordial, Landroid/graphics/Paint$Join, <clinit>()V > @73 exception:v75
+BB74
+74   invokestatic < Primordial, Landroid/graphics/Paint_Delegate, <clinit>()V > @74 exception:v76
+BB75
+75   invokestatic < Primordial, Landroid/util/SparseArray, <clinit>()V > @75 exception:v77
+BB76
+76   invokestatic < Primordial, Landroid/view/inputmethod/InputMethodManager, <clinit>()V > @76 exception:v78
+BB77
+77   invokestatic < Primordial, Ljava/util/Arrays, <clinit>()V > @77 exception:v79
+BB78
+78   invokestatic < Primordial, Landroid/view/WindowManager$LayoutParams, <clinit>()V > @78 exception:v80
+BB79
+79   invokestatic < Primordial, Ljava/lang/StringBuffer, <clinit>()V > @79 exception:v81
+BB80
+80   invokestatic < Primordial, Landroid/content/IntentFilter, <clinit>()V > @80 exception:v82
+BB81
+81   invokestatic < Primordial, Landroid/text/method/TextKeyListener, <clinit>()V > @81 exception:v83
+BB82
+82   invokestatic < Primordial, Landroid/text/method/BaseKeyListener, <clinit>()V > @82 exception:v84
+BB83
+83   invokestatic < Primordial, Landroid/text/method/MetaKeyKeyListener, <clinit>()V > @83 exception:v85
+BB84
+84   invokestatic < Primordial, Landroid/text/Selection, <clinit>()V > @84 exception:v86
+BB85
+85   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/Platform, <clinit>()V > @85 exception:v87
+BB86
+86   invokestatic < Primordial, Ljava/io/FileDescriptor, <clinit>()V > @86 exception:v88
+BB87
+87   invokestatic < Primordial, Ljava/util/Vector, <clinit>()V > @87 exception:v89
+BB88
+88   invokestatic < Primordial, Lorg/xmlpull/v1/XmlPullParserFactory, <clinit>()V > @88 exception:v90
+BB89
+89   invokestatic < Primordial, Landroid/view/VelocityTracker, <clinit>()V > @89 exception:v91
+BB90
+90   invokestatic < Primordial, Landroid/os/Looper, <clinit>()V > @90 exception:v92
+BB91
+91   invokestatic < Primordial, Landroid/text/SpannableStringBuilder, <clinit>()V > @91 exception:v93
+BB92
+92   invokestatic < Primordial, Ljava/util/concurrent/atomic/UnsafeAccess, <clinit>()V > @92 exception:v94
+BB93
+93   invokestatic < Primordial, Landroid/widget/RemoteViews, <clinit>()V > @93 exception:v95
+BB94
+94   invokestatic < Primordial, Ljava/lang/Character, <clinit>()V > @94 exception:v96
+BB95
+95   invokestatic < Primordial, Ljava/lang/CaseMapper, <clinit>()V > @95 exception:v97
+BB96
+96   invokestatic < Primordial, Ljava/util/GregorianCalendar, <clinit>()V > @96 exception:v98
+BB97
+97   invokestatic < Primordial, Ljava/util/Calendar, <clinit>()V > @97 exception:v99
+BB98
+98   invokestatic < Primordial, Ljava/lang/IntegralToString, <clinit>()V > @98 exception:v100
+BB99
+99   invokestatic < Primordial, Landroid/text/TextUtils, <clinit>()V > @99 exception:v101
+BB100
+100   invokestatic < Primordial, Landroid/text/Layout$Alignment, <clinit>()V > @100 exception:v102
+BB101
+101   invokestatic < Primordial, Landroid/text/DynamicLayout, <clinit>()V > @101 exception:v103
+BB102
+102   invokestatic < Primordial, Landroid/text/Layout, <clinit>()V > @102 exception:v104
+BB103
+103   invokestatic < Primordial, Landroid/text/BoringLayout, <clinit>()V > @103 exception:v105
+BB104
+104   invokestatic < Primordial, Ljava/lang/RealToString, <clinit>()V > @104 exception:v106
+BB105
+105   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer, <clinit>()V > @105 exception:v107
+BB106
+106   invokestatic < Primordial, Ljava/util/Formatter, <clinit>()V > @106 exception:v108
+BB107
+107   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfoDB, <clinit>()V > @107 exception:v109
+BB108
+108   invokestatic < Primordial, Ljava/util/SimpleTimeZone, <clinit>()V > @108 exception:v110
+BB109
+109   invokestatic < Primordial, Ljava/util/Hashtable, <clinit>()V > @109 exception:v111
+BB110
+110   invokestatic < Primordial, Landroid/util/Patterns, <clinit>()V > @110 exception:v112
+BB111
+111   invokestatic < Primordial, Landroid/graphics/Bitmap_Delegate, <clinit>()V > @111 exception:v113
+BB112
+112   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/DelegateManager, <clinit>()V > @112 exception:v114
+BB113
+113   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityManager, <clinit>()V > @113 exception:v115
+BB114
+114   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityEvent, <clinit>()V > @114 exception:v116
+BB115
+115   invokestatic < Primordial, Lcom/android/internal/util/ArrayUtils, <clinit>()V > @115 exception:v117
+BB116
+116   invokestatic < Primordial, Landroid/os/Message, <clinit>()V > @116 exception:v118
+BB117
+117   invokestatic < Primordial, Ljava/nio/charset/Charset, <clinit>()V > @117 exception:v119
+BB118
+118   invokestatic < Primordial, Ljava/nio/charset/CodingErrorAction, <clinit>()V > @118 exception:v120
+BB119
+119   invokestatic < Primordial, Landroid/text/method/TextKeyListener$Capitalize, <clinit>()V > @119 exception:v121
+BB120
+120   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSFileSystem, <clinit>()V > @120 exception:v122
+BB121
+121   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSNetworkSystem, <clinit>()V > @121 exception:v123
+BB122
+122   invokestatic < Primordial, Ljava/lang/Long, <clinit>()V > @122 exception:v124
+BB123
+123   invokestatic < Primordial, Ljava/util/TreeMap, <clinit>()V > @123 exception:v125
+BB124
+124   invokestatic < Primordial, Ljava/lang/ClassCache, <clinit>()V > @124 exception:v126
+BB125
+125   invokestatic < Primordial, Lsun/misc/Unsafe, <clinit>()V > @125 exception:v127
+BB126
+126   invokestatic < Primordial, Lcom/android/internal/policy/PolicyManager, <clinit>()V > @126 exception:v128
+BB127
+127   invokestatic < Primordial, Landroid/text/Editable$Factory, <clinit>()V > @127 exception:v129
+BB128
+128   invokestatic < Primordial, Landroid/text/Spannable$Factory, <clinit>()V > @128 exception:v130
+BB129
+129   invokestatic < Primordial, Landroid/widget/TextView$BufferType, <clinit>()V > @129 exception:v131
+BB130
+130   invokestatic < Primordial, Lcom/android/internal/R$styleable, <clinit>()V > @130 exception:v132
+BB131
+131   invokestatic < Primordial, Landroid/text/method/DigitsKeyListener, <clinit>()V > @131 exception:v133
+BB132
+132   invokestatic < Primordial, Landroid/text/method/DialerKeyListener, <clinit>()V > @132 exception:v134
+BB133
+133   invokestatic < Primordial, Landroid/text/TextUtils$TruncateAt, <clinit>()V > @133 exception:v135
+BB134
+134   invokestatic < Primordial, Landroid/content/res/ColorStateList, <clinit>()V > @134 exception:v136
+BB135
+135   invokestatic < Primordial, Landroid/text/method/PasswordTransformationMethod, <clinit>()V > @135 exception:v137
+BB136
+136   invokestatic < Primordial, Ljava/security/Security, <clinit>()V > @136 exception:v138
+BB137
+137   invokestatic < Primordial, Ljava/security/Policy, <clinit>()V > @137 exception:v139
+BB138
+138   invokestatic < Primordial, Ljava/util/concurrent/locks/UnsafeAccess, <clinit>()V > @138 exception:v140
+BB139
+139   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer$Node, <clinit>()V > @139 exception:v141
+BB140
+140   invokestatic < Primordial, Landroid/text/Html$HtmlParser, <clinit>()V > @140 exception:v142
+BB141
+141   invokestatic < Primordial, Landroid/text/HtmlToSpannedConverter, <clinit>()V > @141 exception:v143
+BB142
+142   invokestatic < Primordial, Lorg/apache/harmony/luni/util/HexStringParser, <clinit>()V > @142 exception:v144
+BB143
+143   invokestatic < Primordial, Landroid/graphics/drawable/Drawable, <clinit>()V > @143 exception:v145
+BB144
+144   invokestatic < Primordial, Landroid/view/ViewRoot, <clinit>()V > @144 exception:v146
+BB145
+145   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/GcSnapshot, <clinit>()V > @145 exception:v147
+BB146
+146   invokestatic < Primordial, Lcom/android/layoutlib/bridge/util/SparseWeakArray, <clinit>()V > @146 exception:v148
+BB147
+147   invokestatic < Primordial, Landroid/graphics/TemporaryBuffer, <clinit>()V > @147 exception:v149
+BB148
+148   invokestatic < Primordial, Ljava/nio/charset/spi/CharsetProvider, <clinit>()V > @148 exception:v150
+BB149
+149   invokestatic < Primordial, Lorg/apache/harmony/nio/internal/FileChannelImpl, <clinit>()V > @149 exception:v151
+BB150
+150   invokestatic < Primordial, Ljava/nio/channels/spi/AbstractInterruptibleChannel, <clinit>()V > @150 exception:v152
+BB151
+151   invokestatic < Application, Lorg/ametro/model/storage/CsvStorage, <clinit>()V > @151 exception:v153
+BB152
+152   invokestatic < Primordial, Ljava/util/EnumSet, <clinit>()V > @152 exception:v154
+BB153
+153   invokestatic < Primordial, Ljava/lang/LangAccessImpl, <clinit>()V > @153 exception:v155
+BB154
+154   invokestatic < Primordial, Lorg/apache/harmony/kernel/vm/LangAccess, <clinit>()V > @154 exception:v156
+BB155
+155   invokestatic < Primordial, Landroid/os/SystemClock_Delegate, <clinit>()V > @155 exception:v157
+BB156
+156   invokestatic < Primordial, Landroid/os/Handler_Delegate, <clinit>()V > @156 exception:v158
+BB157
+157   invokestatic < Primordial, Landroid/os/Parcel, <clinit>()V > @157 exception:v159
+BB158
+158   invokestatic < Primordial, Landroid/widget/Scroller, <clinit>()V > @158 exception:v160
+BB159
+159   invokestatic < Primordial, Landroid/graphics/Matrix_Delegate, <clinit>()V > @159 exception:v161
+BB160
+160   invokestatic < Primordial, Ljava/text/NumberFormat, <clinit>()V > @160 exception:v162
+BB161
+161   invokestatic < Primordial, Landroid/text/method/DateKeyListener, <clinit>()V > @161 exception:v163
+BB162
+162   invokestatic < Primordial, Landroid/text/method/TimeKeyListener, <clinit>()V > @162 exception:v164
+BB163
+163   invokestatic < Primordial, Landroid/text/method/DateTimeKeyListener, <clinit>()V > @163 exception:v165
+BB164
+164   invokestatic < Primordial, Landroid/graphics/Typeface, <clinit>()V > @164 exception:v166
+BB165
+165   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfo, <clinit>()V > @165 exception:v167
+BB166
+166   invokestatic < Primordial, Ljava/nio/charset/Charsets, <clinit>()V > @166 exception:v168
+BB167
+167   invokestatic < Primordial, Ljava/nio/channels/FileChannel$MapMode, <clinit>()V > @167 exception:v169
+BB168
+168   invokestatic < Primordial, Ljava/nio/ByteOrder, <clinit>()V > @168 exception:v170
+BB169
+169   invokestatic < Primordial, Ljava/nio/charset/CoderResult, <clinit>()V > @169 exception:v171
+BB170
+170   invokestatic < Primordial, Ljava/util/TreeMap$Relation, <clinit>()V > @170 exception:v172
+BB171
+171   invokestatic < Primordial, Ljava/lang/reflect/AccessibleObject, <clinit>()V > @171 exception:v173
+BB172
+172   invokestatic < Primordial, Landroid/graphics/Bitmap, <clinit>()V > @172 exception:v174
+BB173
+173   invokestatic < Primordial, Landroid/graphics/Bitmap$Config, <clinit>()V > @173 exception:v175
+BB174
+174   invokestatic < Primordial, Landroid/app/ActivityManager, <clinit>()V > @174 exception:v176
+BB175
+175   invokestatic < Primordial, Ljava/lang/Byte, <clinit>()V > @175 exception:v177
+BB176
+176   invokestatic < Primordial, Ljava/lang/ThreadLocal$Values, <clinit>()V > @176 exception:v178
+BB177
+177   invokestatic < Primordial, Landroid/content/res/Resources, <clinit>()V > @177 exception:v179
+BB178
+178   invokestatic < Primordial, Ljava/text/DateFormat$Field, <clinit>()V > @178 exception:v180
+BB179
+179   invokestatic < Primordial, Ljava/text/AttributedCharacterIterator$Attribute, <clinit>()V > @179 exception:v181
+BB180
+180   invokestatic < Primordial, Landroid/util/StateSet, <clinit>()V > @180 exception:v182
+BB181
+181   invokestatic < Primordial, Ljava/lang/ClassLoader$SystemClassLoader, <clinit>()V > @181 exception:v183
+BB182
+182   invokestatic < Primordial, Ljava/lang/Runtime, <clinit>()V > @182 exception:v184
+BB183
+183   invokestatic < Primordial, Landroid/graphics/Path, <clinit>()V > @183 exception:v185
+BB184
+184   invokestatic < Primordial, Landroid/util/TypedValue, <clinit>()V > @184 exception:v186
+BB185
+185   invokestatic < Primordial, Landroid/view/FocusFinder, <clinit>()V > @185 exception:v187
+BB186
+186   invokestatic < Primordial, Landroid/text/method/SingleLineTransformationMethod, <clinit>()V > @186 exception:v188
+BB187
+187   invokestatic < Primordial, Landroid/graphics/Shader$TileMode, <clinit>()V > @187 exception:v189
+BB188
+188   invokestatic < Primordial, Landroid/graphics/PorterDuff$Mode, <clinit>()V > @188 exception:v190
+BB189
+189   invokestatic < Primordial, Landroid/os/Build$VERSION, <clinit>()V > @189 exception:v191
+BB190
+190   invokestatic < Primordial, Landroid/util/LongSparseArray, <clinit>()V > @190 exception:v192
+BB191
+191   invokestatic < Primordial, Landroid/widget/PopupWindow, <clinit>()V > @191 exception:v193
+BB192
+192   invokestatic < Primordial, Llibcore/icu/TimeZones, <clinit>()V > @192 exception:v194
+BB193
+193   invokestatic < Primordial, Landroid/graphics/Typeface_Delegate, <clinit>()V > @193 exception:v195
+BB194
+194   invokestatic < Primordial, Ljava/util/concurrent/locks/LockSupport, <clinit>()V > @194 exception:v196
+BB195
+195   invokestatic < Primordial, Landroid/graphics/Path$FillType, <clinit>()V > @195 exception:v197
+BB196
+196   invokestatic < Primordial, Landroid/graphics/Color, <clinit>()V > @196 exception:v198
+BB197
+197   invokestatic < Primordial, Ljava/text/DecimalFormat, <clinit>()V > @197 exception:v199
+BB198
+198   invokestatic < Primordial, Landroid/content/res/Configuration, <clinit>()V > @198 exception:v200
+BB199
+199   invokestatic < Primordial, Landroid/util/DisplayMetrics, <clinit>()V > @199 exception:v201
+BB200
+200   invokestatic < Primordial, Landroid/content/res/AssetManager, <clinit>()V > @200 exception:v202
+BB201
+201   invokestatic < Primordial, Landroid/content/res/CompatibilityInfo, <clinit>()V > @201 exception:v203
+BB202
+202   invokestatic < Primordial, Landroid/os/Build, <clinit>()V > @202 exception:v204
+BB203
+203   invokestatic < Primordial, Ljava/math/BigInteger, <clinit>()V > @203 exception:v205
+BB204
+204   invokestatic < Primordial, Landroid/graphics/PathEffect_Delegate, <clinit>()V > @204 exception:v206
+BB205
+205   invokestatic < Primordial, Ljava/lang/Double, <clinit>()V > @205 exception:v207
+BB206
+206   invokestatic < Primordial, Ljava/math/RoundingMode, <clinit>()V > @206 exception:v208
+BB207
+207   invokestatic < Primordial, Ljava/text/DecimalFormatSymbols, <clinit>()V > @207 exception:v209
+BB208
+208   invokestatic < Primordial, Landroid/graphics/Shader_Delegate, <clinit>()V > @208 exception:v210
+BB209
+209   invokestatic < Primordial, Landroid/graphics/PorterDuffXfermode_Delegate, <clinit>()V > @209 exception:v211
+BB210
+210   invokestatic < Primordial, Landroid/graphics/Xfermode_Delegate, <clinit>()V > @210 exception:v212
+BB211
+211   invokestatic < Primordial, Landroid/util/Xml, <clinit>()V > @211 exception:v213
+BB212
+212   invokestatic < Primordial, Ljava/math/BigDecimal, <clinit>()V > @212 exception:v214
+BB213
+213   invokestatic < Primordial, Ljava/math/MathContext, <clinit>()V > @213 exception:v215
+BB214
+214   invokestatic < Primordial, Landroid/graphics/Path_Delegate, <clinit>()V > @214 exception:v216
+BB215
+215   invokestatic < Primordial, Ljava/util/Currency, <clinit>()V > @215 exception:v217
+BB216
+216   invokestatic < Primordial, Landroid/view/WindowManagerImpl, <clinit>()V > @216 exception:v218
+BB217
+217   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/PolicyUtils, <clinit>()V > @217 exception:v219
+BB218
+218   invokestatic < Primordial, Ljava/math/Multiplication, <clinit>()V > @218 exception:v220
+BB219
+219   invokestatic < Primordial, Landroid/graphics/NinePatch_Delegate, <clinit>()V > @219 exception:v221
+BB220
+220   invokestatic < Primordial, Ljava/lang/VMThread, <clinit>()V > @220 exception:v222
+BB221
+221   invokestatic < Primordial, Ljava/net/URL, <clinit>()V > @221 exception:v223
+BB222
+222   invokestatic < Primordial, Ljava/lang/Thread$State, <clinit>()V > @222 exception:v224
+BB223
+223   invokestatic < Primordial, Ljava/security/KeyStore, <clinit>()V > @223 exception:v225
+BB224
+224   invokestatic < Primordial, Ljava/lang/reflect/Proxy, <clinit>()V > @224 exception:v226
+BB225
+225   invokestatic < Primordial, Ljava/io/ObjectStreamClass, <clinit>()V > @225 exception:v227
+BB226
+226   invokestatic < Primordial, Ljava/io/ObjectStreamConstants, <clinit>()V > @226 exception:v228
+BB227
+227   invokestatic < Primordial, Llibcore/math/MathUtils, <clinit>()V > @227 exception:v229
+BB228
+228   invokestatic < Primordial, Lcom/android/ninepatch/NinePatchChunk, <clinit>()V > @228 exception:v230
+BB229
+229   invokestatic < Primordial, Ljava/io/ObjectInputStream, <clinit>()V > @229 exception:v231
+BB230
+230   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/Services, <clinit>()V > @230 exception:v232
+BB231
+231   invokestatic < Primordial, Ljava/io/ObjectStreamClass$OSCThreadLocalCache, <clinit>()V > @231 exception:v233
+BB232
+232   invokestatic < Primordial, Lorg/apache/harmony/luni/util/ThreadLocalCache, <clinit>()V > @232 exception:v234
+BB233
+233   invokestatic < Primordial, Ljava/lang/Short, <clinit>()V > @233 exception:v235
+BB234
+234   invokestatic < Primordial, Ljava/util/IdentityHashMap, <clinit>()V > @234 exception:v236
+BB235
+235   invokestatic < Primordial, Ljava/net/URI, <clinit>()V > @235 exception:v237
+BB236
+236   invokestatic < Primordial, Ljava/security/cert/CertificateFactory, <clinit>()V > @236 exception:v238
+BB237
+237   invokestatic < Primordial, Ljava/security/MessageDigest, <clinit>()V > @237 exception:v239
+BB238
+238   invokestatic < Primordial, Ljava/net/InetAddress, <clinit>()V > @238 exception:v240
+BB239
+239   invokestatic < Primordial, Ljava/net/AddressCache, <clinit>()V > @239 exception:v241
+BB240
+240   invokestatic < Primordial, Landroid/view/Display, <clinit>()V > @240 exception:v242
+BB241
+241   invokestatic < Primordial, Ldalvik/system/BlockGuard, <clinit>()V > @241 exception:v243
+BB242
+242   invokestatic < Primordial, Ljava/util/Grego, <clinit>()V > @242 exception:v244
+BB243
+243   invokestatic < Primordial, Ljava/util/logging/Logger, <clinit>()V > @243 exception:v245
+BB244
+244   invokestatic < Primordial, Ljava/util/logging/Level, <clinit>()V > @244 exception:v246
+BB245
+245   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddressFactory, <clinit>()V > @245 exception:v247
+BB246
+246   invokestatic < Primordial, Landroid/view/KeyCharacterMap, <clinit>()V > @246 exception:v248
+BB247
+247   invokestatic < Primordial, Landroid/text/method/QwertyKeyListener, <clinit>()V > @247 exception:v249
+BB248
+248   invokestatic < Primordial, Landroid/text/method/MultiTapKeyListener, <clinit>()V > @248 exception:v250
+BB249
+249   invokestatic < Primordial, Ljava/lang/reflect/Method, <clinit>()V > @249 exception:v251
+BB250
+250   invokestatic < Primordial, Llibcore/icu/TimeZones$CachedTimeZones, <clinit>()V > @250 exception:v252
+BB251
+251   invokestatic < Primordial, Landroid/os/StrictMode, <clinit>()V > @251 exception:v253
+BB252
+252   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSMemory, <clinit>()V > @252 exception:v254
+BB253
+253   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddress, <clinit>()V > @253 exception:v255
+BB254
+254   invokestatic < Primordial, Ljava/lang/EmptyEnumeration, <clinit>()V > @254 exception:v256
+BB255
+255   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicLong, <clinit>()V > @255 exception:v257
+BB256
+256   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/SecurityUtils, <clinit>()V > @256 exception:v258
+BB257
+257   invokestatic < Primordial, Landroid/graphics/Region_Delegate, <clinit>()V > @257 exception:v259
+BB258
+258   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/jar/JarURLConnectionImpl, <clinit>()V > @258 exception:v260
+BB259
+259   invokestatic < Primordial, Ljava/net/URLConnection, <clinit>()V > @259 exception:v261
+BB260
+260   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl, <clinit>()V > @260 exception:v262
+BB261
+261   invokestatic < Primordial, Ljava/net/HttpURLConnection, <clinit>()V > @261 exception:v263
+BB262
+262   invokestatic < Primordial, Ljavax/net/ssl/HttpsURLConnection, <clinit>()V > @262 exception:v264
+BB263
+263   invokestatic < Primordial, Ljava/util/ResourceBundle, <clinit>()V > @263 exception:v265
+BB264
+264   invokestatic < Primordial, Landroid/content/res/StringBlock$Height, <clinit>()V > @264 exception:v266
+BB265
+265   invokestatic < Primordial, Landroid/graphics/Path$Direction, <clinit>()V > @265 exception:v267
+BB266
+266   invokestatic < Primordial, Ljavax/net/ssl/DefaultHostnameVerifier, <clinit>()V > @266 exception:v268
+BB267
+267   invokestatic < Primordial, Ljavax/net/ssl/SSLContext, <clinit>()V > @267 exception:v269
+BB268
+268   invokestatic < Primordial, Ljava/util/logging/LogRecord, <clinit>()V > @268 exception:v270
+BB269
+269   invokestatic < Primordial, Ljava/net/ResponseCache, <clinit>()V > @269 exception:v271
+BB270
+270   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl$Retry, <clinit>()V > @270 exception:v272
+BB271
+271   invokestatic < Primordial, Ljava/net/ProxySelector, <clinit>()V > @271 exception:v273
+BB272
+272   invokestatic < Primordial, Landroid/text/AutoText, <clinit>()V > @272 exception:v274
+BB273
+273   invokestatic < Primordial, Llibcore/base/Streams, <clinit>()V > @273 exception:v275
+BB274
+274   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpConnectionPool, <clinit>()V > @274 exception:v276
+BB275
+275   invokestatic < Primordial, Ljava/net/ProxySelectorImpl, <clinit>()V > @275 exception:v277
+BB276
+276   invokestatic < Primordial, Landroid/provider/Settings$System, <clinit>()V > @276 exception:v278
+BB277
+277   invokestatic < Primordial, Ljava/net/CookieHandler, <clinit>()V > @277 exception:v279
+BB278
+278   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/ChunkedInputStream, <clinit>()V > @278 exception:v280
+BB279
+279   invokestatic < Primordial, Ljava/net/Proxy, <clinit>()V > @279 exception:v281
+BB280
+280   invokestatic < Primordial, Ljava/net/Proxy$Type, <clinit>()V > @280 exception:v282
+BB281
+281   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicReference, <clinit>()V > @281 exception:v283
+BB282
+282   invokestatic < Primordial, Ljava/net/Inet4Address, <clinit>()V > @282 exception:v284
+BB283
+283   invokestatic < Primordial, Landroid/graphics/ColorFilter_Delegate, <clinit>()V > @283 exception:v285
+BB284
+284   invokestatic < Primordial, Ljava/util/logging/LogManager, <clinit>()V > @284 exception:v286
+BB285
+285   invokestatic < Primordial, Ljava/net/Authenticator, <clinit>()V > @285 exception:v287
+BB286
+286   invokestatic < Primordial, Lorg/apache/harmony/luni/util/Base64, <clinit>()V > @286 exception:v288
+BB287
+287   invokestatic < Primordial, Landroid/provider/Settings$Secure, <clinit>()V > @287 exception:v289
+BB288
+288   invokestatic < Primordial, Lorg/apache/harmony/luni/util/InputStreamHelper, <clinit>()V > @288 exception:v290
+BB289
+289   invokestatic < Primordial, Ljava/net/Authenticator$RequestorType, <clinit>()V > @289 exception:v291
+BB290
+290   invokestatic < Primordial, Landroid/provider/Settings$NameValueCache, <clinit>()V > @290 exception:v292
+BB291
+291   invokestatic < Primordial, Ljava/net/Inet6Address, <clinit>()V > @291 exception:v293
+BB292
+292   invokestatic < Application, Lorg/ametro/model/route/RouteParameters, <clinit>()V > @292 exception:v294
+BB293
+293   invokestatic < Primordial, Landroid/app/SearchableInfo, <clinit>()V > @293 exception:v295
+BB294
+294   invokestatic < Primordial, Ljava/util/jar/Manifest, <clinit>()V > @294 exception:v296
+BB295
+295   invokestatic < Primordial, Ljava/util/jar/Attributes$Name, <clinit>()V > @295 exception:v297
+BB296
+296   invokestatic < Primordial, Lorg/apache/harmony/security/utils/JarUtils, <clinit>()V > @296 exception:v298
+BB297
+297   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatParser, <clinit>()V > @297 exception:v299
+BB298
+298   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/ContentInfo, <clinit>()V > @298 exception:v300
+BB299
+299   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/OpenSSLSignature, <clinit>()V > @299 exception:v301
+BB300
+300   invokestatic < Primordial, Ljava/security/Signature, <clinit>()V > @300 exception:v302
+BB301
+301   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatPullParser$NamespaceStack, <clinit>()V > @301 exception:v303
+BB302
+302   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Oid, <clinit>()V > @302 exception:v304
+BB303
+303   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Any, <clinit>()V > @303 exception:v305
+BB304
+304   invokestatic < Primordial, Ljava/util/logging/Handler, <clinit>()V > @304 exception:v306
+BB305
+305   invokestatic < Primordial, Ljava/util/logging/FileHandler, <clinit>()V > @305 exception:v307
+BB306
+306   invokestatic < Primordial, Lcom/android/internal/logging/AndroidHandler, <clinit>()V > @306 exception:v308
+BB307
+307   invokestatic < Primordial, Ljava/util/logging/ErrorManager, <clinit>()V > @307 exception:v309
+BB308
+308   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1OctetString, <clinit>()V > @308 exception:v310
+BB309
+309   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1StringType, <clinit>()V > @309 exception:v311
+BB310
+310   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignedData, <clinit>()V > @310 exception:v312
+BB311
+311   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Integer, <clinit>()V > @311 exception:v313
+BB312
+312   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AlgorithmIdentifier, <clinit>()V > @312 exception:v314
+BB313
+313   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Certificate, <clinit>()V > @313 exception:v315
+BB314
+314   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateList, <clinit>()V > @314 exception:v316
+BB315
+315   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignerInfo, <clinit>()V > @315 exception:v317
+BB316
+316   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertificate, <clinit>()V > @316 exception:v318
+BB317
+317   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString, <clinit>()V > @317 exception:v319
+BB318
+318   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList, <clinit>()V > @318 exception:v320
+BB319
+319   invokestatic < Primordial, Lorg/apache/harmony/security/x501/Name, <clinit>()V > @319 exception:v321
+BB320
+320   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/AuthenticatedAttributes, <clinit>()V > @320 exception:v322
+BB321
+321   invokestatic < Primordial, Lorg/apache/harmony/security/x501/AttributeTypeAndValue, <clinit>()V > @321 exception:v323
+BB322
+322   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/NativeCrypto, <clinit>()V > @322 exception:v324
+BB323
+323   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Validity, <clinit>()V > @323 exception:v325
+BB324
+324   invokestatic < Primordial, Lorg/apache/harmony/security/x509/SubjectPublicKeyInfo, <clinit>()V > @324 exception:v326
+BB325
+325   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extensions, <clinit>()V > @325 exception:v327
+BB326
+326   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Time, <clinit>()V > @326 exception:v328
+BB327
+327   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList$RevokedCertificate, <clinit>()V > @327 exception:v329
+BB328
+328   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extension, <clinit>()V > @328 exception:v330
+BB329
+329   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1GeneralizedTime, <clinit>()V > @329 exception:v331
+BB330
+330   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1UTCTime, <clinit>()V > @330 exception:v332
+BB331
+331   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Boolean, <clinit>()V > @331 exception:v333
+BB332
+332   invokestatic < Primordial, Ljava/util/logging/XMLFormatter, <clinit>()V > @332 exception:v334
+BB333
+333   invokestatic < Primordial, Ljava/text/MessageFormat, <clinit>()V > @333 exception:v335
+BB334
+334   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/DerInputStream, <clinit>()V > @334 exception:v336
+BB335
+335   invokestatic < Primordial, Lorg/apache/harmony/security/x501/DirectoryString, <clinit>()V > @335 exception:v337
+BB336
+336   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/BitString, <clinit>()V > @336 exception:v338
+BB337
+337   invokestatic < Primordial, Ljava/text/MessageFormat$Field, <clinit>()V > @337 exception:v339
+BB338
+338   invokestatic < Primordial, Lorg/apache/harmony/security/x509/KeyUsage, <clinit>()V > @338 exception:v340
+BB339
+339   invokestatic < Primordial, Lorg/apache/harmony/security/x509/BasicConstraints, <clinit>()V > @339 exception:v341
+BB340
+340   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString$ASN1NamedBitList, <clinit>()V > @340 exception:v342
+BB341
+341   invokestatic < Primordial, Lorg/apache/harmony/security/utils/AlgNameMapper, <clinit>()V > @341 exception:v343
+BB342
+342   invokestatic < Primordial, Ljava/security/KeyFactory, <clinit>()V > @342 exception:v344
+BB343
+343   invokestatic < Primordial, Lorg/apache/harmony/security/x509/NameConstraints, <clinit>()V > @343 exception:v345
+BB344
+344   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificatePolicies, <clinit>()V > @344 exception:v346
+BB345
+345   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AuthorityKeyIdentifier, <clinit>()V > @345 exception:v347
+BB346
+346   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyConstraints, <clinit>()V > @346 exception:v348
+BB347
+347   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ExtendedKeyUsage, <clinit>()V > @347 exception:v349
+BB348
+348   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateIssuer, <clinit>()V > @348 exception:v350
+BB349
+349   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLDistributionPoints, <clinit>()V > @349 exception:v351
+BB350
+350   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonCode, <clinit>()V > @350 exception:v352
+BB351
+351   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InvalidityDate, <clinit>()V > @351 exception:v353
+BB352
+352   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLNumber, <clinit>()V > @352 exception:v354
+BB353
+353   invokestatic < Primordial, Lorg/apache/harmony/security/x509/IssuingDistributionPoint, <clinit>()V > @353 exception:v355
+BB354
+354   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InfoAccessSyntax, <clinit>()V > @354 exception:v356
+BB355
+355   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralNames, <clinit>()V > @355 exception:v357
+BB356
+356   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtrees, <clinit>()V > @356 exception:v358
+BB357
+357   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyInformation, <clinit>()V > @357 exception:v359
+BB358
+358   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralName, <clinit>()V > @358 exception:v360
+BB359
+359   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPoint, <clinit>()V > @359 exception:v361
+BB360
+360   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Enumerated, <clinit>()V > @360 exception:v362
+BB361
+361   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPointName, <clinit>()V > @361 exception:v363
+BB362
+362   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonFlags, <clinit>()V > @362 exception:v364
+BB363
+363   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AccessDescription, <clinit>()V > @363 exception:v365
+BB364
+364   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtree, <clinit>()V > @364 exception:v366
+BB365
+365   invokestatic < Primordial, Lorg/apache/harmony/security/x509/OtherName, <clinit>()V > @365 exception:v367
+BB366
+366   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ORAddress, <clinit>()V > @366 exception:v368
+BB367
+367   invokestatic < Primordial, Lorg/apache/harmony/security/x509/EDIPartyName, <clinit>()V > @367 exception:v369
+BB368
+
+< Primordial, Landroid/app/ActivityGroup, onCreate(Landroid/os/Bundle;)V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..0]
+    -> BB2
+    -> BB4
+BB2[1..3]
+    -> BB3
+    -> BB4
+BB3[4..4]
+    -> BB4
+BB4[-1..-2]
+Instructions:
+BB0
+BB1
+0   v4 = new <Primordial,Ljava/lang/RuntimeException>@0(line 7)
+BB2
+3   invokespecial < Primordial, Ljava/lang/RuntimeException, <init>(Ljava/lang/String;)V > v4,v5:#Stub! @6 exception:v6(line 7)
+BB3
+4   throw v4                                 (line 7)
+BB4
+
+synthetic < Primordial, Lcom/ibm/wala/FakeRootClass, fakeWorldClinit()V >
+CFG:
+BB0[0..0]
+    -> BB1
+    -> BB368
+BB1[1..1]
+    -> BB2
+    -> BB368
+BB2[2..2]
+    -> BB3
+    -> BB368
+BB3[3..3]
+    -> BB4
+    -> BB368
+BB4[4..4]
+    -> BB5
+    -> BB368
+BB5[5..5]
+    -> BB6
+    -> BB368
+BB6[6..6]
+    -> BB7
+    -> BB368
+BB7[7..7]
+    -> BB8
+    -> BB368
+BB8[8..8]
+    -> BB9
+    -> BB368
+BB9[9..9]
+    -> BB10
+    -> BB368
+BB10[10..10]
+    -> BB11
+    -> BB368
+BB11[11..11]
+    -> BB12
+    -> BB368
+BB12[12..12]
+    -> BB13
+    -> BB368
+BB13[13..13]
+    -> BB14
+    -> BB368
+BB14[14..14]
+    -> BB15
+    -> BB368
+BB15[15..15]
+    -> BB16
+    -> BB368
+BB16[16..16]
+    -> BB17
+    -> BB368
+BB17[17..17]
+    -> BB18
+    -> BB368
+BB18[18..18]
+    -> BB19
+    -> BB368
+BB19[19..19]
+    -> BB20
+    -> BB368
+BB20[20..20]
+    -> BB21
+    -> BB368
+BB21[21..21]
+    -> BB22
+    -> BB368
+BB22[22..22]
+    -> BB23
+    -> BB368
+BB23[23..23]
+    -> BB24
+    -> BB368
+BB24[24..24]
+    -> BB25
+    -> BB368
+BB25[25..25]
+    -> BB26
+    -> BB368
+BB26[26..26]
+    -> BB27
+    -> BB368
+BB27[27..27]
+    -> BB28
+    -> BB368
+BB28[28..28]
+    -> BB29
+    -> BB368
+BB29[29..29]
+    -> BB30
+    -> BB368
+BB30[30..30]
+    -> BB31
+    -> BB368
+BB31[31..31]
+    -> BB32
+    -> BB368
+BB32[32..32]
+    -> BB33
+    -> BB368
+BB33[33..33]
+    -> BB34
+    -> BB368
+BB34[34..34]
+    -> BB35
+    -> BB368
+BB35[35..35]
+    -> BB36
+    -> BB368
+BB36[36..36]
+    -> BB37
+    -> BB368
+BB37[37..37]
+    -> BB38
+    -> BB368
+BB38[38..38]
+    -> BB39
+    -> BB368
+BB39[39..39]
+    -> BB40
+    -> BB368
+BB40[40..40]
+    -> BB41
+    -> BB368
+BB41[41..41]
+    -> BB42
+    -> BB368
+BB42[42..42]
+    -> BB43
+    -> BB368
+BB43[43..43]
+    -> BB44
+    -> BB368
+BB44[44..44]
+    -> BB45
+    -> BB368
+BB45[45..45]
+    -> BB46
+    -> BB368
+BB46[46..46]
+    -> BB47
+    -> BB368
+BB47[47..47]
+    -> BB48
+    -> BB368
+BB48[48..48]
+    -> BB49
+    -> BB368
+BB49[49..49]
+    -> BB50
+    -> BB368
+BB50[50..50]
+    -> BB51
+    -> BB368
+BB51[51..51]
+    -> BB52
+    -> BB368
+BB52[52..52]
+    -> BB53
+    -> BB368
+BB53[53..53]
+    -> BB54
+    -> BB368
+BB54[54..54]
+    -> BB55
+    -> BB368
+BB55[55..55]
+    -> BB56
+    -> BB368
+BB56[56..56]
+    -> BB57
+    -> BB368
+BB57[57..57]
+    -> BB58
+    -> BB368
+BB58[58..58]
+    -> BB59
+    -> BB368
+BB59[59..59]
+    -> BB60
+    -> BB368
+BB60[60..60]
+    -> BB61
+    -> BB368
+BB61[61..61]
+    -> BB62
+    -> BB368
+BB62[62..62]
+    -> BB63
+    -> BB368
+BB63[63..63]
+    -> BB64
+    -> BB368
+BB64[64..64]
+    -> BB65
+    -> BB368
+BB65[65..65]
+    -> BB66
+    -> BB368
+BB66[66..66]
+    -> BB67
+    -> BB368
+BB67[67..67]
+    -> BB68
+    -> BB368
+BB68[68..68]
+    -> BB69
+    -> BB368
+BB69[69..69]
+    -> BB70
+    -> BB368
+BB70[70..70]
+    -> BB71
+    -> BB368
+BB71[71..71]
+    -> BB72
+    -> BB368
+BB72[72..72]
+    -> BB73
+    -> BB368
+BB73[73..73]
+    -> BB74
+    -> BB368
+BB74[74..74]
+    -> BB75
+    -> BB368
+BB75[75..75]
+    -> BB76
+    -> BB368
+BB76[76..76]
+    -> BB77
+    -> BB368
+BB77[77..77]
+    -> BB78
+    -> BB368
+BB78[78..78]
+    -> BB79
+    -> BB368
+BB79[79..79]
+    -> BB80
+    -> BB368
+BB80[80..80]
+    -> BB81
+    -> BB368
+BB81[81..81]
+    -> BB82
+    -> BB368
+BB82[82..82]
+    -> BB83
+    -> BB368
+BB83[83..83]
+    -> BB84
+    -> BB368
+BB84[84..84]
+    -> BB85
+    -> BB368
+BB85[85..85]
+    -> BB86
+    -> BB368
+BB86[86..86]
+    -> BB87
+    -> BB368
+BB87[87..87]
+    -> BB88
+    -> BB368
+BB88[88..88]
+    -> BB89
+    -> BB368
+BB89[89..89]
+    -> BB90
+    -> BB368
+BB90[90..90]
+    -> BB91
+    -> BB368
+BB91[91..91]
+    -> BB92
+    -> BB368
+BB92[92..92]
+    -> BB93
+    -> BB368
+BB93[93..93]
+    -> BB94
+    -> BB368
+BB94[94..94]
+    -> BB95
+    -> BB368
+BB95[95..95]
+    -> BB96
+    -> BB368
+BB96[96..96]
+    -> BB97
+    -> BB368
+BB97[97..97]
+    -> BB98
+    -> BB368
+BB98[98..98]
+    -> BB99
+    -> BB368
+BB99[99..99]
+    -> BB100
+    -> BB368
+BB100[100..100]
+    -> BB101
+    -> BB368
+BB101[101..101]
+    -> BB102
+    -> BB368
+BB102[102..102]
+    -> BB103
+    -> BB368
+BB103[103..103]
+    -> BB104
+    -> BB368
+BB104[104..104]
+    -> BB105
+    -> BB368
+BB105[105..105]
+    -> BB106
+    -> BB368
+BB106[106..106]
+    -> BB107
+    -> BB368
+BB107[107..107]
+    -> BB108
+    -> BB368
+BB108[108..108]
+    -> BB109
+    -> BB368
+BB109[109..109]
+    -> BB110
+    -> BB368
+BB110[110..110]
+    -> BB111
+    -> BB368
+BB111[111..111]
+    -> BB112
+    -> BB368
+BB112[112..112]
+    -> BB113
+    -> BB368
+BB113[113..113]
+    -> BB114
+    -> BB368
+BB114[114..114]
+    -> BB115
+    -> BB368
+BB115[115..115]
+    -> BB116
+    -> BB368
+BB116[116..116]
+    -> BB117
+    -> BB368
+BB117[117..117]
+    -> BB118
+    -> BB368
+BB118[118..118]
+    -> BB119
+    -> BB368
+BB119[119..119]
+    -> BB120
+    -> BB368
+BB120[120..120]
+    -> BB121
+    -> BB368
+BB121[121..121]
+    -> BB122
+    -> BB368
+BB122[122..122]
+    -> BB123
+    -> BB368
+BB123[123..123]
+    -> BB124
+    -> BB368
+BB124[124..124]
+    -> BB125
+    -> BB368
+BB125[125..125]
+    -> BB126
+    -> BB368
+BB126[126..126]
+    -> BB127
+    -> BB368
+BB127[127..127]
+    -> BB128
+    -> BB368
+BB128[128..128]
+    -> BB129
+    -> BB368
+BB129[129..129]
+    -> BB130
+    -> BB368
+BB130[130..130]
+    -> BB131
+    -> BB368
+BB131[131..131]
+    -> BB132
+    -> BB368
+BB132[132..132]
+    -> BB133
+    -> BB368
+BB133[133..133]
+    -> BB134
+    -> BB368
+BB134[134..134]
+    -> BB135
+    -> BB368
+BB135[135..135]
+    -> BB136
+    -> BB368
+BB136[136..136]
+    -> BB137
+    -> BB368
+BB137[137..137]
+    -> BB138
+    -> BB368
+BB138[138..138]
+    -> BB139
+    -> BB368
+BB139[139..139]
+    -> BB140
+    -> BB368
+BB140[140..140]
+    -> BB141
+    -> BB368
+BB141[141..141]
+    -> BB142
+    -> BB368
+BB142[142..142]
+    -> BB143
+    -> BB368
+BB143[143..143]
+    -> BB144
+    -> BB368
+BB144[144..144]
+    -> BB145
+    -> BB368
+BB145[145..145]
+    -> BB146
+    -> BB368
+BB146[146..146]
+    -> BB147
+    -> BB368
+BB147[147..147]
+    -> BB148
+    -> BB368
+BB148[148..148]
+    -> BB149
+    -> BB368
+BB149[149..149]
+    -> BB150
+    -> BB368
+BB150[150..150]
+    -> BB151
+    -> BB368
+BB151[151..151]
+    -> BB152
+    -> BB368
+BB152[152..152]
+    -> BB153
+    -> BB368
+BB153[153..153]
+    -> BB154
+    -> BB368
+BB154[154..154]
+    -> BB155
+    -> BB368
+BB155[155..155]
+    -> BB156
+    -> BB368
+BB156[156..156]
+    -> BB157
+    -> BB368
+BB157[157..157]
+    -> BB158
+    -> BB368
+BB158[158..158]
+    -> BB159
+    -> BB368
+BB159[159..159]
+    -> BB160
+    -> BB368
+BB160[160..160]
+    -> BB161
+    -> BB368
+BB161[161..161]
+    -> BB162
+    -> BB368
+BB162[162..162]
+    -> BB163
+    -> BB368
+BB163[163..163]
+    -> BB164
+    -> BB368
+BB164[164..164]
+    -> BB165
+    -> BB368
+BB165[165..165]
+    -> BB166
+    -> BB368
+BB166[166..166]
+    -> BB167
+    -> BB368
+BB167[167..167]
+    -> BB168
+    -> BB368
+BB168[168..168]
+    -> BB169
+    -> BB368
+BB169[169..169]
+    -> BB170
+    -> BB368
+BB170[170..170]
+    -> BB171
+    -> BB368
+BB171[171..171]
+    -> BB172
+    -> BB368
+BB172[172..172]
+    -> BB173
+    -> BB368
+BB173[173..173]
+    -> BB174
+    -> BB368
+BB174[174..174]
+    -> BB175
+    -> BB368
+BB175[175..175]
+    -> BB176
+    -> BB368
+BB176[176..176]
+    -> BB177
+    -> BB368
+BB177[177..177]
+    -> BB178
+    -> BB368
+BB178[178..178]
+    -> BB179
+    -> BB368
+BB179[179..179]
+    -> BB180
+    -> BB368
+BB180[180..180]
+    -> BB181
+    -> BB368
+BB181[181..181]
+    -> BB182
+    -> BB368
+BB182[182..182]
+    -> BB183
+    -> BB368
+BB183[183..183]
+    -> BB184
+    -> BB368
+BB184[184..184]
+    -> BB185
+    -> BB368
+BB185[185..185]
+    -> BB186
+    -> BB368
+BB186[186..186]
+    -> BB187
+    -> BB368
+BB187[187..187]
+    -> BB188
+    -> BB368
+BB188[188..188]
+    -> BB189
+    -> BB368
+BB189[189..189]
+    -> BB190
+    -> BB368
+BB190[190..190]
+    -> BB191
+    -> BB368
+BB191[191..191]
+    -> BB192
+    -> BB368
+BB192[192..192]
+    -> BB193
+    -> BB368
+BB193[193..193]
+    -> BB194
+    -> BB368
+BB194[194..194]
+    -> BB195
+    -> BB368
+BB195[195..195]
+    -> BB196
+    -> BB368
+BB196[196..196]
+    -> BB197
+    -> BB368
+BB197[197..197]
+    -> BB198
+    -> BB368
+BB198[198..198]
+    -> BB199
+    -> BB368
+BB199[199..199]
+    -> BB200
+    -> BB368
+BB200[200..200]
+    -> BB201
+    -> BB368
+BB201[201..201]
+    -> BB202
+    -> BB368
+BB202[202..202]
+    -> BB203
+    -> BB368
+BB203[203..203]
+    -> BB204
+    -> BB368
+BB204[204..204]
+    -> BB205
+    -> BB368
+BB205[205..205]
+    -> BB206
+    -> BB368
+BB206[206..206]
+    -> BB207
+    -> BB368
+BB207[207..207]
+    -> BB208
+    -> BB368
+BB208[208..208]
+    -> BB209
+    -> BB368
+BB209[209..209]
+    -> BB210
+    -> BB368
+BB210[210..210]
+    -> BB211
+    -> BB368
+BB211[211..211]
+    -> BB212
+    -> BB368
+BB212[212..212]
+    -> BB213
+    -> BB368
+BB213[213..213]
+    -> BB214
+    -> BB368
+BB214[214..214]
+    -> BB215
+    -> BB368
+BB215[215..215]
+    -> BB216
+    -> BB368
+BB216[216..216]
+    -> BB217
+    -> BB368
+BB217[217..217]
+    -> BB218
+    -> BB368
+BB218[218..218]
+    -> BB219
+    -> BB368
+BB219[219..219]
+    -> BB220
+    -> BB368
+BB220[220..220]
+    -> BB221
+    -> BB368
+BB221[221..221]
+    -> BB222
+    -> BB368
+BB222[222..222]
+    -> BB223
+    -> BB368
+BB223[223..223]
+    -> BB224
+    -> BB368
+BB224[224..224]
+    -> BB225
+    -> BB368
+BB225[225..225]
+    -> BB226
+    -> BB368
+BB226[226..226]
+    -> BB227
+    -> BB368
+BB227[227..227]
+    -> BB228
+    -> BB368
+BB228[228..228]
+    -> BB229
+    -> BB368
+BB229[229..229]
+    -> BB230
+    -> BB368
+BB230[230..230]
+    -> BB231
+    -> BB368
+BB231[231..231]
+    -> BB232
+    -> BB368
+BB232[232..232]
+    -> BB233
+    -> BB368
+BB233[233..233]
+    -> BB234
+    -> BB368
+BB234[234..234]
+    -> BB235
+    -> BB368
+BB235[235..235]
+    -> BB236
+    -> BB368
+BB236[236..236]
+    -> BB237
+    -> BB368
+BB237[237..237]
+    -> BB238
+    -> BB368
+BB238[238..238]
+    -> BB239
+    -> BB368
+BB239[239..239]
+    -> BB240
+    -> BB368
+BB240[240..240]
+    -> BB241
+    -> BB368
+BB241[241..241]
+    -> BB242
+    -> BB368
+BB242[242..242]
+    -> BB243
+    -> BB368
+BB243[243..243]
+    -> BB244
+    -> BB368
+BB244[244..244]
+    -> BB245
+    -> BB368
+BB245[245..245]
+    -> BB246
+    -> BB368
+BB246[246..246]
+    -> BB247
+    -> BB368
+BB247[247..247]
+    -> BB248
+    -> BB368
+BB248[248..248]
+    -> BB249
+    -> BB368
+BB249[249..249]
+    -> BB250
+    -> BB368
+BB250[250..250]
+    -> BB251
+    -> BB368
+BB251[251..251]
+    -> BB252
+    -> BB368
+BB252[252..252]
+    -> BB253
+    -> BB368
+BB253[253..253]
+    -> BB254
+    -> BB368
+BB254[254..254]
+    -> BB255
+    -> BB368
+BB255[255..255]
+    -> BB256
+    -> BB368
+BB256[256..256]
+    -> BB257
+    -> BB368
+BB257[257..257]
+    -> BB258
+    -> BB368
+BB258[258..258]
+    -> BB259
+    -> BB368
+BB259[259..259]
+    -> BB260
+    -> BB368
+BB260[260..260]
+    -> BB261
+    -> BB368
+BB261[261..261]
+    -> BB262
+    -> BB368
+BB262[262..262]
+    -> BB263
+    -> BB368
+BB263[263..263]
+    -> BB264
+    -> BB368
+BB264[264..264]
+    -> BB265
+    -> BB368
+BB265[265..265]
+    -> BB266
+    -> BB368
+BB266[266..266]
+    -> BB267
+    -> BB368
+BB267[267..267]
+    -> BB268
+    -> BB368
+BB268[268..268]
+    -> BB269
+    -> BB368
+BB269[269..269]
+    -> BB270
+    -> BB368
+BB270[270..270]
+    -> BB271
+    -> BB368
+BB271[271..271]
+    -> BB272
+    -> BB368
+BB272[272..272]
+    -> BB273
+    -> BB368
+BB273[273..273]
+    -> BB274
+    -> BB368
+BB274[274..274]
+    -> BB275
+    -> BB368
+BB275[275..275]
+    -> BB276
+    -> BB368
+BB276[276..276]
+    -> BB277
+    -> BB368
+BB277[277..277]
+    -> BB278
+    -> BB368
+BB278[278..278]
+    -> BB279
+    -> BB368
+BB279[279..279]
+    -> BB280
+    -> BB368
+BB280[280..280]
+    -> BB281
+    -> BB368
+BB281[281..281]
+    -> BB282
+    -> BB368
+BB282[282..282]
+    -> BB283
+    -> BB368
+BB283[283..283]
+    -> BB284
+    -> BB368
+BB284[284..284]
+    -> BB285
+    -> BB368
+BB285[285..285]
+    -> BB286
+    -> BB368
+BB286[286..286]
+    -> BB287
+    -> BB368
+BB287[287..287]
+    -> BB288
+    -> BB368
+BB288[288..288]
+    -> BB289
+    -> BB368
+BB289[289..289]
+    -> BB290
+    -> BB368
+BB290[290..290]
+    -> BB291
+    -> BB368
+BB291[291..291]
+    -> BB292
+    -> BB368
+BB292[292..292]
+    -> BB293
+    -> BB368
+BB293[293..293]
+    -> BB294
+    -> BB368
+BB294[294..294]
+    -> BB295
+    -> BB368
+BB295[295..295]
+    -> BB296
+    -> BB368
+BB296[296..296]
+    -> BB297
+    -> BB368
+BB297[297..297]
+    -> BB298
+    -> BB368
+BB298[298..298]
+    -> BB299
+    -> BB368
+BB299[299..299]
+    -> BB300
+    -> BB368
+BB300[300..300]
+    -> BB301
+    -> BB368
+BB301[301..301]
+    -> BB302
+    -> BB368
+BB302[302..302]
+    -> BB303
+    -> BB368
+BB303[303..303]
+    -> BB304
+    -> BB368
+BB304[304..304]
+    -> BB305
+    -> BB368
+BB305[305..305]
+    -> BB306
+    -> BB368
+BB306[306..306]
+    -> BB307
+    -> BB368
+BB307[307..307]
+    -> BB308
+    -> BB368
+BB308[308..308]
+    -> BB309
+    -> BB368
+BB309[309..309]
+    -> BB310
+    -> BB368
+BB310[310..310]
+    -> BB311
+    -> BB368
+BB311[311..311]
+    -> BB312
+    -> BB368
+BB312[312..312]
+    -> BB313
+    -> BB368
+BB313[313..313]
+    -> BB314
+    -> BB368
+BB314[314..314]
+    -> BB315
+    -> BB368
+BB315[315..315]
+    -> BB316
+    -> BB368
+BB316[316..316]
+    -> BB317
+    -> BB368
+BB317[317..317]
+    -> BB318
+    -> BB368
+BB318[318..318]
+    -> BB319
+    -> BB368
+BB319[319..319]
+    -> BB320
+    -> BB368
+BB320[320..320]
+    -> BB321
+    -> BB368
+BB321[321..321]
+    -> BB322
+    -> BB368
+BB322[322..322]
+    -> BB323
+    -> BB368
+BB323[323..323]
+    -> BB324
+    -> BB368
+BB324[324..324]
+    -> BB325
+    -> BB368
+BB325[325..325]
+    -> BB326
+    -> BB368
+BB326[326..326]
+    -> BB327
+    -> BB368
+BB327[327..327]
+    -> BB328
+    -> BB368
+BB328[328..328]
+    -> BB329
+    -> BB368
+BB329[329..329]
+    -> BB330
+    -> BB368
+BB330[330..330]
+    -> BB331
+    -> BB368
+BB331[331..331]
+    -> BB332
+    -> BB368
+BB332[332..332]
+    -> BB333
+    -> BB368
+BB333[333..333]
+    -> BB334
+    -> BB368
+BB334[334..334]
+    -> BB335
+    -> BB368
+BB335[335..335]
+    -> BB336
+    -> BB368
+BB336[336..336]
+    -> BB337
+    -> BB368
+BB337[337..337]
+    -> BB338
+    -> BB368
+BB338[338..338]
+    -> BB339
+    -> BB368
+BB339[339..339]
+    -> BB340
+    -> BB368
+BB340[340..340]
+    -> BB341
+    -> BB368
+BB341[341..341]
+    -> BB342
+    -> BB368
+BB342[342..342]
+    -> BB343
+    -> BB368
+BB343[343..343]
+    -> BB344
+    -> BB368
+BB344[344..344]
+    -> BB345
+    -> BB368
+BB345[345..345]
+    -> BB346
+    -> BB368
+BB346[346..346]
+    -> BB347
+    -> BB368
+BB347[347..347]
+    -> BB348
+    -> BB368
+BB348[348..348]
+    -> BB349
+    -> BB368
+BB349[349..349]
+    -> BB350
+    -> BB368
+BB350[350..350]
+    -> BB351
+    -> BB368
+BB351[351..351]
+    -> BB352
+    -> BB368
+BB352[352..352]
+    -> BB353
+    -> BB368
+BB353[353..353]
+    -> BB354
+    -> BB368
+BB354[354..354]
+    -> BB355
+    -> BB368
+BB355[355..355]
+    -> BB356
+    -> BB368
+BB356[356..356]
+    -> BB357
+    -> BB368
+BB357[357..357]
+    -> BB358
+    -> BB368
+BB358[358..358]
+    -> BB359
+    -> BB368
+BB359[359..359]
+    -> BB360
+    -> BB368
+BB360[360..360]
+    -> BB361
+    -> BB368
+BB361[361..361]
+    -> BB362
+    -> BB368
+BB362[362..362]
+    -> BB363
+    -> BB368
+BB363[363..363]
+    -> BB364
+    -> BB368
+BB364[364..364]
+    -> BB365
+    -> BB368
+BB365[365..365]
+    -> BB366
+    -> BB368
+BB366[366..366]
+    -> BB367
+    -> BB368
+BB367[367..367]
+    -> BB368
+BB368[-1..-2]
+Instructions:
+BB0
+0   invokestatic < Primordial, Landroid/app/Activity, <clinit>()V > @0 exception:v2
+BB1
+1   invokestatic < Primordial, Landroid/os/Bundle, <clinit>()V > @1 exception:v3
+BB2
+2   invokestatic < Primordial, Landroid/view/View, <clinit>()V > @2 exception:v4
+BB3
+3   invokestatic < Application, Lorg/ametro/service/CatalogTaskQueueService, <clinit>()V > @3 exception:v5
+BB4
+4   invokestatic < Primordial, Landroid/content/Intent, <clinit>()V > @4 exception:v6
+BB5
+5   invokestatic < Primordial, Landroid/view/ViewGroup, <clinit>()V > @5 exception:v7
+BB6
+6   invokestatic < Primordial, Landroid/os/AsyncTask, <clinit>()V > @6 exception:v8
+BB7
+7   invokestatic < Primordial, Landroid/view/KeyEvent, <clinit>()V > @7 exception:v9
+BB8
+8   invokestatic < Primordial, Landroid/view/InputEvent, <clinit>()V > @8 exception:v10
+BB9
+9   invokestatic < Primordial, Landroid/view/MotionEvent, <clinit>()V > @9 exception:v11
+BB10
+10   invokestatic < Primordial, Ljava/lang/String, <clinit>()V > @10 exception:v12
+BB11
+11   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask, <clinit>()V > @11 exception:v13
+BB12
+12   invokestatic < Primordial, Ljava/io/File, <clinit>()V > @12 exception:v14
+BB13
+13   invokestatic < Application, Lorg/ametro/ui/StationListActivity, <clinit>()V > @13 exception:v15
+BB14
+14   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/LoadWebCatalogTask, <clinit>()V > @14 exception:v16
+BB15
+15   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadMapTask, <clinit>()V > @15 exception:v17
+BB16
+16   invokestatic < Primordial, Landroid/location/Location, <clinit>()V > @16 exception:v18
+BB17
+17   invokestatic < Primordial, Landroid/widget/ExpandableListView, <clinit>()V > @17 exception:v19
+BB18
+18   invokestatic < Primordial, Ljava/lang/Void, <clinit>()V > @18 exception:v20
+BB19
+19   invokestatic < Application, Lorg/ametro/service/AutoUpdateService, <clinit>()V > @19 exception:v21
+BB20
+20   invokestatic < Primordial, Ljava/util/HashMap, <clinit>()V > @20 exception:v22
+BB21
+21   invokestatic < Primordial, Ljava/util/Collections, <clinit>()V > @21 exception:v23
+BB22
+22   invokestatic < Primordial, Ljava/lang/ThreadLocal, <clinit>()V > @22 exception:v24
+BB23
+23   invokestatic < Primordial, Ljava/lang/Integer, <clinit>()V > @23 exception:v25
+BB24
+24   invokestatic < Primordial, Landroid/app/Notification, <clinit>()V > @24 exception:v26
+BB25
+25   invokestatic < Primordial, Ljava/lang/Boolean, <clinit>()V > @25 exception:v27
+BB26
+26   invokestatic < Primordial, Landroid/util/Log, <clinit>()V > @26 exception:v28
+BB27
+27   invokestatic < Application, Lorg/ametro/app/GlobalSettings, <clinit>()V > @27 exception:v29
+BB28
+28   invokestatic < Primordial, Landroid/graphics/RectF, <clinit>()V > @28 exception:v30
+BB29
+29   invokestatic < Primordial, Landroid/view/animation/Transformation, <clinit>()V > @29 exception:v31
+BB30
+30   invokestatic < Primordial, Ljava/util/ArrayList, <clinit>()V > @30 exception:v32
+BB31
+31   invokestatic < Application, Lorg/ametro/util/StringUtil, <clinit>()V > @31 exception:v33
+BB32
+32   invokestatic < Application, Lorg/ametro/app/Constants, <clinit>()V > @32 exception:v34
+BB33
+33   invokestatic < Primordial, Landroid/widget/TextView, <clinit>()V > @33 exception:v35
+BB34
+34   invokestatic < Primordial, Ljava/util/Locale, <clinit>()V > @34 exception:v36
+BB35
+35   invokestatic < Primordial, Landroid/net/Uri, <clinit>()V > @35 exception:v37
+BB36
+36   invokestatic < Primordial, Ljava/util/concurrent/ThreadPoolExecutor, <clinit>()V > @36 exception:v38
+BB37
+37   invokestatic < Primordial, Ljava/util/concurrent/AbstractExecutorService, <clinit>()V > @37 exception:v39
+BB38
+38   invokestatic < Primordial, Ljava/util/concurrent/TimeUnit, <clinit>()V > @38 exception:v40
+BB39
+39   invokestatic < Primordial, Landroid/os/AsyncTask$Status, <clinit>()V > @39 exception:v41
+BB40
+40   invokestatic < Primordial, Ljava/util/Date, <clinit>()V > @40 exception:v42
+BB41
+41   invokestatic < Primordial, Ljava/lang/System, <clinit>()V > @41 exception:v43
+BB42
+42   invokestatic < Primordial, Landroid/graphics/Paint, <clinit>()V > @42 exception:v44
+BB43
+43   invokestatic < Primordial, Landroid/graphics/Paint$Align, <clinit>()V > @43 exception:v45
+BB44
+44   invokestatic < Primordial, Landroid/view/ViewConfiguration, <clinit>()V > @44 exception:v46
+BB45
+45   invokestatic < Application, Lorg/ametro/catalog/storage/CatalogDeserializer, <clinit>()V > @45 exception:v47
+BB46
+46   invokestatic < Application, Lorg/ametro/ui/controllers/MotionEventWrapper, <clinit>()V > @46 exception:v48
+BB47
+47   invokestatic < Application, Lorg/ametro/model/TransportType, <clinit>()V > @47 exception:v49
+BB48
+48   invokestatic < Primordial, Ljava/lang/Thread, <clinit>()V > @48 exception:v50
+BB49
+49   invokestatic < Primordial, Ljava/lang/Float, <clinit>()V > @49 exception:v51
+BB50
+50   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicInteger, <clinit>()V > @50 exception:v52
+BB51
+51   invokestatic < Primordial, Landroid/app/PendingIntent, <clinit>()V > @51 exception:v53
+BB52
+52   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask$Holder, <clinit>()V > @52 exception:v54
+BB53
+53   invokestatic < Primordial, Landroid/app/ActivityManagerNative, <clinit>()V > @53 exception:v55
+BB54
+54   invokestatic < Primordial, Landroid/view/LayoutInflater, <clinit>()V > @54 exception:v56
+BB55
+55   invokestatic < Primordial, Ljava/text/SimpleDateFormat, <clinit>()V > @55 exception:v57
+BB56
+56   invokestatic < Primordial, Lcom/android/tools/layoutlib/create/OverrideMethod, <clinit>()V > @56 exception:v58
+BB57
+57   invokestatic < Primordial, Landroid/os/Environment, <clinit>()V > @57 exception:v59
+BB58
+58   invokestatic < Primordial, Landroid/content/ComponentName, <clinit>()V > @58 exception:v60
+BB59
+59   invokestatic < Primordial, Landroid/graphics/Rect, <clinit>()V > @59 exception:v61
+BB60
+60   invokestatic < Primordial, Landroid/text/SpannableStringInternal, <clinit>()V > @60 exception:v62
+BB61
+61   invokestatic < Primordial, Ljava/util/PropertyPermission, <clinit>()V > @61 exception:v63
+BB62
+62   invokestatic < Primordial, Ljava/security/AccessController, <clinit>()V > @62 exception:v64
+BB63
+63   invokestatic < Primordial, Landroid/net/Uri$Part, <clinit>()V > @63 exception:v65
+BB64
+64   invokestatic < Primordial, Landroid/net/Uri$PathPart, <clinit>()V > @64 exception:v66
+BB65
+65   invokestatic < Primordial, Ljava/lang/RuntimePermission, <clinit>()V > @65 exception:v67
+BB66
+66   invokestatic < Primordial, Ljava/util/TimeZone, <clinit>()V > @66 exception:v68
+BB67
+67   invokestatic < Primordial, Ljava/lang/SecurityManager, <clinit>()V > @67 exception:v69
+BB68
+68   invokestatic < Primordial, Landroid/text/util/Linkify, <clinit>()V > @68 exception:v70
+BB69
+69   invokestatic < Primordial, Landroid/text/method/LinkMovementMethod, <clinit>()V > @69 exception:v71
+BB70
+70   invokestatic < Primordial, Landroid/graphics/Canvas_Delegate, <clinit>()V > @70 exception:v72
+BB71
+71   invokestatic < Primordial, Landroid/graphics/Paint$Style, <clinit>()V > @71 exception:v73
+BB72
+72   invokestatic < Primordial, Landroid/graphics/Paint$Cap, <clinit>()V > @72 exception:v74
+BB73
+73   invokestatic < Primordial, Landroid/graphics/Paint$Join, <clinit>()V > @73 exception:v75
+BB74
+74   invokestatic < Primordial, Landroid/graphics/Paint_Delegate, <clinit>()V > @74 exception:v76
+BB75
+75   invokestatic < Primordial, Landroid/util/SparseArray, <clinit>()V > @75 exception:v77
+BB76
+76   invokestatic < Primordial, Landroid/view/inputmethod/InputMethodManager, <clinit>()V > @76 exception:v78
+BB77
+77   invokestatic < Primordial, Ljava/util/Arrays, <clinit>()V > @77 exception:v79
+BB78
+78   invokestatic < Primordial, Landroid/view/WindowManager$LayoutParams, <clinit>()V > @78 exception:v80
+BB79
+79   invokestatic < Primordial, Ljava/lang/StringBuffer, <clinit>()V > @79 exception:v81
+BB80
+80   invokestatic < Primordial, Landroid/content/IntentFilter, <clinit>()V > @80 exception:v82
+BB81
+81   invokestatic < Primordial, Landroid/text/method/TextKeyListener, <clinit>()V > @81 exception:v83
+BB82
+82   invokestatic < Primordial, Landroid/text/method/BaseKeyListener, <clinit>()V > @82 exception:v84
+BB83
+83   invokestatic < Primordial, Landroid/text/method/MetaKeyKeyListener, <clinit>()V > @83 exception:v85
+BB84
+84   invokestatic < Primordial, Landroid/text/Selection, <clinit>()V > @84 exception:v86
+BB85
+85   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/Platform, <clinit>()V > @85 exception:v87
+BB86
+86   invokestatic < Primordial, Ljava/io/FileDescriptor, <clinit>()V > @86 exception:v88
+BB87
+87   invokestatic < Primordial, Ljava/util/Vector, <clinit>()V > @87 exception:v89
+BB88
+88   invokestatic < Primordial, Lorg/xmlpull/v1/XmlPullParserFactory, <clinit>()V > @88 exception:v90
+BB89
+89   invokestatic < Primordial, Landroid/view/VelocityTracker, <clinit>()V > @89 exception:v91
+BB90
+90   invokestatic < Primordial, Landroid/os/Looper, <clinit>()V > @90 exception:v92
+BB91
+91   invokestatic < Primordial, Landroid/text/SpannableStringBuilder, <clinit>()V > @91 exception:v93
+BB92
+92   invokestatic < Primordial, Ljava/util/concurrent/atomic/UnsafeAccess, <clinit>()V > @92 exception:v94
+BB93
+93   invokestatic < Primordial, Landroid/widget/RemoteViews, <clinit>()V > @93 exception:v95
+BB94
+94   invokestatic < Primordial, Ljava/lang/Character, <clinit>()V > @94 exception:v96
+BB95
+95   invokestatic < Primordial, Ljava/lang/CaseMapper, <clinit>()V > @95 exception:v97
+BB96
+96   invokestatic < Primordial, Ljava/util/GregorianCalendar, <clinit>()V > @96 exception:v98
+BB97
+97   invokestatic < Primordial, Ljava/util/Calendar, <clinit>()V > @97 exception:v99
+BB98
+98   invokestatic < Primordial, Ljava/lang/IntegralToString, <clinit>()V > @98 exception:v100
+BB99
+99   invokestatic < Primordial, Landroid/text/TextUtils, <clinit>()V > @99 exception:v101
+BB100
+100   invokestatic < Primordial, Landroid/text/Layout$Alignment, <clinit>()V > @100 exception:v102
+BB101
+101   invokestatic < Primordial, Landroid/text/DynamicLayout, <clinit>()V > @101 exception:v103
+BB102
+102   invokestatic < Primordial, Landroid/text/Layout, <clinit>()V > @102 exception:v104
+BB103
+103   invokestatic < Primordial, Landroid/text/BoringLayout, <clinit>()V > @103 exception:v105
+BB104
+104   invokestatic < Primordial, Ljava/lang/RealToString, <clinit>()V > @104 exception:v106
+BB105
+105   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer, <clinit>()V > @105 exception:v107
+BB106
+106   invokestatic < Primordial, Ljava/util/Formatter, <clinit>()V > @106 exception:v108
+BB107
+107   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfoDB, <clinit>()V > @107 exception:v109
+BB108
+108   invokestatic < Primordial, Ljava/util/SimpleTimeZone, <clinit>()V > @108 exception:v110
+BB109
+109   invokestatic < Primordial, Ljava/util/Hashtable, <clinit>()V > @109 exception:v111
+BB110
+110   invokestatic < Primordial, Landroid/util/Patterns, <clinit>()V > @110 exception:v112
+BB111
+111   invokestatic < Primordial, Landroid/graphics/Bitmap_Delegate, <clinit>()V > @111 exception:v113
+BB112
+112   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/DelegateManager, <clinit>()V > @112 exception:v114
+BB113
+113   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityManager, <clinit>()V > @113 exception:v115
+BB114
+114   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityEvent, <clinit>()V > @114 exception:v116
+BB115
+115   invokestatic < Primordial, Lcom/android/internal/util/ArrayUtils, <clinit>()V > @115 exception:v117
+BB116
+116   invokestatic < Primordial, Landroid/os/Message, <clinit>()V > @116 exception:v118
+BB117
+117   invokestatic < Primordial, Ljava/nio/charset/Charset, <clinit>()V > @117 exception:v119
+BB118
+118   invokestatic < Primordial, Ljava/nio/charset/CodingErrorAction, <clinit>()V > @118 exception:v120
+BB119
+119   invokestatic < Primordial, Landroid/text/method/TextKeyListener$Capitalize, <clinit>()V > @119 exception:v121
+BB120
+120   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSFileSystem, <clinit>()V > @120 exception:v122
+BB121
+121   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSNetworkSystem, <clinit>()V > @121 exception:v123
+BB122
+122   invokestatic < Primordial, Ljava/lang/Long, <clinit>()V > @122 exception:v124
+BB123
+123   invokestatic < Primordial, Ljava/util/TreeMap, <clinit>()V > @123 exception:v125
+BB124
+124   invokestatic < Primordial, Ljava/lang/ClassCache, <clinit>()V > @124 exception:v126
+BB125
+125   invokestatic < Primordial, Lsun/misc/Unsafe, <clinit>()V > @125 exception:v127
+BB126
+126   invokestatic < Primordial, Lcom/android/internal/policy/PolicyManager, <clinit>()V > @126 exception:v128
+BB127
+127   invokestatic < Primordial, Landroid/text/Editable$Factory, <clinit>()V > @127 exception:v129
+BB128
+128   invokestatic < Primordial, Landroid/text/Spannable$Factory, <clinit>()V > @128 exception:v130
+BB129
+129   invokestatic < Primordial, Landroid/widget/TextView$BufferType, <clinit>()V > @129 exception:v131
+BB130
+130   invokestatic < Primordial, Lcom/android/internal/R$styleable, <clinit>()V > @130 exception:v132
+BB131
+131   invokestatic < Primordial, Landroid/text/method/DigitsKeyListener, <clinit>()V > @131 exception:v133
+BB132
+132   invokestatic < Primordial, Landroid/text/method/DialerKeyListener, <clinit>()V > @132 exception:v134
+BB133
+133   invokestatic < Primordial, Landroid/text/TextUtils$TruncateAt, <clinit>()V > @133 exception:v135
+BB134
+134   invokestatic < Primordial, Landroid/content/res/ColorStateList, <clinit>()V > @134 exception:v136
+BB135
+135   invokestatic < Primordial, Landroid/text/method/PasswordTransformationMethod, <clinit>()V > @135 exception:v137
+BB136
+136   invokestatic < Primordial, Ljava/security/Security, <clinit>()V > @136 exception:v138
+BB137
+137   invokestatic < Primordial, Ljava/security/Policy, <clinit>()V > @137 exception:v139
+BB138
+138   invokestatic < Primordial, Ljava/util/concurrent/locks/UnsafeAccess, <clinit>()V > @138 exception:v140
+BB139
+139   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer$Node, <clinit>()V > @139 exception:v141
+BB140
+140   invokestatic < Primordial, Landroid/text/Html$HtmlParser, <clinit>()V > @140 exception:v142
+BB141
+141   invokestatic < Primordial, Landroid/text/HtmlToSpannedConverter, <clinit>()V > @141 exception:v143
+BB142
+142   invokestatic < Primordial, Lorg/apache/harmony/luni/util/HexStringParser, <clinit>()V > @142 exception:v144
+BB143
+143   invokestatic < Primordial, Landroid/graphics/drawable/Drawable, <clinit>()V > @143 exception:v145
+BB144
+144   invokestatic < Primordial, Landroid/view/ViewRoot, <clinit>()V > @144 exception:v146
+BB145
+145   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/GcSnapshot, <clinit>()V > @145 exception:v147
+BB146
+146   invokestatic < Primordial, Lcom/android/layoutlib/bridge/util/SparseWeakArray, <clinit>()V > @146 exception:v148
+BB147
+147   invokestatic < Primordial, Landroid/graphics/TemporaryBuffer, <clinit>()V > @147 exception:v149
+BB148
+148   invokestatic < Primordial, Ljava/nio/charset/spi/CharsetProvider, <clinit>()V > @148 exception:v150
+BB149
+149   invokestatic < Primordial, Lorg/apache/harmony/nio/internal/FileChannelImpl, <clinit>()V > @149 exception:v151
+BB150
+150   invokestatic < Primordial, Ljava/nio/channels/spi/AbstractInterruptibleChannel, <clinit>()V > @150 exception:v152
+BB151
+151   invokestatic < Application, Lorg/ametro/model/storage/CsvStorage, <clinit>()V > @151 exception:v153
+BB152
+152   invokestatic < Primordial, Ljava/util/EnumSet, <clinit>()V > @152 exception:v154
+BB153
+153   invokestatic < Primordial, Ljava/lang/LangAccessImpl, <clinit>()V > @153 exception:v155
+BB154
+154   invokestatic < Primordial, Lorg/apache/harmony/kernel/vm/LangAccess, <clinit>()V > @154 exception:v156
+BB155
+155   invokestatic < Primordial, Landroid/os/SystemClock_Delegate, <clinit>()V > @155 exception:v157
+BB156
+156   invokestatic < Primordial, Landroid/os/Handler_Delegate, <clinit>()V > @156 exception:v158
+BB157
+157   invokestatic < Primordial, Landroid/os/Parcel, <clinit>()V > @157 exception:v159
+BB158
+158   invokestatic < Primordial, Landroid/widget/Scroller, <clinit>()V > @158 exception:v160
+BB159
+159   invokestatic < Primordial, Landroid/graphics/Matrix_Delegate, <clinit>()V > @159 exception:v161
+BB160
+160   invokestatic < Primordial, Ljava/text/NumberFormat, <clinit>()V > @160 exception:v162
+BB161
+161   invokestatic < Primordial, Landroid/text/method/DateKeyListener, <clinit>()V > @161 exception:v163
+BB162
+162   invokestatic < Primordial, Landroid/text/method/TimeKeyListener, <clinit>()V > @162 exception:v164
+BB163
+163   invokestatic < Primordial, Landroid/text/method/DateTimeKeyListener, <clinit>()V > @163 exception:v165
+BB164
+164   invokestatic < Primordial, Landroid/graphics/Typeface, <clinit>()V > @164 exception:v166
+BB165
+165   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfo, <clinit>()V > @165 exception:v167
+BB166
+166   invokestatic < Primordial, Ljava/nio/charset/Charsets, <clinit>()V > @166 exception:v168
+BB167
+167   invokestatic < Primordial, Ljava/nio/channels/FileChannel$MapMode, <clinit>()V > @167 exception:v169
+BB168
+168   invokestatic < Primordial, Ljava/nio/ByteOrder, <clinit>()V > @168 exception:v170
+BB169
+169   invokestatic < Primordial, Ljava/nio/charset/CoderResult, <clinit>()V > @169 exception:v171
+BB170
+170   invokestatic < Primordial, Ljava/util/TreeMap$Relation, <clinit>()V > @170 exception:v172
+BB171
+171   invokestatic < Primordial, Ljava/lang/reflect/AccessibleObject, <clinit>()V > @171 exception:v173
+BB172
+172   invokestatic < Primordial, Landroid/graphics/Bitmap, <clinit>()V > @172 exception:v174
+BB173
+173   invokestatic < Primordial, Landroid/graphics/Bitmap$Config, <clinit>()V > @173 exception:v175
+BB174
+174   invokestatic < Primordial, Landroid/app/ActivityManager, <clinit>()V > @174 exception:v176
+BB175
+175   invokestatic < Primordial, Ljava/lang/Byte, <clinit>()V > @175 exception:v177
+BB176
+176   invokestatic < Primordial, Ljava/lang/ThreadLocal$Values, <clinit>()V > @176 exception:v178
+BB177
+177   invokestatic < Primordial, Landroid/content/res/Resources, <clinit>()V > @177 exception:v179
+BB178
+178   invokestatic < Primordial, Ljava/text/DateFormat$Field, <clinit>()V > @178 exception:v180
+BB179
+179   invokestatic < Primordial, Ljava/text/AttributedCharacterIterator$Attribute, <clinit>()V > @179 exception:v181
+BB180
+180   invokestatic < Primordial, Landroid/util/StateSet, <clinit>()V > @180 exception:v182
+BB181
+181   invokestatic < Primordial, Ljava/lang/ClassLoader$SystemClassLoader, <clinit>()V > @181 exception:v183
+BB182
+182   invokestatic < Primordial, Ljava/lang/Runtime, <clinit>()V > @182 exception:v184
+BB183
+183   invokestatic < Primordial, Landroid/graphics/Path, <clinit>()V > @183 exception:v185
+BB184
+184   invokestatic < Primordial, Landroid/util/TypedValue, <clinit>()V > @184 exception:v186
+BB185
+185   invokestatic < Primordial, Landroid/view/FocusFinder, <clinit>()V > @185 exception:v187
+BB186
+186   invokestatic < Primordial, Landroid/text/method/SingleLineTransformationMethod, <clinit>()V > @186 exception:v188
+BB187
+187   invokestatic < Primordial, Landroid/graphics/Shader$TileMode, <clinit>()V > @187 exception:v189
+BB188
+188   invokestatic < Primordial, Landroid/graphics/PorterDuff$Mode, <clinit>()V > @188 exception:v190
+BB189
+189   invokestatic < Primordial, Landroid/os/Build$VERSION, <clinit>()V > @189 exception:v191
+BB190
+190   invokestatic < Primordial, Landroid/util/LongSparseArray, <clinit>()V > @190 exception:v192
+BB191
+191   invokestatic < Primordial, Landroid/widget/PopupWindow, <clinit>()V > @191 exception:v193
+BB192
+192   invokestatic < Primordial, Llibcore/icu/TimeZones, <clinit>()V > @192 exception:v194
+BB193
+193   invokestatic < Primordial, Landroid/graphics/Typeface_Delegate, <clinit>()V > @193 exception:v195
+BB194
+194   invokestatic < Primordial, Ljava/util/concurrent/locks/LockSupport, <clinit>()V > @194 exception:v196
+BB195
+195   invokestatic < Primordial, Landroid/graphics/Path$FillType, <clinit>()V > @195 exception:v197
+BB196
+196   invokestatic < Primordial, Landroid/graphics/Color, <clinit>()V > @196 exception:v198
+BB197
+197   invokestatic < Primordial, Ljava/text/DecimalFormat, <clinit>()V > @197 exception:v199
+BB198
+198   invokestatic < Primordial, Landroid/content/res/Configuration, <clinit>()V > @198 exception:v200
+BB199
+199   invokestatic < Primordial, Landroid/util/DisplayMetrics, <clinit>()V > @199 exception:v201
+BB200
+200   invokestatic < Primordial, Landroid/content/res/AssetManager, <clinit>()V > @200 exception:v202
+BB201
+201   invokestatic < Primordial, Landroid/content/res/CompatibilityInfo, <clinit>()V > @201 exception:v203
+BB202
+202   invokestatic < Primordial, Landroid/os/Build, <clinit>()V > @202 exception:v204
+BB203
+203   invokestatic < Primordial, Ljava/math/BigInteger, <clinit>()V > @203 exception:v205
+BB204
+204   invokestatic < Primordial, Landroid/graphics/PathEffect_Delegate, <clinit>()V > @204 exception:v206
+BB205
+205   invokestatic < Primordial, Ljava/lang/Double, <clinit>()V > @205 exception:v207
+BB206
+206   invokestatic < Primordial, Ljava/math/RoundingMode, <clinit>()V > @206 exception:v208
+BB207
+207   invokestatic < Primordial, Ljava/text/DecimalFormatSymbols, <clinit>()V > @207 exception:v209
+BB208
+208   invokestatic < Primordial, Landroid/graphics/Shader_Delegate, <clinit>()V > @208 exception:v210
+BB209
+209   invokestatic < Primordial, Landroid/graphics/PorterDuffXfermode_Delegate, <clinit>()V > @209 exception:v211
+BB210
+210   invokestatic < Primordial, Landroid/graphics/Xfermode_Delegate, <clinit>()V > @210 exception:v212
+BB211
+211   invokestatic < Primordial, Landroid/util/Xml, <clinit>()V > @211 exception:v213
+BB212
+212   invokestatic < Primordial, Ljava/math/BigDecimal, <clinit>()V > @212 exception:v214
+BB213
+213   invokestatic < Primordial, Ljava/math/MathContext, <clinit>()V > @213 exception:v215
+BB214
+214   invokestatic < Primordial, Landroid/graphics/Path_Delegate, <clinit>()V > @214 exception:v216
+BB215
+215   invokestatic < Primordial, Ljava/util/Currency, <clinit>()V > @215 exception:v217
+BB216
+216   invokestatic < Primordial, Landroid/view/WindowManagerImpl, <clinit>()V > @216 exception:v218
+BB217
+217   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/PolicyUtils, <clinit>()V > @217 exception:v219
+BB218
+218   invokestatic < Primordial, Ljava/math/Multiplication, <clinit>()V > @218 exception:v220
+BB219
+219   invokestatic < Primordial, Landroid/graphics/NinePatch_Delegate, <clinit>()V > @219 exception:v221
+BB220
+220   invokestatic < Primordial, Ljava/lang/VMThread, <clinit>()V > @220 exception:v222
+BB221
+221   invokestatic < Primordial, Ljava/net/URL, <clinit>()V > @221 exception:v223
+BB222
+222   invokestatic < Primordial, Ljava/lang/Thread$State, <clinit>()V > @222 exception:v224
+BB223
+223   invokestatic < Primordial, Ljava/security/KeyStore, <clinit>()V > @223 exception:v225
+BB224
+224   invokestatic < Primordial, Ljava/lang/reflect/Proxy, <clinit>()V > @224 exception:v226
+BB225
+225   invokestatic < Primordial, Ljava/io/ObjectStreamClass, <clinit>()V > @225 exception:v227
+BB226
+226   invokestatic < Primordial, Ljava/io/ObjectStreamConstants, <clinit>()V > @226 exception:v228
+BB227
+227   invokestatic < Primordial, Llibcore/math/MathUtils, <clinit>()V > @227 exception:v229
+BB228
+228   invokestatic < Primordial, Lcom/android/ninepatch/NinePatchChunk, <clinit>()V > @228 exception:v230
+BB229
+229   invokestatic < Primordial, Ljava/io/ObjectInputStream, <clinit>()V > @229 exception:v231
+BB230
+230   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/Services, <clinit>()V > @230 exception:v232
+BB231
+231   invokestatic < Primordial, Ljava/io/ObjectStreamClass$OSCThreadLocalCache, <clinit>()V > @231 exception:v233
+BB232
+232   invokestatic < Primordial, Lorg/apache/harmony/luni/util/ThreadLocalCache, <clinit>()V > @232 exception:v234
+BB233
+233   invokestatic < Primordial, Ljava/lang/Short, <clinit>()V > @233 exception:v235
+BB234
+234   invokestatic < Primordial, Ljava/util/IdentityHashMap, <clinit>()V > @234 exception:v236
+BB235
+235   invokestatic < Primordial, Ljava/net/URI, <clinit>()V > @235 exception:v237
+BB236
+236   invokestatic < Primordial, Ljava/security/cert/CertificateFactory, <clinit>()V > @236 exception:v238
+BB237
+237   invokestatic < Primordial, Ljava/security/MessageDigest, <clinit>()V > @237 exception:v239
+BB238
+238   invokestatic < Primordial, Ljava/net/InetAddress, <clinit>()V > @238 exception:v240
+BB239
+239   invokestatic < Primordial, Ljava/net/AddressCache, <clinit>()V > @239 exception:v241
+BB240
+240   invokestatic < Primordial, Landroid/view/Display, <clinit>()V > @240 exception:v242
+BB241
+241   invokestatic < Primordial, Ldalvik/system/BlockGuard, <clinit>()V > @241 exception:v243
+BB242
+242   invokestatic < Primordial, Ljava/util/Grego, <clinit>()V > @242 exception:v244
+BB243
+243   invokestatic < Primordial, Ljava/util/logging/Logger, <clinit>()V > @243 exception:v245
+BB244
+244   invokestatic < Primordial, Ljava/util/logging/Level, <clinit>()V > @244 exception:v246
+BB245
+245   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddressFactory, <clinit>()V > @245 exception:v247
+BB246
+246   invokestatic < Primordial, Landroid/view/KeyCharacterMap, <clinit>()V > @246 exception:v248
+BB247
+247   invokestatic < Primordial, Landroid/text/method/QwertyKeyListener, <clinit>()V > @247 exception:v249
+BB248
+248   invokestatic < Primordial, Landroid/text/method/MultiTapKeyListener, <clinit>()V > @248 exception:v250
+BB249
+249   invokestatic < Primordial, Ljava/lang/reflect/Method, <clinit>()V > @249 exception:v251
+BB250
+250   invokestatic < Primordial, Llibcore/icu/TimeZones$CachedTimeZones, <clinit>()V > @250 exception:v252
+BB251
+251   invokestatic < Primordial, Landroid/os/StrictMode, <clinit>()V > @251 exception:v253
+BB252
+252   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSMemory, <clinit>()V > @252 exception:v254
+BB253
+253   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddress, <clinit>()V > @253 exception:v255
+BB254
+254   invokestatic < Primordial, Ljava/lang/EmptyEnumeration, <clinit>()V > @254 exception:v256
+BB255
+255   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicLong, <clinit>()V > @255 exception:v257
+BB256
+256   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/SecurityUtils, <clinit>()V > @256 exception:v258
+BB257
+257   invokestatic < Primordial, Landroid/graphics/Region_Delegate, <clinit>()V > @257 exception:v259
+BB258
+258   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/jar/JarURLConnectionImpl, <clinit>()V > @258 exception:v260
+BB259
+259   invokestatic < Primordial, Ljava/net/URLConnection, <clinit>()V > @259 exception:v261
+BB260
+260   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl, <clinit>()V > @260 exception:v262
+BB261
+261   invokestatic < Primordial, Ljava/net/HttpURLConnection, <clinit>()V > @261 exception:v263
+BB262
+262   invokestatic < Primordial, Ljavax/net/ssl/HttpsURLConnection, <clinit>()V > @262 exception:v264
+BB263
+263   invokestatic < Primordial, Ljava/util/ResourceBundle, <clinit>()V > @263 exception:v265
+BB264
+264   invokestatic < Primordial, Landroid/content/res/StringBlock$Height, <clinit>()V > @264 exception:v266
+BB265
+265   invokestatic < Primordial, Landroid/graphics/Path$Direction, <clinit>()V > @265 exception:v267
+BB266
+266   invokestatic < Primordial, Ljavax/net/ssl/DefaultHostnameVerifier, <clinit>()V > @266 exception:v268
+BB267
+267   invokestatic < Primordial, Ljavax/net/ssl/SSLContext, <clinit>()V > @267 exception:v269
+BB268
+268   invokestatic < Primordial, Ljava/util/logging/LogRecord, <clinit>()V > @268 exception:v270
+BB269
+269   invokestatic < Primordial, Ljava/net/ResponseCache, <clinit>()V > @269 exception:v271
+BB270
+270   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl$Retry, <clinit>()V > @270 exception:v272
+BB271
+271   invokestatic < Primordial, Ljava/net/ProxySelector, <clinit>()V > @271 exception:v273
+BB272
+272   invokestatic < Primordial, Landroid/text/AutoText, <clinit>()V > @272 exception:v274
+BB273
+273   invokestatic < Primordial, Llibcore/base/Streams, <clinit>()V > @273 exception:v275
+BB274
+274   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpConnectionPool, <clinit>()V > @274 exception:v276
+BB275
+275   invokestatic < Primordial, Ljava/net/ProxySelectorImpl, <clinit>()V > @275 exception:v277
+BB276
+276   invokestatic < Primordial, Landroid/provider/Settings$System, <clinit>()V > @276 exception:v278
+BB277
+277   invokestatic < Primordial, Ljava/net/CookieHandler, <clinit>()V > @277 exception:v279
+BB278
+278   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/ChunkedInputStream, <clinit>()V > @278 exception:v280
+BB279
+279   invokestatic < Primordial, Ljava/net/Proxy, <clinit>()V > @279 exception:v281
+BB280
+280   invokestatic < Primordial, Ljava/net/Proxy$Type, <clinit>()V > @280 exception:v282
+BB281
+281   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicReference, <clinit>()V > @281 exception:v283
+BB282
+282   invokestatic < Primordial, Ljava/net/Inet4Address, <clinit>()V > @282 exception:v284
+BB283
+283   invokestatic < Primordial, Landroid/graphics/ColorFilter_Delegate, <clinit>()V > @283 exception:v285
+BB284
+284   invokestatic < Primordial, Ljava/util/logging/LogManager, <clinit>()V > @284 exception:v286
+BB285
+285   invokestatic < Primordial, Ljava/net/Authenticator, <clinit>()V > @285 exception:v287
+BB286
+286   invokestatic < Primordial, Lorg/apache/harmony/luni/util/Base64, <clinit>()V > @286 exception:v288
+BB287
+287   invokestatic < Primordial, Landroid/provider/Settings$Secure, <clinit>()V > @287 exception:v289
+BB288
+288   invokestatic < Primordial, Lorg/apache/harmony/luni/util/InputStreamHelper, <clinit>()V > @288 exception:v290
+BB289
+289   invokestatic < Primordial, Ljava/net/Authenticator$RequestorType, <clinit>()V > @289 exception:v291
+BB290
+290   invokestatic < Primordial, Landroid/provider/Settings$NameValueCache, <clinit>()V > @290 exception:v292
+BB291
+291   invokestatic < Primordial, Ljava/net/Inet6Address, <clinit>()V > @291 exception:v293
+BB292
+292   invokestatic < Application, Lorg/ametro/model/route/RouteParameters, <clinit>()V > @292 exception:v294
+BB293
+293   invokestatic < Primordial, Landroid/app/SearchableInfo, <clinit>()V > @293 exception:v295
+BB294
+294   invokestatic < Primordial, Ljava/util/jar/Manifest, <clinit>()V > @294 exception:v296
+BB295
+295   invokestatic < Primordial, Ljava/util/jar/Attributes$Name, <clinit>()V > @295 exception:v297
+BB296
+296   invokestatic < Primordial, Lorg/apache/harmony/security/utils/JarUtils, <clinit>()V > @296 exception:v298
+BB297
+297   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatParser, <clinit>()V > @297 exception:v299
+BB298
+298   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/ContentInfo, <clinit>()V > @298 exception:v300
+BB299
+299   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/OpenSSLSignature, <clinit>()V > @299 exception:v301
+BB300
+300   invokestatic < Primordial, Ljava/security/Signature, <clinit>()V > @300 exception:v302
+BB301
+301   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatPullParser$NamespaceStack, <clinit>()V > @301 exception:v303
+BB302
+302   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Oid, <clinit>()V > @302 exception:v304
+BB303
+303   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Any, <clinit>()V > @303 exception:v305
+BB304
+304   invokestatic < Primordial, Ljava/util/logging/Handler, <clinit>()V > @304 exception:v306
+BB305
+305   invokestatic < Primordial, Ljava/util/logging/FileHandler, <clinit>()V > @305 exception:v307
+BB306
+306   invokestatic < Primordial, Lcom/android/internal/logging/AndroidHandler, <clinit>()V > @306 exception:v308
+BB307
+307   invokestatic < Primordial, Ljava/util/logging/ErrorManager, <clinit>()V > @307 exception:v309
+BB308
+308   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1OctetString, <clinit>()V > @308 exception:v310
+BB309
+309   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1StringType, <clinit>()V > @309 exception:v311
+BB310
+310   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignedData, <clinit>()V > @310 exception:v312
+BB311
+311   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Integer, <clinit>()V > @311 exception:v313
+BB312
+312   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AlgorithmIdentifier, <clinit>()V > @312 exception:v314
+BB313
+313   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Certificate, <clinit>()V > @313 exception:v315
+BB314
+314   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateList, <clinit>()V > @314 exception:v316
+BB315
+315   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignerInfo, <clinit>()V > @315 exception:v317
+BB316
+316   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertificate, <clinit>()V > @316 exception:v318
+BB317
+317   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString, <clinit>()V > @317 exception:v319
+BB318
+318   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList, <clinit>()V > @318 exception:v320
+BB319
+319   invokestatic < Primordial, Lorg/apache/harmony/security/x501/Name, <clinit>()V > @319 exception:v321
+BB320
+320   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/AuthenticatedAttributes, <clinit>()V > @320 exception:v322
+BB321
+321   invokestatic < Primordial, Lorg/apache/harmony/security/x501/AttributeTypeAndValue, <clinit>()V > @321 exception:v323
+BB322
+322   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/NativeCrypto, <clinit>()V > @322 exception:v324
+BB323
+323   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Validity, <clinit>()V > @323 exception:v325
+BB324
+324   invokestatic < Primordial, Lorg/apache/harmony/security/x509/SubjectPublicKeyInfo, <clinit>()V > @324 exception:v326
+BB325
+325   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extensions, <clinit>()V > @325 exception:v327
+BB326
+326   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Time, <clinit>()V > @326 exception:v328
+BB327
+327   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList$RevokedCertificate, <clinit>()V > @327 exception:v329
+BB328
+328   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extension, <clinit>()V > @328 exception:v330
+BB329
+329   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1GeneralizedTime, <clinit>()V > @329 exception:v331
+BB330
+330   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1UTCTime, <clinit>()V > @330 exception:v332
+BB331
+331   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Boolean, <clinit>()V > @331 exception:v333
+BB332
+332   invokestatic < Primordial, Ljava/util/logging/XMLFormatter, <clinit>()V > @332 exception:v334
+BB333
+333   invokestatic < Primordial, Ljava/text/MessageFormat, <clinit>()V > @333 exception:v335
+BB334
+334   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/DerInputStream, <clinit>()V > @334 exception:v336
+BB335
+335   invokestatic < Primordial, Lorg/apache/harmony/security/x501/DirectoryString, <clinit>()V > @335 exception:v337
+BB336
+336   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/BitString, <clinit>()V > @336 exception:v338
+BB337
+337   invokestatic < Primordial, Ljava/text/MessageFormat$Field, <clinit>()V > @337 exception:v339
+BB338
+338   invokestatic < Primordial, Lorg/apache/harmony/security/x509/KeyUsage, <clinit>()V > @338 exception:v340
+BB339
+339   invokestatic < Primordial, Lorg/apache/harmony/security/x509/BasicConstraints, <clinit>()V > @339 exception:v341
+BB340
+340   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString$ASN1NamedBitList, <clinit>()V > @340 exception:v342
+BB341
+341   invokestatic < Primordial, Lorg/apache/harmony/security/utils/AlgNameMapper, <clinit>()V > @341 exception:v343
+BB342
+342   invokestatic < Primordial, Ljava/security/KeyFactory, <clinit>()V > @342 exception:v344
+BB343
+343   invokestatic < Primordial, Lorg/apache/harmony/security/x509/NameConstraints, <clinit>()V > @343 exception:v345
+BB344
+344   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificatePolicies, <clinit>()V > @344 exception:v346
+BB345
+345   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AuthorityKeyIdentifier, <clinit>()V > @345 exception:v347
+BB346
+346   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyConstraints, <clinit>()V > @346 exception:v348
+BB347
+347   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ExtendedKeyUsage, <clinit>()V > @347 exception:v349
+BB348
+348   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateIssuer, <clinit>()V > @348 exception:v350
+BB349
+349   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLDistributionPoints, <clinit>()V > @349 exception:v351
+BB350
+350   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonCode, <clinit>()V > @350 exception:v352
+BB351
+351   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InvalidityDate, <clinit>()V > @351 exception:v353
+BB352
+352   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLNumber, <clinit>()V > @352 exception:v354
+BB353
+353   invokestatic < Primordial, Lorg/apache/harmony/security/x509/IssuingDistributionPoint, <clinit>()V > @353 exception:v355
+BB354
+354   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InfoAccessSyntax, <clinit>()V > @354 exception:v356
+BB355
+355   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralNames, <clinit>()V > @355 exception:v357
+BB356
+356   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtrees, <clinit>()V > @356 exception:v358
+BB357
+357   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyInformation, <clinit>()V > @357 exception:v359
+BB358
+358   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralName, <clinit>()V > @358 exception:v360
+BB359
+359   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPoint, <clinit>()V > @359 exception:v361
+BB360
+360   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Enumerated, <clinit>()V > @360 exception:v362
+BB361
+361   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPointName, <clinit>()V > @361 exception:v363
+BB362
+362   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonFlags, <clinit>()V > @362 exception:v364
+BB363
+363   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AccessDescription, <clinit>()V > @363 exception:v365
+BB364
+364   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtree, <clinit>()V > @364 exception:v366
+BB365
+365   invokestatic < Primordial, Lorg/apache/harmony/security/x509/OtherName, <clinit>()V > @365 exception:v367
+BB366
+366   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ORAddress, <clinit>()V > @366 exception:v368
+BB367
+367   invokestatic < Primordial, Lorg/apache/harmony/security/x509/EDIPartyName, <clinit>()V > @367 exception:v369
+BB368
+
+< Primordial, Landroid/util/Log, i(Ljava/lang/String;Ljava/lang/String;)I >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..4]
+    -> BB2
+    -> BB3
+BB2[5..5]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+4   v7 = invokestatic < Primordial, Landroid/util/Log, println_native(IILjava/lang/String;Ljava/lang/String;)I > v4:#0,v5:#4,v1,v2 @4 exception:v6(line 158) {1=[tag], 2=[msg]}
+BB2
+5   return v7                                (line 158)
+BB3
+
+< Primordial, Landroid/util/Log, isLoggable(Ljava/lang/String;I)Z >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..3]
+    -> BB2
+    -> BB5
+BB2[4..5]
+    -> BB4
+    -> BB3
+BB3[6..7]
+    -> BB5
+BB4[8..9]
+    -> BB5
+BB5[-1..-2]
+Instructions:
+BB0
+BB1
+3   v8 = invokestatic < Primordial, Lcom/android/tools/layoutlib/create/OverrideMethod, invokeI(Ljava/lang/String;ZLjava/lang/Object;)I > v4:#android.util.Log#isLoggable(Ljava/lang/String;I)Z,v5:#1,v6:#null @4 exception:v7
+BB2
+5   conditional branch(eq) v8,v9:#0          
+BB3
+7   return v5:#1                             
+BB4
+9   return v9:#0                             
+BB5
+
+synthetic < Primordial, Lcom/ibm/wala/FakeRootClass, fakeWorldClinit()V >
+CFG:
+BB0[0..0]
+    -> BB1
+    -> BB368
+BB1[1..1]
+    -> BB2
+    -> BB368
+BB2[2..2]
+    -> BB3
+    -> BB368
+BB3[3..3]
+    -> BB4
+    -> BB368
+BB4[4..4]
+    -> BB5
+    -> BB368
+BB5[5..5]
+    -> BB6
+    -> BB368
+BB6[6..6]
+    -> BB7
+    -> BB368
+BB7[7..7]
+    -> BB8
+    -> BB368
+BB8[8..8]
+    -> BB9
+    -> BB368
+BB9[9..9]
+    -> BB10
+    -> BB368
+BB10[10..10]
+    -> BB11
+    -> BB368
+BB11[11..11]
+    -> BB12
+    -> BB368
+BB12[12..12]
+    -> BB13
+    -> BB368
+BB13[13..13]
+    -> BB14
+    -> BB368
+BB14[14..14]
+    -> BB15
+    -> BB368
+BB15[15..15]
+    -> BB16
+    -> BB368
+BB16[16..16]
+    -> BB17
+    -> BB368
+BB17[17..17]
+    -> BB18
+    -> BB368
+BB18[18..18]
+    -> BB19
+    -> BB368
+BB19[19..19]
+    -> BB20
+    -> BB368
+BB20[20..20]
+    -> BB21
+    -> BB368
+BB21[21..21]
+    -> BB22
+    -> BB368
+BB22[22..22]
+    -> BB23
+    -> BB368
+BB23[23..23]
+    -> BB24
+    -> BB368
+BB24[24..24]
+    -> BB25
+    -> BB368
+BB25[25..25]
+    -> BB26
+    -> BB368
+BB26[26..26]
+    -> BB27
+    -> BB368
+BB27[27..27]
+    -> BB28
+    -> BB368
+BB28[28..28]
+    -> BB29
+    -> BB368
+BB29[29..29]
+    -> BB30
+    -> BB368
+BB30[30..30]
+    -> BB31
+    -> BB368
+BB31[31..31]
+    -> BB32
+    -> BB368
+BB32[32..32]
+    -> BB33
+    -> BB368
+BB33[33..33]
+    -> BB34
+    -> BB368
+BB34[34..34]
+    -> BB35
+    -> BB368
+BB35[35..35]
+    -> BB36
+    -> BB368
+BB36[36..36]
+    -> BB37
+    -> BB368
+BB37[37..37]
+    -> BB38
+    -> BB368
+BB38[38..38]
+    -> BB39
+    -> BB368
+BB39[39..39]
+    -> BB40
+    -> BB368
+BB40[40..40]
+    -> BB41
+    -> BB368
+BB41[41..41]
+    -> BB42
+    -> BB368
+BB42[42..42]
+    -> BB43
+    -> BB368
+BB43[43..43]
+    -> BB44
+    -> BB368
+BB44[44..44]
+    -> BB45
+    -> BB368
+BB45[45..45]
+    -> BB46
+    -> BB368
+BB46[46..46]
+    -> BB47
+    -> BB368
+BB47[47..47]
+    -> BB48
+    -> BB368
+BB48[48..48]
+    -> BB49
+    -> BB368
+BB49[49..49]
+    -> BB50
+    -> BB368
+BB50[50..50]
+    -> BB51
+    -> BB368
+BB51[51..51]
+    -> BB52
+    -> BB368
+BB52[52..52]
+    -> BB53
+    -> BB368
+BB53[53..53]
+    -> BB54
+    -> BB368
+BB54[54..54]
+    -> BB55
+    -> BB368
+BB55[55..55]
+    -> BB56
+    -> BB368
+BB56[56..56]
+    -> BB57
+    -> BB368
+BB57[57..57]
+    -> BB58
+    -> BB368
+BB58[58..58]
+    -> BB59
+    -> BB368
+BB59[59..59]
+    -> BB60
+    -> BB368
+BB60[60..60]
+    -> BB61
+    -> BB368
+BB61[61..61]
+    -> BB62
+    -> BB368
+BB62[62..62]
+    -> BB63
+    -> BB368
+BB63[63..63]
+    -> BB64
+    -> BB368
+BB64[64..64]
+    -> BB65
+    -> BB368
+BB65[65..65]
+    -> BB66
+    -> BB368
+BB66[66..66]
+    -> BB67
+    -> BB368
+BB67[67..67]
+    -> BB68
+    -> BB368
+BB68[68..68]
+    -> BB69
+    -> BB368
+BB69[69..69]
+    -> BB70
+    -> BB368
+BB70[70..70]
+    -> BB71
+    -> BB368
+BB71[71..71]
+    -> BB72
+    -> BB368
+BB72[72..72]
+    -> BB73
+    -> BB368
+BB73[73..73]
+    -> BB74
+    -> BB368
+BB74[74..74]
+    -> BB75
+    -> BB368
+BB75[75..75]
+    -> BB76
+    -> BB368
+BB76[76..76]
+    -> BB77
+    -> BB368
+BB77[77..77]
+    -> BB78
+    -> BB368
+BB78[78..78]
+    -> BB79
+    -> BB368
+BB79[79..79]
+    -> BB80
+    -> BB368
+BB80[80..80]
+    -> BB81
+    -> BB368
+BB81[81..81]
+    -> BB82
+    -> BB368
+BB82[82..82]
+    -> BB83
+    -> BB368
+BB83[83..83]
+    -> BB84
+    -> BB368
+BB84[84..84]
+    -> BB85
+    -> BB368
+BB85[85..85]
+    -> BB86
+    -> BB368
+BB86[86..86]
+    -> BB87
+    -> BB368
+BB87[87..87]
+    -> BB88
+    -> BB368
+BB88[88..88]
+    -> BB89
+    -> BB368
+BB89[89..89]
+    -> BB90
+    -> BB368
+BB90[90..90]
+    -> BB91
+    -> BB368
+BB91[91..91]
+    -> BB92
+    -> BB368
+BB92[92..92]
+    -> BB93
+    -> BB368
+BB93[93..93]
+    -> BB94
+    -> BB368
+BB94[94..94]
+    -> BB95
+    -> BB368
+BB95[95..95]
+    -> BB96
+    -> BB368
+BB96[96..96]
+    -> BB97
+    -> BB368
+BB97[97..97]
+    -> BB98
+    -> BB368
+BB98[98..98]
+    -> BB99
+    -> BB368
+BB99[99..99]
+    -> BB100
+    -> BB368
+BB100[100..100]
+    -> BB101
+    -> BB368
+BB101[101..101]
+    -> BB102
+    -> BB368
+BB102[102..102]
+    -> BB103
+    -> BB368
+BB103[103..103]
+    -> BB104
+    -> BB368
+BB104[104..104]
+    -> BB105
+    -> BB368
+BB105[105..105]
+    -> BB106
+    -> BB368
+BB106[106..106]
+    -> BB107
+    -> BB368
+BB107[107..107]
+    -> BB108
+    -> BB368
+BB108[108..108]
+    -> BB109
+    -> BB368
+BB109[109..109]
+    -> BB110
+    -> BB368
+BB110[110..110]
+    -> BB111
+    -> BB368
+BB111[111..111]
+    -> BB112
+    -> BB368
+BB112[112..112]
+    -> BB113
+    -> BB368
+BB113[113..113]
+    -> BB114
+    -> BB368
+BB114[114..114]
+    -> BB115
+    -> BB368
+BB115[115..115]
+    -> BB116
+    -> BB368
+BB116[116..116]
+    -> BB117
+    -> BB368
+BB117[117..117]
+    -> BB118
+    -> BB368
+BB118[118..118]
+    -> BB119
+    -> BB368
+BB119[119..119]
+    -> BB120
+    -> BB368
+BB120[120..120]
+    -> BB121
+    -> BB368
+BB121[121..121]
+    -> BB122
+    -> BB368
+BB122[122..122]
+    -> BB123
+    -> BB368
+BB123[123..123]
+    -> BB124
+    -> BB368
+BB124[124..124]
+    -> BB125
+    -> BB368
+BB125[125..125]
+    -> BB126
+    -> BB368
+BB126[126..126]
+    -> BB127
+    -> BB368
+BB127[127..127]
+    -> BB128
+    -> BB368
+BB128[128..128]
+    -> BB129
+    -> BB368
+BB129[129..129]
+    -> BB130
+    -> BB368
+BB130[130..130]
+    -> BB131
+    -> BB368
+BB131[131..131]
+    -> BB132
+    -> BB368
+BB132[132..132]
+    -> BB133
+    -> BB368
+BB133[133..133]
+    -> BB134
+    -> BB368
+BB134[134..134]
+    -> BB135
+    -> BB368
+BB135[135..135]
+    -> BB136
+    -> BB368
+BB136[136..136]
+    -> BB137
+    -> BB368
+BB137[137..137]
+    -> BB138
+    -> BB368
+BB138[138..138]
+    -> BB139
+    -> BB368
+BB139[139..139]
+    -> BB140
+    -> BB368
+BB140[140..140]
+    -> BB141
+    -> BB368
+BB141[141..141]
+    -> BB142
+    -> BB368
+BB142[142..142]
+    -> BB143
+    -> BB368
+BB143[143..143]
+    -> BB144
+    -> BB368
+BB144[144..144]
+    -> BB145
+    -> BB368
+BB145[145..145]
+    -> BB146
+    -> BB368
+BB146[146..146]
+    -> BB147
+    -> BB368
+BB147[147..147]
+    -> BB148
+    -> BB368
+BB148[148..148]
+    -> BB149
+    -> BB368
+BB149[149..149]
+    -> BB150
+    -> BB368
+BB150[150..150]
+    -> BB151
+    -> BB368
+BB151[151..151]
+    -> BB152
+    -> BB368
+BB152[152..152]
+    -> BB153
+    -> BB368
+BB153[153..153]
+    -> BB154
+    -> BB368
+BB154[154..154]
+    -> BB155
+    -> BB368
+BB155[155..155]
+    -> BB156
+    -> BB368
+BB156[156..156]
+    -> BB157
+    -> BB368
+BB157[157..157]
+    -> BB158
+    -> BB368
+BB158[158..158]
+    -> BB159
+    -> BB368
+BB159[159..159]
+    -> BB160
+    -> BB368
+BB160[160..160]
+    -> BB161
+    -> BB368
+BB161[161..161]
+    -> BB162
+    -> BB368
+BB162[162..162]
+    -> BB163
+    -> BB368
+BB163[163..163]
+    -> BB164
+    -> BB368
+BB164[164..164]
+    -> BB165
+    -> BB368
+BB165[165..165]
+    -> BB166
+    -> BB368
+BB166[166..166]
+    -> BB167
+    -> BB368
+BB167[167..167]
+    -> BB168
+    -> BB368
+BB168[168..168]
+    -> BB169
+    -> BB368
+BB169[169..169]
+    -> BB170
+    -> BB368
+BB170[170..170]
+    -> BB171
+    -> BB368
+BB171[171..171]
+    -> BB172
+    -> BB368
+BB172[172..172]
+    -> BB173
+    -> BB368
+BB173[173..173]
+    -> BB174
+    -> BB368
+BB174[174..174]
+    -> BB175
+    -> BB368
+BB175[175..175]
+    -> BB176
+    -> BB368
+BB176[176..176]
+    -> BB177
+    -> BB368
+BB177[177..177]
+    -> BB178
+    -> BB368
+BB178[178..178]
+    -> BB179
+    -> BB368
+BB179[179..179]
+    -> BB180
+    -> BB368
+BB180[180..180]
+    -> BB181
+    -> BB368
+BB181[181..181]
+    -> BB182
+    -> BB368
+BB182[182..182]
+    -> BB183
+    -> BB368
+BB183[183..183]
+    -> BB184
+    -> BB368
+BB184[184..184]
+    -> BB185
+    -> BB368
+BB185[185..185]
+    -> BB186
+    -> BB368
+BB186[186..186]
+    -> BB187
+    -> BB368
+BB187[187..187]
+    -> BB188
+    -> BB368
+BB188[188..188]
+    -> BB189
+    -> BB368
+BB189[189..189]
+    -> BB190
+    -> BB368
+BB190[190..190]
+    -> BB191
+    -> BB368
+BB191[191..191]
+    -> BB192
+    -> BB368
+BB192[192..192]
+    -> BB193
+    -> BB368
+BB193[193..193]
+    -> BB194
+    -> BB368
+BB194[194..194]
+    -> BB195
+    -> BB368
+BB195[195..195]
+    -> BB196
+    -> BB368
+BB196[196..196]
+    -> BB197
+    -> BB368
+BB197[197..197]
+    -> BB198
+    -> BB368
+BB198[198..198]
+    -> BB199
+    -> BB368
+BB199[199..199]
+    -> BB200
+    -> BB368
+BB200[200..200]
+    -> BB201
+    -> BB368
+BB201[201..201]
+    -> BB202
+    -> BB368
+BB202[202..202]
+    -> BB203
+    -> BB368
+BB203[203..203]
+    -> BB204
+    -> BB368
+BB204[204..204]
+    -> BB205
+    -> BB368
+BB205[205..205]
+    -> BB206
+    -> BB368
+BB206[206..206]
+    -> BB207
+    -> BB368
+BB207[207..207]
+    -> BB208
+    -> BB368
+BB208[208..208]
+    -> BB209
+    -> BB368
+BB209[209..209]
+    -> BB210
+    -> BB368
+BB210[210..210]
+    -> BB211
+    -> BB368
+BB211[211..211]
+    -> BB212
+    -> BB368
+BB212[212..212]
+    -> BB213
+    -> BB368
+BB213[213..213]
+    -> BB214
+    -> BB368
+BB214[214..214]
+    -> BB215
+    -> BB368
+BB215[215..215]
+    -> BB216
+    -> BB368
+BB216[216..216]
+    -> BB217
+    -> BB368
+BB217[217..217]
+    -> BB218
+    -> BB368
+BB218[218..218]
+    -> BB219
+    -> BB368
+BB219[219..219]
+    -> BB220
+    -> BB368
+BB220[220..220]
+    -> BB221
+    -> BB368
+BB221[221..221]
+    -> BB222
+    -> BB368
+BB222[222..222]
+    -> BB223
+    -> BB368
+BB223[223..223]
+    -> BB224
+    -> BB368
+BB224[224..224]
+    -> BB225
+    -> BB368
+BB225[225..225]
+    -> BB226
+    -> BB368
+BB226[226..226]
+    -> BB227
+    -> BB368
+BB227[227..227]
+    -> BB228
+    -> BB368
+BB228[228..228]
+    -> BB229
+    -> BB368
+BB229[229..229]
+    -> BB230
+    -> BB368
+BB230[230..230]
+    -> BB231
+    -> BB368
+BB231[231..231]
+    -> BB232
+    -> BB368
+BB232[232..232]
+    -> BB233
+    -> BB368
+BB233[233..233]
+    -> BB234
+    -> BB368
+BB234[234..234]
+    -> BB235
+    -> BB368
+BB235[235..235]
+    -> BB236
+    -> BB368
+BB236[236..236]
+    -> BB237
+    -> BB368
+BB237[237..237]
+    -> BB238
+    -> BB368
+BB238[238..238]
+    -> BB239
+    -> BB368
+BB239[239..239]
+    -> BB240
+    -> BB368
+BB240[240..240]
+    -> BB241
+    -> BB368
+BB241[241..241]
+    -> BB242
+    -> BB368
+BB242[242..242]
+    -> BB243
+    -> BB368
+BB243[243..243]
+    -> BB244
+    -> BB368
+BB244[244..244]
+    -> BB245
+    -> BB368
+BB245[245..245]
+    -> BB246
+    -> BB368
+BB246[246..246]
+    -> BB247
+    -> BB368
+BB247[247..247]
+    -> BB248
+    -> BB368
+BB248[248..248]
+    -> BB249
+    -> BB368
+BB249[249..249]
+    -> BB250
+    -> BB368
+BB250[250..250]
+    -> BB251
+    -> BB368
+BB251[251..251]
+    -> BB252
+    -> BB368
+BB252[252..252]
+    -> BB253
+    -> BB368
+BB253[253..253]
+    -> BB254
+    -> BB368
+BB254[254..254]
+    -> BB255
+    -> BB368
+BB255[255..255]
+    -> BB256
+    -> BB368
+BB256[256..256]
+    -> BB257
+    -> BB368
+BB257[257..257]
+    -> BB258
+    -> BB368
+BB258[258..258]
+    -> BB259
+    -> BB368
+BB259[259..259]
+    -> BB260
+    -> BB368
+BB260[260..260]
+    -> BB261
+    -> BB368
+BB261[261..261]
+    -> BB262
+    -> BB368
+BB262[262..262]
+    -> BB263
+    -> BB368
+BB263[263..263]
+    -> BB264
+    -> BB368
+BB264[264..264]
+    -> BB265
+    -> BB368
+BB265[265..265]
+    -> BB266
+    -> BB368
+BB266[266..266]
+    -> BB267
+    -> BB368
+BB267[267..267]
+    -> BB268
+    -> BB368
+BB268[268..268]
+    -> BB269
+    -> BB368
+BB269[269..269]
+    -> BB270
+    -> BB368
+BB270[270..270]
+    -> BB271
+    -> BB368
+BB271[271..271]
+    -> BB272
+    -> BB368
+BB272[272..272]
+    -> BB273
+    -> BB368
+BB273[273..273]
+    -> BB274
+    -> BB368
+BB274[274..274]
+    -> BB275
+    -> BB368
+BB275[275..275]
+    -> BB276
+    -> BB368
+BB276[276..276]
+    -> BB277
+    -> BB368
+BB277[277..277]
+    -> BB278
+    -> BB368
+BB278[278..278]
+    -> BB279
+    -> BB368
+BB279[279..279]
+    -> BB280
+    -> BB368
+BB280[280..280]
+    -> BB281
+    -> BB368
+BB281[281..281]
+    -> BB282
+    -> BB368
+BB282[282..282]
+    -> BB283
+    -> BB368
+BB283[283..283]
+    -> BB284
+    -> BB368
+BB284[284..284]
+    -> BB285
+    -> BB368
+BB285[285..285]
+    -> BB286
+    -> BB368
+BB286[286..286]
+    -> BB287
+    -> BB368
+BB287[287..287]
+    -> BB288
+    -> BB368
+BB288[288..288]
+    -> BB289
+    -> BB368
+BB289[289..289]
+    -> BB290
+    -> BB368
+BB290[290..290]
+    -> BB291
+    -> BB368
+BB291[291..291]
+    -> BB292
+    -> BB368
+BB292[292..292]
+    -> BB293
+    -> BB368
+BB293[293..293]
+    -> BB294
+    -> BB368
+BB294[294..294]
+    -> BB295
+    -> BB368
+BB295[295..295]
+    -> BB296
+    -> BB368
+BB296[296..296]
+    -> BB297
+    -> BB368
+BB297[297..297]
+    -> BB298
+    -> BB368
+BB298[298..298]
+    -> BB299
+    -> BB368
+BB299[299..299]
+    -> BB300
+    -> BB368
+BB300[300..300]
+    -> BB301
+    -> BB368
+BB301[301..301]
+    -> BB302
+    -> BB368
+BB302[302..302]
+    -> BB303
+    -> BB368
+BB303[303..303]
+    -> BB304
+    -> BB368
+BB304[304..304]
+    -> BB305
+    -> BB368
+BB305[305..305]
+    -> BB306
+    -> BB368
+BB306[306..306]
+    -> BB307
+    -> BB368
+BB307[307..307]
+    -> BB308
+    -> BB368
+BB308[308..308]
+    -> BB309
+    -> BB368
+BB309[309..309]
+    -> BB310
+    -> BB368
+BB310[310..310]
+    -> BB311
+    -> BB368
+BB311[311..311]
+    -> BB312
+    -> BB368
+BB312[312..312]
+    -> BB313
+    -> BB368
+BB313[313..313]
+    -> BB314
+    -> BB368
+BB314[314..314]
+    -> BB315
+    -> BB368
+BB315[315..315]
+    -> BB316
+    -> BB368
+BB316[316..316]
+    -> BB317
+    -> BB368
+BB317[317..317]
+    -> BB318
+    -> BB368
+BB318[318..318]
+    -> BB319
+    -> BB368
+BB319[319..319]
+    -> BB320
+    -> BB368
+BB320[320..320]
+    -> BB321
+    -> BB368
+BB321[321..321]
+    -> BB322
+    -> BB368
+BB322[322..322]
+    -> BB323
+    -> BB368
+BB323[323..323]
+    -> BB324
+    -> BB368
+BB324[324..324]
+    -> BB325
+    -> BB368
+BB325[325..325]
+    -> BB326
+    -> BB368
+BB326[326..326]
+    -> BB327
+    -> BB368
+BB327[327..327]
+    -> BB328
+    -> BB368
+BB328[328..328]
+    -> BB329
+    -> BB368
+BB329[329..329]
+    -> BB330
+    -> BB368
+BB330[330..330]
+    -> BB331
+    -> BB368
+BB331[331..331]
+    -> BB332
+    -> BB368
+BB332[332..332]
+    -> BB333
+    -> BB368
+BB333[333..333]
+    -> BB334
+    -> BB368
+BB334[334..334]
+    -> BB335
+    -> BB368
+BB335[335..335]
+    -> BB336
+    -> BB368
+BB336[336..336]
+    -> BB337
+    -> BB368
+BB337[337..337]
+    -> BB338
+    -> BB368
+BB338[338..338]
+    -> BB339
+    -> BB368
+BB339[339..339]
+    -> BB340
+    -> BB368
+BB340[340..340]
+    -> BB341
+    -> BB368
+BB341[341..341]
+    -> BB342
+    -> BB368
+BB342[342..342]
+    -> BB343
+    -> BB368
+BB343[343..343]
+    -> BB344
+    -> BB368
+BB344[344..344]
+    -> BB345
+    -> BB368
+BB345[345..345]
+    -> BB346
+    -> BB368
+BB346[346..346]
+    -> BB347
+    -> BB368
+BB347[347..347]
+    -> BB348
+    -> BB368
+BB348[348..348]
+    -> BB349
+    -> BB368
+BB349[349..349]
+    -> BB350
+    -> BB368
+BB350[350..350]
+    -> BB351
+    -> BB368
+BB351[351..351]
+    -> BB352
+    -> BB368
+BB352[352..352]
+    -> BB353
+    -> BB368
+BB353[353..353]
+    -> BB354
+    -> BB368
+BB354[354..354]
+    -> BB355
+    -> BB368
+BB355[355..355]
+    -> BB356
+    -> BB368
+BB356[356..356]
+    -> BB357
+    -> BB368
+BB357[357..357]
+    -> BB358
+    -> BB368
+BB358[358..358]
+    -> BB359
+    -> BB368
+BB359[359..359]
+    -> BB360
+    -> BB368
+BB360[360..360]
+    -> BB361
+    -> BB368
+BB361[361..361]
+    -> BB362
+    -> BB368
+BB362[362..362]
+    -> BB363
+    -> BB368
+BB363[363..363]
+    -> BB364
+    -> BB368
+BB364[364..364]
+    -> BB365
+    -> BB368
+BB365[365..365]
+    -> BB366
+    -> BB368
+BB366[366..366]
+    -> BB367
+    -> BB368
+BB367[367..367]
+    -> BB368
+BB368[-1..-2]
+Instructions:
+BB0
+0   invokestatic < Primordial, Landroid/app/Activity, <clinit>()V > @0 exception:v2
+BB1
+1   invokestatic < Primordial, Landroid/os/Bundle, <clinit>()V > @1 exception:v3
+BB2
+2   invokestatic < Primordial, Landroid/view/View, <clinit>()V > @2 exception:v4
+BB3
+3   invokestatic < Application, Lorg/ametro/service/CatalogTaskQueueService, <clinit>()V > @3 exception:v5
+BB4
+4   invokestatic < Primordial, Landroid/content/Intent, <clinit>()V > @4 exception:v6
+BB5
+5   invokestatic < Primordial, Landroid/view/ViewGroup, <clinit>()V > @5 exception:v7
+BB6
+6   invokestatic < Primordial, Landroid/os/AsyncTask, <clinit>()V > @6 exception:v8
+BB7
+7   invokestatic < Primordial, Landroid/view/KeyEvent, <clinit>()V > @7 exception:v9
+BB8
+8   invokestatic < Primordial, Landroid/view/InputEvent, <clinit>()V > @8 exception:v10
+BB9
+9   invokestatic < Primordial, Landroid/view/MotionEvent, <clinit>()V > @9 exception:v11
+BB10
+10   invokestatic < Primordial, Ljava/lang/String, <clinit>()V > @10 exception:v12
+BB11
+11   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask, <clinit>()V > @11 exception:v13
+BB12
+12   invokestatic < Primordial, Ljava/io/File, <clinit>()V > @12 exception:v14
+BB13
+13   invokestatic < Application, Lorg/ametro/ui/StationListActivity, <clinit>()V > @13 exception:v15
+BB14
+14   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/LoadWebCatalogTask, <clinit>()V > @14 exception:v16
+BB15
+15   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadMapTask, <clinit>()V > @15 exception:v17
+BB16
+16   invokestatic < Primordial, Landroid/location/Location, <clinit>()V > @16 exception:v18
+BB17
+17   invokestatic < Primordial, Landroid/widget/ExpandableListView, <clinit>()V > @17 exception:v19
+BB18
+18   invokestatic < Primordial, Ljava/lang/Void, <clinit>()V > @18 exception:v20
+BB19
+19   invokestatic < Application, Lorg/ametro/service/AutoUpdateService, <clinit>()V > @19 exception:v21
+BB20
+20   invokestatic < Primordial, Ljava/util/HashMap, <clinit>()V > @20 exception:v22
+BB21
+21   invokestatic < Primordial, Ljava/util/Collections, <clinit>()V > @21 exception:v23
+BB22
+22   invokestatic < Primordial, Ljava/lang/ThreadLocal, <clinit>()V > @22 exception:v24
+BB23
+23   invokestatic < Primordial, Ljava/lang/Integer, <clinit>()V > @23 exception:v25
+BB24
+24   invokestatic < Primordial, Landroid/app/Notification, <clinit>()V > @24 exception:v26
+BB25
+25   invokestatic < Primordial, Ljava/lang/Boolean, <clinit>()V > @25 exception:v27
+BB26
+26   invokestatic < Primordial, Landroid/util/Log, <clinit>()V > @26 exception:v28
+BB27
+27   invokestatic < Application, Lorg/ametro/app/GlobalSettings, <clinit>()V > @27 exception:v29
+BB28
+28   invokestatic < Primordial, Landroid/graphics/RectF, <clinit>()V > @28 exception:v30
+BB29
+29   invokestatic < Primordial, Landroid/view/animation/Transformation, <clinit>()V > @29 exception:v31
+BB30
+30   invokestatic < Primordial, Ljava/util/ArrayList, <clinit>()V > @30 exception:v32
+BB31
+31   invokestatic < Application, Lorg/ametro/util/StringUtil, <clinit>()V > @31 exception:v33
+BB32
+32   invokestatic < Application, Lorg/ametro/app/Constants, <clinit>()V > @32 exception:v34
+BB33
+33   invokestatic < Primordial, Landroid/widget/TextView, <clinit>()V > @33 exception:v35
+BB34
+34   invokestatic < Primordial, Ljava/util/Locale, <clinit>()V > @34 exception:v36
+BB35
+35   invokestatic < Primordial, Landroid/net/Uri, <clinit>()V > @35 exception:v37
+BB36
+36   invokestatic < Primordial, Ljava/util/concurrent/ThreadPoolExecutor, <clinit>()V > @36 exception:v38
+BB37
+37   invokestatic < Primordial, Ljava/util/concurrent/AbstractExecutorService, <clinit>()V > @37 exception:v39
+BB38
+38   invokestatic < Primordial, Ljava/util/concurrent/TimeUnit, <clinit>()V > @38 exception:v40
+BB39
+39   invokestatic < Primordial, Landroid/os/AsyncTask$Status, <clinit>()V > @39 exception:v41
+BB40
+40   invokestatic < Primordial, Ljava/util/Date, <clinit>()V > @40 exception:v42
+BB41
+41   invokestatic < Primordial, Ljava/lang/System, <clinit>()V > @41 exception:v43
+BB42
+42   invokestatic < Primordial, Landroid/graphics/Paint, <clinit>()V > @42 exception:v44
+BB43
+43   invokestatic < Primordial, Landroid/graphics/Paint$Align, <clinit>()V > @43 exception:v45
+BB44
+44   invokestatic < Primordial, Landroid/view/ViewConfiguration, <clinit>()V > @44 exception:v46
+BB45
+45   invokestatic < Application, Lorg/ametro/catalog/storage/CatalogDeserializer, <clinit>()V > @45 exception:v47
+BB46
+46   invokestatic < Application, Lorg/ametro/ui/controllers/MotionEventWrapper, <clinit>()V > @46 exception:v48
+BB47
+47   invokestatic < Application, Lorg/ametro/model/TransportType, <clinit>()V > @47 exception:v49
+BB48
+48   invokestatic < Primordial, Ljava/lang/Thread, <clinit>()V > @48 exception:v50
+BB49
+49   invokestatic < Primordial, Ljava/lang/Float, <clinit>()V > @49 exception:v51
+BB50
+50   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicInteger, <clinit>()V > @50 exception:v52
+BB51
+51   invokestatic < Primordial, Landroid/app/PendingIntent, <clinit>()V > @51 exception:v53
+BB52
+52   invokestatic < Application, Lorg/ametro/catalog/storage/tasks/DownloadIconsTask$Holder, <clinit>()V > @52 exception:v54
+BB53
+53   invokestatic < Primordial, Landroid/app/ActivityManagerNative, <clinit>()V > @53 exception:v55
+BB54
+54   invokestatic < Primordial, Landroid/view/LayoutInflater, <clinit>()V > @54 exception:v56
+BB55
+55   invokestatic < Primordial, Ljava/text/SimpleDateFormat, <clinit>()V > @55 exception:v57
+BB56
+56   invokestatic < Primordial, Lcom/android/tools/layoutlib/create/OverrideMethod, <clinit>()V > @56 exception:v58
+BB57
+57   invokestatic < Primordial, Landroid/os/Environment, <clinit>()V > @57 exception:v59
+BB58
+58   invokestatic < Primordial, Landroid/content/ComponentName, <clinit>()V > @58 exception:v60
+BB59
+59   invokestatic < Primordial, Landroid/graphics/Rect, <clinit>()V > @59 exception:v61
+BB60
+60   invokestatic < Primordial, Landroid/text/SpannableStringInternal, <clinit>()V > @60 exception:v62
+BB61
+61   invokestatic < Primordial, Ljava/util/PropertyPermission, <clinit>()V > @61 exception:v63
+BB62
+62   invokestatic < Primordial, Ljava/security/AccessController, <clinit>()V > @62 exception:v64
+BB63
+63   invokestatic < Primordial, Landroid/net/Uri$Part, <clinit>()V > @63 exception:v65
+BB64
+64   invokestatic < Primordial, Landroid/net/Uri$PathPart, <clinit>()V > @64 exception:v66
+BB65
+65   invokestatic < Primordial, Ljava/lang/RuntimePermission, <clinit>()V > @65 exception:v67
+BB66
+66   invokestatic < Primordial, Ljava/util/TimeZone, <clinit>()V > @66 exception:v68
+BB67
+67   invokestatic < Primordial, Ljava/lang/SecurityManager, <clinit>()V > @67 exception:v69
+BB68
+68   invokestatic < Primordial, Landroid/text/util/Linkify, <clinit>()V > @68 exception:v70
+BB69
+69   invokestatic < Primordial, Landroid/text/method/LinkMovementMethod, <clinit>()V > @69 exception:v71
+BB70
+70   invokestatic < Primordial, Landroid/graphics/Canvas_Delegate, <clinit>()V > @70 exception:v72
+BB71
+71   invokestatic < Primordial, Landroid/graphics/Paint$Style, <clinit>()V > @71 exception:v73
+BB72
+72   invokestatic < Primordial, Landroid/graphics/Paint$Cap, <clinit>()V > @72 exception:v74
+BB73
+73   invokestatic < Primordial, Landroid/graphics/Paint$Join, <clinit>()V > @73 exception:v75
+BB74
+74   invokestatic < Primordial, Landroid/graphics/Paint_Delegate, <clinit>()V > @74 exception:v76
+BB75
+75   invokestatic < Primordial, Landroid/util/SparseArray, <clinit>()V > @75 exception:v77
+BB76
+76   invokestatic < Primordial, Landroid/view/inputmethod/InputMethodManager, <clinit>()V > @76 exception:v78
+BB77
+77   invokestatic < Primordial, Ljava/util/Arrays, <clinit>()V > @77 exception:v79
+BB78
+78   invokestatic < Primordial, Landroid/view/WindowManager$LayoutParams, <clinit>()V > @78 exception:v80
+BB79
+79   invokestatic < Primordial, Ljava/lang/StringBuffer, <clinit>()V > @79 exception:v81
+BB80
+80   invokestatic < Primordial, Landroid/content/IntentFilter, <clinit>()V > @80 exception:v82
+BB81
+81   invokestatic < Primordial, Landroid/text/method/TextKeyListener, <clinit>()V > @81 exception:v83
+BB82
+82   invokestatic < Primordial, Landroid/text/method/BaseKeyListener, <clinit>()V > @82 exception:v84
+BB83
+83   invokestatic < Primordial, Landroid/text/method/MetaKeyKeyListener, <clinit>()V > @83 exception:v85
+BB84
+84   invokestatic < Primordial, Landroid/text/Selection, <clinit>()V > @84 exception:v86
+BB85
+85   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/Platform, <clinit>()V > @85 exception:v87
+BB86
+86   invokestatic < Primordial, Ljava/io/FileDescriptor, <clinit>()V > @86 exception:v88
+BB87
+87   invokestatic < Primordial, Ljava/util/Vector, <clinit>()V > @87 exception:v89
+BB88
+88   invokestatic < Primordial, Lorg/xmlpull/v1/XmlPullParserFactory, <clinit>()V > @88 exception:v90
+BB89
+89   invokestatic < Primordial, Landroid/view/VelocityTracker, <clinit>()V > @89 exception:v91
+BB90
+90   invokestatic < Primordial, Landroid/os/Looper, <clinit>()V > @90 exception:v92
+BB91
+91   invokestatic < Primordial, Landroid/text/SpannableStringBuilder, <clinit>()V > @91 exception:v93
+BB92
+92   invokestatic < Primordial, Ljava/util/concurrent/atomic/UnsafeAccess, <clinit>()V > @92 exception:v94
+BB93
+93   invokestatic < Primordial, Landroid/widget/RemoteViews, <clinit>()V > @93 exception:v95
+BB94
+94   invokestatic < Primordial, Ljava/lang/Character, <clinit>()V > @94 exception:v96
+BB95
+95   invokestatic < Primordial, Ljava/lang/CaseMapper, <clinit>()V > @95 exception:v97
+BB96
+96   invokestatic < Primordial, Ljava/util/GregorianCalendar, <clinit>()V > @96 exception:v98
+BB97
+97   invokestatic < Primordial, Ljava/util/Calendar, <clinit>()V > @97 exception:v99
+BB98
+98   invokestatic < Primordial, Ljava/lang/IntegralToString, <clinit>()V > @98 exception:v100
+BB99
+99   invokestatic < Primordial, Landroid/text/TextUtils, <clinit>()V > @99 exception:v101
+BB100
+100   invokestatic < Primordial, Landroid/text/Layout$Alignment, <clinit>()V > @100 exception:v102
+BB101
+101   invokestatic < Primordial, Landroid/text/DynamicLayout, <clinit>()V > @101 exception:v103
+BB102
+102   invokestatic < Primordial, Landroid/text/Layout, <clinit>()V > @102 exception:v104
+BB103
+103   invokestatic < Primordial, Landroid/text/BoringLayout, <clinit>()V > @103 exception:v105
+BB104
+104   invokestatic < Primordial, Ljava/lang/RealToString, <clinit>()V > @104 exception:v106
+BB105
+105   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer, <clinit>()V > @105 exception:v107
+BB106
+106   invokestatic < Primordial, Ljava/util/Formatter, <clinit>()V > @106 exception:v108
+BB107
+107   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfoDB, <clinit>()V > @107 exception:v109
+BB108
+108   invokestatic < Primordial, Ljava/util/SimpleTimeZone, <clinit>()V > @108 exception:v110
+BB109
+109   invokestatic < Primordial, Ljava/util/Hashtable, <clinit>()V > @109 exception:v111
+BB110
+110   invokestatic < Primordial, Landroid/util/Patterns, <clinit>()V > @110 exception:v112
+BB111
+111   invokestatic < Primordial, Landroid/graphics/Bitmap_Delegate, <clinit>()V > @111 exception:v113
+BB112
+112   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/DelegateManager, <clinit>()V > @112 exception:v114
+BB113
+113   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityManager, <clinit>()V > @113 exception:v115
+BB114
+114   invokestatic < Primordial, Landroid/view/accessibility/AccessibilityEvent, <clinit>()V > @114 exception:v116
+BB115
+115   invokestatic < Primordial, Lcom/android/internal/util/ArrayUtils, <clinit>()V > @115 exception:v117
+BB116
+116   invokestatic < Primordial, Landroid/os/Message, <clinit>()V > @116 exception:v118
+BB117
+117   invokestatic < Primordial, Ljava/nio/charset/Charset, <clinit>()V > @117 exception:v119
+BB118
+118   invokestatic < Primordial, Ljava/nio/charset/CodingErrorAction, <clinit>()V > @118 exception:v120
+BB119
+119   invokestatic < Primordial, Landroid/text/method/TextKeyListener$Capitalize, <clinit>()V > @119 exception:v121
+BB120
+120   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSFileSystem, <clinit>()V > @120 exception:v122
+BB121
+121   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSNetworkSystem, <clinit>()V > @121 exception:v123
+BB122
+122   invokestatic < Primordial, Ljava/lang/Long, <clinit>()V > @122 exception:v124
+BB123
+123   invokestatic < Primordial, Ljava/util/TreeMap, <clinit>()V > @123 exception:v125
+BB124
+124   invokestatic < Primordial, Ljava/lang/ClassCache, <clinit>()V > @124 exception:v126
+BB125
+125   invokestatic < Primordial, Lsun/misc/Unsafe, <clinit>()V > @125 exception:v127
+BB126
+126   invokestatic < Primordial, Lcom/android/internal/policy/PolicyManager, <clinit>()V > @126 exception:v128
+BB127
+127   invokestatic < Primordial, Landroid/text/Editable$Factory, <clinit>()V > @127 exception:v129
+BB128
+128   invokestatic < Primordial, Landroid/text/Spannable$Factory, <clinit>()V > @128 exception:v130
+BB129
+129   invokestatic < Primordial, Landroid/widget/TextView$BufferType, <clinit>()V > @129 exception:v131
+BB130
+130   invokestatic < Primordial, Lcom/android/internal/R$styleable, <clinit>()V > @130 exception:v132
+BB131
+131   invokestatic < Primordial, Landroid/text/method/DigitsKeyListener, <clinit>()V > @131 exception:v133
+BB132
+132   invokestatic < Primordial, Landroid/text/method/DialerKeyListener, <clinit>()V > @132 exception:v134
+BB133
+133   invokestatic < Primordial, Landroid/text/TextUtils$TruncateAt, <clinit>()V > @133 exception:v135
+BB134
+134   invokestatic < Primordial, Landroid/content/res/ColorStateList, <clinit>()V > @134 exception:v136
+BB135
+135   invokestatic < Primordial, Landroid/text/method/PasswordTransformationMethod, <clinit>()V > @135 exception:v137
+BB136
+136   invokestatic < Primordial, Ljava/security/Security, <clinit>()V > @136 exception:v138
+BB137
+137   invokestatic < Primordial, Ljava/security/Policy, <clinit>()V > @137 exception:v139
+BB138
+138   invokestatic < Primordial, Ljava/util/concurrent/locks/UnsafeAccess, <clinit>()V > @138 exception:v140
+BB139
+139   invokestatic < Primordial, Ljava/util/concurrent/locks/AbstractQueuedSynchronizer$Node, <clinit>()V > @139 exception:v141
+BB140
+140   invokestatic < Primordial, Landroid/text/Html$HtmlParser, <clinit>()V > @140 exception:v142
+BB141
+141   invokestatic < Primordial, Landroid/text/HtmlToSpannedConverter, <clinit>()V > @141 exception:v143
+BB142
+142   invokestatic < Primordial, Lorg/apache/harmony/luni/util/HexStringParser, <clinit>()V > @142 exception:v144
+BB143
+143   invokestatic < Primordial, Landroid/graphics/drawable/Drawable, <clinit>()V > @143 exception:v145
+BB144
+144   invokestatic < Primordial, Landroid/view/ViewRoot, <clinit>()V > @144 exception:v146
+BB145
+145   invokestatic < Primordial, Lcom/android/layoutlib/bridge/impl/GcSnapshot, <clinit>()V > @145 exception:v147
+BB146
+146   invokestatic < Primordial, Lcom/android/layoutlib/bridge/util/SparseWeakArray, <clinit>()V > @146 exception:v148
+BB147
+147   invokestatic < Primordial, Landroid/graphics/TemporaryBuffer, <clinit>()V > @147 exception:v149
+BB148
+148   invokestatic < Primordial, Ljava/nio/charset/spi/CharsetProvider, <clinit>()V > @148 exception:v150
+BB149
+149   invokestatic < Primordial, Lorg/apache/harmony/nio/internal/FileChannelImpl, <clinit>()V > @149 exception:v151
+BB150
+150   invokestatic < Primordial, Ljava/nio/channels/spi/AbstractInterruptibleChannel, <clinit>()V > @150 exception:v152
+BB151
+151   invokestatic < Application, Lorg/ametro/model/storage/CsvStorage, <clinit>()V > @151 exception:v153
+BB152
+152   invokestatic < Primordial, Ljava/util/EnumSet, <clinit>()V > @152 exception:v154
+BB153
+153   invokestatic < Primordial, Ljava/lang/LangAccessImpl, <clinit>()V > @153 exception:v155
+BB154
+154   invokestatic < Primordial, Lorg/apache/harmony/kernel/vm/LangAccess, <clinit>()V > @154 exception:v156
+BB155
+155   invokestatic < Primordial, Landroid/os/SystemClock_Delegate, <clinit>()V > @155 exception:v157
+BB156
+156   invokestatic < Primordial, Landroid/os/Handler_Delegate, <clinit>()V > @156 exception:v158
+BB157
+157   invokestatic < Primordial, Landroid/os/Parcel, <clinit>()V > @157 exception:v159
+BB158
+158   invokestatic < Primordial, Landroid/widget/Scroller, <clinit>()V > @158 exception:v160
+BB159
+159   invokestatic < Primordial, Landroid/graphics/Matrix_Delegate, <clinit>()V > @159 exception:v161
+BB160
+160   invokestatic < Primordial, Ljava/text/NumberFormat, <clinit>()V > @160 exception:v162
+BB161
+161   invokestatic < Primordial, Landroid/text/method/DateKeyListener, <clinit>()V > @161 exception:v163
+BB162
+162   invokestatic < Primordial, Landroid/text/method/TimeKeyListener, <clinit>()V > @162 exception:v164
+BB163
+163   invokestatic < Primordial, Landroid/text/method/DateTimeKeyListener, <clinit>()V > @163 exception:v165
+BB164
+164   invokestatic < Primordial, Landroid/graphics/Typeface, <clinit>()V > @164 exception:v166
+BB165
+165   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/util/ZoneInfo, <clinit>()V > @165 exception:v167
+BB166
+166   invokestatic < Primordial, Ljava/nio/charset/Charsets, <clinit>()V > @166 exception:v168
+BB167
+167   invokestatic < Primordial, Ljava/nio/channels/FileChannel$MapMode, <clinit>()V > @167 exception:v169
+BB168
+168   invokestatic < Primordial, Ljava/nio/ByteOrder, <clinit>()V > @168 exception:v170
+BB169
+169   invokestatic < Primordial, Ljava/nio/charset/CoderResult, <clinit>()V > @169 exception:v171
+BB170
+170   invokestatic < Primordial, Ljava/util/TreeMap$Relation, <clinit>()V > @170 exception:v172
+BB171
+171   invokestatic < Primordial, Ljava/lang/reflect/AccessibleObject, <clinit>()V > @171 exception:v173
+BB172
+172   invokestatic < Primordial, Landroid/graphics/Bitmap, <clinit>()V > @172 exception:v174
+BB173
+173   invokestatic < Primordial, Landroid/graphics/Bitmap$Config, <clinit>()V > @173 exception:v175
+BB174
+174   invokestatic < Primordial, Landroid/app/ActivityManager, <clinit>()V > @174 exception:v176
+BB175
+175   invokestatic < Primordial, Ljava/lang/Byte, <clinit>()V > @175 exception:v177
+BB176
+176   invokestatic < Primordial, Ljava/lang/ThreadLocal$Values, <clinit>()V > @176 exception:v178
+BB177
+177   invokestatic < Primordial, Landroid/content/res/Resources, <clinit>()V > @177 exception:v179
+BB178
+178   invokestatic < Primordial, Ljava/text/DateFormat$Field, <clinit>()V > @178 exception:v180
+BB179
+179   invokestatic < Primordial, Ljava/text/AttributedCharacterIterator$Attribute, <clinit>()V > @179 exception:v181
+BB180
+180   invokestatic < Primordial, Landroid/util/StateSet, <clinit>()V > @180 exception:v182
+BB181
+181   invokestatic < Primordial, Ljava/lang/ClassLoader$SystemClassLoader, <clinit>()V > @181 exception:v183
+BB182
+182   invokestatic < Primordial, Ljava/lang/Runtime, <clinit>()V > @182 exception:v184
+BB183
+183   invokestatic < Primordial, Landroid/graphics/Path, <clinit>()V > @183 exception:v185
+BB184
+184   invokestatic < Primordial, Landroid/util/TypedValue, <clinit>()V > @184 exception:v186
+BB185
+185   invokestatic < Primordial, Landroid/view/FocusFinder, <clinit>()V > @185 exception:v187
+BB186
+186   invokestatic < Primordial, Landroid/text/method/SingleLineTransformationMethod, <clinit>()V > @186 exception:v188
+BB187
+187   invokestatic < Primordial, Landroid/graphics/Shader$TileMode, <clinit>()V > @187 exception:v189
+BB188
+188   invokestatic < Primordial, Landroid/graphics/PorterDuff$Mode, <clinit>()V > @188 exception:v190
+BB189
+189   invokestatic < Primordial, Landroid/os/Build$VERSION, <clinit>()V > @189 exception:v191
+BB190
+190   invokestatic < Primordial, Landroid/util/LongSparseArray, <clinit>()V > @190 exception:v192
+BB191
+191   invokestatic < Primordial, Landroid/widget/PopupWindow, <clinit>()V > @191 exception:v193
+BB192
+192   invokestatic < Primordial, Llibcore/icu/TimeZones, <clinit>()V > @192 exception:v194
+BB193
+193   invokestatic < Primordial, Landroid/graphics/Typeface_Delegate, <clinit>()V > @193 exception:v195
+BB194
+194   invokestatic < Primordial, Ljava/util/concurrent/locks/LockSupport, <clinit>()V > @194 exception:v196
+BB195
+195   invokestatic < Primordial, Landroid/graphics/Path$FillType, <clinit>()V > @195 exception:v197
+BB196
+196   invokestatic < Primordial, Landroid/graphics/Color, <clinit>()V > @196 exception:v198
+BB197
+197   invokestatic < Primordial, Ljava/text/DecimalFormat, <clinit>()V > @197 exception:v199
+BB198
+198   invokestatic < Primordial, Landroid/content/res/Configuration, <clinit>()V > @198 exception:v200
+BB199
+199   invokestatic < Primordial, Landroid/util/DisplayMetrics, <clinit>()V > @199 exception:v201
+BB200
+200   invokestatic < Primordial, Landroid/content/res/AssetManager, <clinit>()V > @200 exception:v202
+BB201
+201   invokestatic < Primordial, Landroid/content/res/CompatibilityInfo, <clinit>()V > @201 exception:v203
+BB202
+202   invokestatic < Primordial, Landroid/os/Build, <clinit>()V > @202 exception:v204
+BB203
+203   invokestatic < Primordial, Ljava/math/BigInteger, <clinit>()V > @203 exception:v205
+BB204
+204   invokestatic < Primordial, Landroid/graphics/PathEffect_Delegate, <clinit>()V > @204 exception:v206
+BB205
+205   invokestatic < Primordial, Ljava/lang/Double, <clinit>()V > @205 exception:v207
+BB206
+206   invokestatic < Primordial, Ljava/math/RoundingMode, <clinit>()V > @206 exception:v208
+BB207
+207   invokestatic < Primordial, Ljava/text/DecimalFormatSymbols, <clinit>()V > @207 exception:v209
+BB208
+208   invokestatic < Primordial, Landroid/graphics/Shader_Delegate, <clinit>()V > @208 exception:v210
+BB209
+209   invokestatic < Primordial, Landroid/graphics/PorterDuffXfermode_Delegate, <clinit>()V > @209 exception:v211
+BB210
+210   invokestatic < Primordial, Landroid/graphics/Xfermode_Delegate, <clinit>()V > @210 exception:v212
+BB211
+211   invokestatic < Primordial, Landroid/util/Xml, <clinit>()V > @211 exception:v213
+BB212
+212   invokestatic < Primordial, Ljava/math/BigDecimal, <clinit>()V > @212 exception:v214
+BB213
+213   invokestatic < Primordial, Ljava/math/MathContext, <clinit>()V > @213 exception:v215
+BB214
+214   invokestatic < Primordial, Landroid/graphics/Path_Delegate, <clinit>()V > @214 exception:v216
+BB215
+215   invokestatic < Primordial, Ljava/util/Currency, <clinit>()V > @215 exception:v217
+BB216
+216   invokestatic < Primordial, Landroid/view/WindowManagerImpl, <clinit>()V > @216 exception:v218
+BB217
+217   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/PolicyUtils, <clinit>()V > @217 exception:v219
+BB218
+218   invokestatic < Primordial, Ljava/math/Multiplication, <clinit>()V > @218 exception:v220
+BB219
+219   invokestatic < Primordial, Landroid/graphics/NinePatch_Delegate, <clinit>()V > @219 exception:v221
+BB220
+220   invokestatic < Primordial, Ljava/lang/VMThread, <clinit>()V > @220 exception:v222
+BB221
+221   invokestatic < Primordial, Ljava/net/URL, <clinit>()V > @221 exception:v223
+BB222
+222   invokestatic < Primordial, Ljava/lang/Thread$State, <clinit>()V > @222 exception:v224
+BB223
+223   invokestatic < Primordial, Ljava/security/KeyStore, <clinit>()V > @223 exception:v225
+BB224
+224   invokestatic < Primordial, Ljava/lang/reflect/Proxy, <clinit>()V > @224 exception:v226
+BB225
+225   invokestatic < Primordial, Ljava/io/ObjectStreamClass, <clinit>()V > @225 exception:v227
+BB226
+226   invokestatic < Primordial, Ljava/io/ObjectStreamConstants, <clinit>()V > @226 exception:v228
+BB227
+227   invokestatic < Primordial, Llibcore/math/MathUtils, <clinit>()V > @227 exception:v229
+BB228
+228   invokestatic < Primordial, Lcom/android/ninepatch/NinePatchChunk, <clinit>()V > @228 exception:v230
+BB229
+229   invokestatic < Primordial, Ljava/io/ObjectInputStream, <clinit>()V > @229 exception:v231
+BB230
+230   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/Services, <clinit>()V > @230 exception:v232
+BB231
+231   invokestatic < Primordial, Ljava/io/ObjectStreamClass$OSCThreadLocalCache, <clinit>()V > @231 exception:v233
+BB232
+232   invokestatic < Primordial, Lorg/apache/harmony/luni/util/ThreadLocalCache, <clinit>()V > @232 exception:v234
+BB233
+233   invokestatic < Primordial, Ljava/lang/Short, <clinit>()V > @233 exception:v235
+BB234
+234   invokestatic < Primordial, Ljava/util/IdentityHashMap, <clinit>()V > @234 exception:v236
+BB235
+235   invokestatic < Primordial, Ljava/net/URI, <clinit>()V > @235 exception:v237
+BB236
+236   invokestatic < Primordial, Ljava/security/cert/CertificateFactory, <clinit>()V > @236 exception:v238
+BB237
+237   invokestatic < Primordial, Ljava/security/MessageDigest, <clinit>()V > @237 exception:v239
+BB238
+238   invokestatic < Primordial, Ljava/net/InetAddress, <clinit>()V > @238 exception:v240
+BB239
+239   invokestatic < Primordial, Ljava/net/AddressCache, <clinit>()V > @239 exception:v241
+BB240
+240   invokestatic < Primordial, Landroid/view/Display, <clinit>()V > @240 exception:v242
+BB241
+241   invokestatic < Primordial, Ldalvik/system/BlockGuard, <clinit>()V > @241 exception:v243
+BB242
+242   invokestatic < Primordial, Ljava/util/Grego, <clinit>()V > @242 exception:v244
+BB243
+243   invokestatic < Primordial, Ljava/util/logging/Logger, <clinit>()V > @243 exception:v245
+BB244
+244   invokestatic < Primordial, Ljava/util/logging/Level, <clinit>()V > @244 exception:v246
+BB245
+245   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddressFactory, <clinit>()V > @245 exception:v247
+BB246
+246   invokestatic < Primordial, Landroid/view/KeyCharacterMap, <clinit>()V > @246 exception:v248
+BB247
+247   invokestatic < Primordial, Landroid/text/method/QwertyKeyListener, <clinit>()V > @247 exception:v249
+BB248
+248   invokestatic < Primordial, Landroid/text/method/MultiTapKeyListener, <clinit>()V > @248 exception:v250
+BB249
+249   invokestatic < Primordial, Ljava/lang/reflect/Method, <clinit>()V > @249 exception:v251
+BB250
+250   invokestatic < Primordial, Llibcore/icu/TimeZones$CachedTimeZones, <clinit>()V > @250 exception:v252
+BB251
+251   invokestatic < Primordial, Landroid/os/StrictMode, <clinit>()V > @251 exception:v253
+BB252
+252   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/OSMemory, <clinit>()V > @252 exception:v254
+BB253
+253   invokestatic < Primordial, Lorg/apache/harmony/luni/platform/PlatformAddress, <clinit>()V > @253 exception:v255
+BB254
+254   invokestatic < Primordial, Ljava/lang/EmptyEnumeration, <clinit>()V > @254 exception:v256
+BB255
+255   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicLong, <clinit>()V > @255 exception:v257
+BB256
+256   invokestatic < Primordial, Lorg/apache/harmony/security/fortress/SecurityUtils, <clinit>()V > @256 exception:v258
+BB257
+257   invokestatic < Primordial, Landroid/graphics/Region_Delegate, <clinit>()V > @257 exception:v259
+BB258
+258   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/jar/JarURLConnectionImpl, <clinit>()V > @258 exception:v260
+BB259
+259   invokestatic < Primordial, Ljava/net/URLConnection, <clinit>()V > @259 exception:v261
+BB260
+260   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl, <clinit>()V > @260 exception:v262
+BB261
+261   invokestatic < Primordial, Ljava/net/HttpURLConnection, <clinit>()V > @261 exception:v263
+BB262
+262   invokestatic < Primordial, Ljavax/net/ssl/HttpsURLConnection, <clinit>()V > @262 exception:v264
+BB263
+263   invokestatic < Primordial, Ljava/util/ResourceBundle, <clinit>()V > @263 exception:v265
+BB264
+264   invokestatic < Primordial, Landroid/content/res/StringBlock$Height, <clinit>()V > @264 exception:v266
+BB265
+265   invokestatic < Primordial, Landroid/graphics/Path$Direction, <clinit>()V > @265 exception:v267
+BB266
+266   invokestatic < Primordial, Ljavax/net/ssl/DefaultHostnameVerifier, <clinit>()V > @266 exception:v268
+BB267
+267   invokestatic < Primordial, Ljavax/net/ssl/SSLContext, <clinit>()V > @267 exception:v269
+BB268
+268   invokestatic < Primordial, Ljava/util/logging/LogRecord, <clinit>()V > @268 exception:v270
+BB269
+269   invokestatic < Primordial, Ljava/net/ResponseCache, <clinit>()V > @269 exception:v271
+BB270
+270   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpURLConnectionImpl$Retry, <clinit>()V > @270 exception:v272
+BB271
+271   invokestatic < Primordial, Ljava/net/ProxySelector, <clinit>()V > @271 exception:v273
+BB272
+272   invokestatic < Primordial, Landroid/text/AutoText, <clinit>()V > @272 exception:v274
+BB273
+273   invokestatic < Primordial, Llibcore/base/Streams, <clinit>()V > @273 exception:v275
+BB274
+274   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/HttpConnectionPool, <clinit>()V > @274 exception:v276
+BB275
+275   invokestatic < Primordial, Ljava/net/ProxySelectorImpl, <clinit>()V > @275 exception:v277
+BB276
+276   invokestatic < Primordial, Landroid/provider/Settings$System, <clinit>()V > @276 exception:v278
+BB277
+277   invokestatic < Primordial, Ljava/net/CookieHandler, <clinit>()V > @277 exception:v279
+BB278
+278   invokestatic < Primordial, Lorg/apache/harmony/luni/internal/net/www/protocol/http/ChunkedInputStream, <clinit>()V > @278 exception:v280
+BB279
+279   invokestatic < Primordial, Ljava/net/Proxy, <clinit>()V > @279 exception:v281
+BB280
+280   invokestatic < Primordial, Ljava/net/Proxy$Type, <clinit>()V > @280 exception:v282
+BB281
+281   invokestatic < Primordial, Ljava/util/concurrent/atomic/AtomicReference, <clinit>()V > @281 exception:v283
+BB282
+282   invokestatic < Primordial, Ljava/net/Inet4Address, <clinit>()V > @282 exception:v284
+BB283
+283   invokestatic < Primordial, Landroid/graphics/ColorFilter_Delegate, <clinit>()V > @283 exception:v285
+BB284
+284   invokestatic < Primordial, Ljava/util/logging/LogManager, <clinit>()V > @284 exception:v286
+BB285
+285   invokestatic < Primordial, Ljava/net/Authenticator, <clinit>()V > @285 exception:v287
+BB286
+286   invokestatic < Primordial, Lorg/apache/harmony/luni/util/Base64, <clinit>()V > @286 exception:v288
+BB287
+287   invokestatic < Primordial, Landroid/provider/Settings$Secure, <clinit>()V > @287 exception:v289
+BB288
+288   invokestatic < Primordial, Lorg/apache/harmony/luni/util/InputStreamHelper, <clinit>()V > @288 exception:v290
+BB289
+289   invokestatic < Primordial, Ljava/net/Authenticator$RequestorType, <clinit>()V > @289 exception:v291
+BB290
+290   invokestatic < Primordial, Landroid/provider/Settings$NameValueCache, <clinit>()V > @290 exception:v292
+BB291
+291   invokestatic < Primordial, Ljava/net/Inet6Address, <clinit>()V > @291 exception:v293
+BB292
+292   invokestatic < Application, Lorg/ametro/model/route/RouteParameters, <clinit>()V > @292 exception:v294
+BB293
+293   invokestatic < Primordial, Landroid/app/SearchableInfo, <clinit>()V > @293 exception:v295
+BB294
+294   invokestatic < Primordial, Ljava/util/jar/Manifest, <clinit>()V > @294 exception:v296
+BB295
+295   invokestatic < Primordial, Ljava/util/jar/Attributes$Name, <clinit>()V > @295 exception:v297
+BB296
+296   invokestatic < Primordial, Lorg/apache/harmony/security/utils/JarUtils, <clinit>()V > @296 exception:v298
+BB297
+297   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatParser, <clinit>()V > @297 exception:v299
+BB298
+298   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/ContentInfo, <clinit>()V > @298 exception:v300
+BB299
+299   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/OpenSSLSignature, <clinit>()V > @299 exception:v301
+BB300
+300   invokestatic < Primordial, Ljava/security/Signature, <clinit>()V > @300 exception:v302
+BB301
+301   invokestatic < Primordial, Lorg/apache/harmony/xml/ExpatPullParser$NamespaceStack, <clinit>()V > @301 exception:v303
+BB302
+302   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Oid, <clinit>()V > @302 exception:v304
+BB303
+303   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Any, <clinit>()V > @303 exception:v305
+BB304
+304   invokestatic < Primordial, Ljava/util/logging/Handler, <clinit>()V > @304 exception:v306
+BB305
+305   invokestatic < Primordial, Ljava/util/logging/FileHandler, <clinit>()V > @305 exception:v307
+BB306
+306   invokestatic < Primordial, Lcom/android/internal/logging/AndroidHandler, <clinit>()V > @306 exception:v308
+BB307
+307   invokestatic < Primordial, Ljava/util/logging/ErrorManager, <clinit>()V > @307 exception:v309
+BB308
+308   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1OctetString, <clinit>()V > @308 exception:v310
+BB309
+309   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1StringType, <clinit>()V > @309 exception:v311
+BB310
+310   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignedData, <clinit>()V > @310 exception:v312
+BB311
+311   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Integer, <clinit>()V > @311 exception:v313
+BB312
+312   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AlgorithmIdentifier, <clinit>()V > @312 exception:v314
+BB313
+313   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Certificate, <clinit>()V > @313 exception:v315
+BB314
+314   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateList, <clinit>()V > @314 exception:v316
+BB315
+315   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/SignerInfo, <clinit>()V > @315 exception:v317
+BB316
+316   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertificate, <clinit>()V > @316 exception:v318
+BB317
+317   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString, <clinit>()V > @317 exception:v319
+BB318
+318   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList, <clinit>()V > @318 exception:v320
+BB319
+319   invokestatic < Primordial, Lorg/apache/harmony/security/x501/Name, <clinit>()V > @319 exception:v321
+BB320
+320   invokestatic < Primordial, Lorg/apache/harmony/security/pkcs7/AuthenticatedAttributes, <clinit>()V > @320 exception:v322
+BB321
+321   invokestatic < Primordial, Lorg/apache/harmony/security/x501/AttributeTypeAndValue, <clinit>()V > @321 exception:v323
+BB322
+322   invokestatic < Primordial, Lorg/apache/harmony/xnet/provider/jsse/NativeCrypto, <clinit>()V > @322 exception:v324
+BB323
+323   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Validity, <clinit>()V > @323 exception:v325
+BB324
+324   invokestatic < Primordial, Lorg/apache/harmony/security/x509/SubjectPublicKeyInfo, <clinit>()V > @324 exception:v326
+BB325
+325   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extensions, <clinit>()V > @325 exception:v327
+BB326
+326   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Time, <clinit>()V > @326 exception:v328
+BB327
+327   invokestatic < Primordial, Lorg/apache/harmony/security/x509/TBSCertList$RevokedCertificate, <clinit>()V > @327 exception:v329
+BB328
+328   invokestatic < Primordial, Lorg/apache/harmony/security/x509/Extension, <clinit>()V > @328 exception:v330
+BB329
+329   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1GeneralizedTime, <clinit>()V > @329 exception:v331
+BB330
+330   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1UTCTime, <clinit>()V > @330 exception:v332
+BB331
+331   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Boolean, <clinit>()V > @331 exception:v333
+BB332
+332   invokestatic < Primordial, Ljava/util/logging/XMLFormatter, <clinit>()V > @332 exception:v334
+BB333
+333   invokestatic < Primordial, Ljava/text/MessageFormat, <clinit>()V > @333 exception:v335
+BB334
+334   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/DerInputStream, <clinit>()V > @334 exception:v336
+BB335
+335   invokestatic < Primordial, Lorg/apache/harmony/security/x501/DirectoryString, <clinit>()V > @335 exception:v337
+BB336
+336   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/BitString, <clinit>()V > @336 exception:v338
+BB337
+337   invokestatic < Primordial, Ljava/text/MessageFormat$Field, <clinit>()V > @337 exception:v339
+BB338
+338   invokestatic < Primordial, Lorg/apache/harmony/security/x509/KeyUsage, <clinit>()V > @338 exception:v340
+BB339
+339   invokestatic < Primordial, Lorg/apache/harmony/security/x509/BasicConstraints, <clinit>()V > @339 exception:v341
+BB340
+340   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1BitString$ASN1NamedBitList, <clinit>()V > @340 exception:v342
+BB341
+341   invokestatic < Primordial, Lorg/apache/harmony/security/utils/AlgNameMapper, <clinit>()V > @341 exception:v343
+BB342
+342   invokestatic < Primordial, Ljava/security/KeyFactory, <clinit>()V > @342 exception:v344
+BB343
+343   invokestatic < Primordial, Lorg/apache/harmony/security/x509/NameConstraints, <clinit>()V > @343 exception:v345
+BB344
+344   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificatePolicies, <clinit>()V > @344 exception:v346
+BB345
+345   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AuthorityKeyIdentifier, <clinit>()V > @345 exception:v347
+BB346
+346   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyConstraints, <clinit>()V > @346 exception:v348
+BB347
+347   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ExtendedKeyUsage, <clinit>()V > @347 exception:v349
+BB348
+348   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CertificateIssuer, <clinit>()V > @348 exception:v350
+BB349
+349   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLDistributionPoints, <clinit>()V > @349 exception:v351
+BB350
+350   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonCode, <clinit>()V > @350 exception:v352
+BB351
+351   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InvalidityDate, <clinit>()V > @351 exception:v353
+BB352
+352   invokestatic < Primordial, Lorg/apache/harmony/security/x509/CRLNumber, <clinit>()V > @352 exception:v354
+BB353
+353   invokestatic < Primordial, Lorg/apache/harmony/security/x509/IssuingDistributionPoint, <clinit>()V > @353 exception:v355
+BB354
+354   invokestatic < Primordial, Lorg/apache/harmony/security/x509/InfoAccessSyntax, <clinit>()V > @354 exception:v356
+BB355
+355   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralNames, <clinit>()V > @355 exception:v357
+BB356
+356   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtrees, <clinit>()V > @356 exception:v358
+BB357
+357   invokestatic < Primordial, Lorg/apache/harmony/security/x509/PolicyInformation, <clinit>()V > @357 exception:v359
+BB358
+358   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralName, <clinit>()V > @358 exception:v360
+BB359
+359   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPoint, <clinit>()V > @359 exception:v361
+BB360
+360   invokestatic < Primordial, Lorg/apache/harmony/security/asn1/ASN1Enumerated, <clinit>()V > @360 exception:v362
+BB361
+361   invokestatic < Primordial, Lorg/apache/harmony/security/x509/DistributionPointName, <clinit>()V > @361 exception:v363
+BB362
+362   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ReasonFlags, <clinit>()V > @362 exception:v364
+BB363
+363   invokestatic < Primordial, Lorg/apache/harmony/security/x509/AccessDescription, <clinit>()V > @363 exception:v365
+BB364
+364   invokestatic < Primordial, Lorg/apache/harmony/security/x509/GeneralSubtree, <clinit>()V > @364 exception:v366
+BB365
+365   invokestatic < Primordial, Lorg/apache/harmony/security/x509/OtherName, <clinit>()V > @365 exception:v367
+BB366
+366   invokestatic < Primordial, Lorg/apache/harmony/security/x509/ORAddress, <clinit>()V > @366 exception:v368
+BB367
+367   invokestatic < Primordial, Lorg/apache/harmony/security/x509/EDIPartyName, <clinit>()V > @367 exception:v369
+BB368
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+
+< Primordial, Landroid/content/Context, <init>()V >
+CFG:
+BB0[-1..-2]
+    -> BB1
+BB1[0..1]
+    -> BB2
+    -> BB3
+BB2[2..2]
+    -> BB3
+BB3[-1..-2]
+Instructions:
+BB0
+BB1
+1   invokespecial < Primordial, Ljava/lang/Object, <init>()V > v1 @1 exception:v3(line 49) {1=[this]}
+BB2
+2   return                                   (line 49)
+BB3
+

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="app_name">DroidLife</string>
+	<string name="menu_play">play</string>
+	<string name="menu_pause">Pause</string>
+	<string name="menu_seed">Seed</string>
+	<string name="menu_prefs">Preferences</string>
+	<string name="cancel">Cancel</string>
+	<string name="ok">Okay</string>
+	<string name="menu_help">Help</string>
+	<string name="menu_design">Design</string>
+<string name="menu_save">Save</string>
+<string name="menu_clear">Clear</string>
+<string name="menu_reseed">Reseed</string>
+<string name="menu_new">New</string>
+<string name="menu_info">Info</string>
+<string name="menu_simulate">Simulate</string>
+<string name="menu_edit">Edit</string>
+</resources>

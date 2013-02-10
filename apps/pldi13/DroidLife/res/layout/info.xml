@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" >
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp" >
+
+        <include layout="@layout/help_header" />
+
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:paddingTop="8dp"
+            android:text="This is an implementation of Conway&apos;s Game of Life, Android style."
+            android:textSize="12dp" />
+
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:autoLink="web"
+            android:gravity="center_horizontal"
+            android:paddingTop="8dp"
+            android:text="For more information, see the Wikipedia entry at http://en.wikipedia.org/wiki/Conway%27s_Game_of_Life "
+            android:textSize="12dp" />
+
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:autoLink="web"
+            android:gravity="center_horizontal"
+            android:paddingTop="8dp"
+            android:text="To add seeds, place either RLE or Life 1.06 format files into &apos;/sdcard/droidlife/rle&apos; or &apos;/sdcard/droidlife/life106&apos; respectively."
+            android:textSize="12dp" />
+        
+        <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:autoLink="web"
+            android:gravity="center_horizontal"
+            android:paddingTop="8dp"
+            android:text="Additional seeds can be downloaded from http://www.conwaylife.com/wiki"
+            android:textSize="12dp" />
+        </LinearLayout>
+
+</ScrollView>

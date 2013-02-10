@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+   <CheckBoxPreference android:key="sounds"
+      android:title="@string/play_sounds" android:summary="@string/play_sounds_summary"
+      android:defaultValue="true" />
+   <EditTextPreference android:key="warning_time"
+      android:title="@string/warning_time" android:summary="@string/warning_time_summary"
+      android:defaultValue="15" android:inputType="phone" android:digits="0123456789" />
+   <CheckBoxPreference android:key="unlimited_participants"
+      android:title="@string/unlimited_participants" android:summary="@string/unlimited_participants_summary"
+      android:defaultValue="false" />
+   <CheckBoxPreference android:key="variable_meeting_length"
+      android:title="@string/variable_meeting_length" android:summary="@string/variable_meeting_length_summary"
+      android:defaultValue="false" />
+</PreferenceScreen> 
