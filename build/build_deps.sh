@@ -11,7 +11,7 @@ cp build/Makefile_wala lib/WALA/Makefile
 cd lib/WALA/ && make && cp com.ibm.wala.core/dat/natives.xml com.ibm.wala.core/bin/natives.xml
 
 # build z3 
-#cd $BASE/lib/z3 && python scripts/mk_make.py && cd build && make
+cd $BASE/lib/z3 && python scripts/mk_make.py && cd build && make
 
 # build ScalaZ3
 cd $BASE
