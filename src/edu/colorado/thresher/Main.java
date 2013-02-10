@@ -418,8 +418,6 @@ public class Main {
 		// add application code
 		scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 		
-		
-	    AnalysisScope scoope = AnalysisScopeReader.readJavaScope(appPath + "testScope.txt", exclusionsFile, Options.class.getClassLoader());
 	    System.out.println("making class hierarchy");
 	    IClassHierarchy cha = ClassHierarchy.make(scope);
 	    
