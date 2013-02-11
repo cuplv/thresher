@@ -1,18 +1,14 @@
 package edu.colorado.thresher;
 
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.dataflow.IFDS.ICFGSupergraph;
-import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.ISSABasicBlock;
@@ -21,8 +17,6 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
-import com.ibm.wala.util.intset.IntIterator;
-import com.ibm.wala.util.intset.IntSet;
 
 
 public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
@@ -69,7 +63,16 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			IPathInfo newPath = copy.deepCopy();
 			// do callgraph feasability checks
 			
-			if (!newPath.addSeen(producer)) {
+			/*
+			// unsound because we may have started execution in a part of startNode that precedes the call to producer
+			// if the producer is called exclusively by start node
+			if (onlyCalledBy(producer, startNode)) {
+				Util.Debug("producer is only called by startNode; continuing");
+				continue;
+			}
+			*/
+			
+			if (!newPath.addSeen(producer)) { 
 				// already seen producer node... keep going
 				// TODO: this is unsound -- figure out what we should really do here.
 				// (1) is the producer the same as the current node or called by the current node?
@@ -370,8 +373,9 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 						//Util.Debug("count exceeded-leaving");
 						//System.exit(1);
 					//}
+					
 					addPathAndBranchPlaceholders();
-					boolean result;
+					boolean result; 
 					if (toProduce != null) result = handlePiecwiseExecutionMethodBased(path);
 					else result = handlePiecwiseExecutionMethodBased(path);
 					if (result) {
@@ -380,6 +384,8 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 						return result;
 					}
 					cleanupPathAndBranchPlaceholders();
+					
+	
 					// else, path refuted
 					path = getNextPath();
 					if (path == null) return false;
@@ -426,6 +432,16 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			return null;
 		}
 		return path;
+	}
+	
+	private boolean onlyCalledBy(CGNode callee, CGNode caller) {
+		Collection<CGNode> preds = Util.iteratorToCollection(this.callGraph.getPredNodes(callee));
+		while (preds.size() == 1) {
+			CGNode next = preds.iterator().next();
+			if (next.equals(caller)) return true;
+			preds = Util.iteratorToCollection(this.callGraph.getPredNodes(next));
+		}
+		return false;
 	}
 	
 	private void handleCallCase(CGNode startNode) {

@@ -43,7 +43,7 @@ public class Options {
 	public static boolean FLOW_INSENSITIVE_ONLY = false; // if true, perform flow-insensitive points-to analysis only; don't do symbolic execution 
 
 	@boolOpt( description="use piecewise symbolic executor. WARNING - under development", _default=false )
-	public static final boolean PIECEWISE_EXECUTION = false;
+	public static boolean PIECEWISE_EXECUTION = false;
 
 	// not currently enabled
 	//@boolOpt( description="perform callgraph pruning based on constraint set at function boundaries", _default=false )

@@ -77,13 +77,6 @@ public class Main {
 	static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler", "CACHED_CHARSETS" };
 	
 	static final Set<String> EMPTY_SET = Collections.EMPTY_SET;
-	
-	/*
-	public static void main(String[] args) 
-			throws Exception, IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-		 
-	}
-	*/
 
     public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
 						  CallGraphBuilderCancelException {
@@ -95,94 +88,9 @@ public class Main {
 		else runAnalysisAllStaticFields(target);
 		//else runAnalysisActivityFieldsOnly(target, true, true);
     }
-	/*
-	 public static void runSmallBenchmarks() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
+    
+    public static void runRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
 	  CallGraphBuilderCancelException {
-		  Util.DEBUG = false;
-		  final String[] benchmarks = new String[] { "AccelerometerPlay", "AccessibilityService", "ApiDemos", "Alarm", "AliasActivity", "BackupRestore", 
-				  								     "BasicGLSurfaceView", "BluetoothChat", "BusinessCard", "Compass", "ContactManager", "CrossCompatibility", 
-				  								     "CubeLiveWallpaper", "FixedGridLayout", "GlobalTime", "HeavyWeight", "HelloActivity", "Home", "JetBoy",
-				  								     "LunarLander", "MultiResolution", "MySampleRss", "SampleSyncAdapter", "SearchableDictionary", "SimpleJNI",
-				  								     "SipDemo", "SkeletonApp", "Snake", "SoftKeyboard", "Spinner", "SpinnerTest", "TicTacToe", "TicTacToeLib",
-				  								     "VoicRecognitionService", "WiktionarySimple", "Wiktionary" };
-		  System.setErr(new PrintStream("../log.txt"));
-		  for (final String benchmark : benchmarks) {
-			  try {
-			
-				  System.err.println("starting on " + benchmark);
-				  runAnalysisActivityAndViewFieldsOnly("samples/" + benchmark);
-			  } catch (Exception e) {
-				  System.err.println("error while running " + benchmark + ": " + e);
-				  throw e;
-			  }
-			  WALACFGUtil.clearCaches();
-		  }
-	  }
-	  */
-	 
-	 public static void runLeakBenchmarks() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
-	  CallGraphBuilderCancelException {
-		 Options.INCLUDE_WEAK_REFERENCES = true;// one of the leak benchmarks contains weak references
-		  Util.DEBUG = true;
-		  // HelloTestOOM doesn't leak
-		  final String[] benchmarks = new String[] { "DeveloperBlogLeak", "MemoryLeakTest", "HelloTestOOM", "WebViewLeak", "text-test" };
-		  final String[] benchmarks0 = new String[] { "DeveloperBlogLeak", "MemoryLeakTest" }; 
-		  //final String[] benchmarks0 = new String[] { "pulse-point" }; 
-				  //"WebViewLeak", "text-test" };
-		  System.setErr(new PrintStream("../log.txt"));
-		  for (final String benchmark : benchmarks0) {
-			  try {
-				  Util.Print("starting on " + benchmark);
-				  //runAnalysisActivityAndViewFieldsOnly("leaks/" + benchmark);
-				  //runAnalysisActivityFieldsOnly("leaks/" + benchmark);
-				  runAnalysisAllStaticFields("leaks/" + benchmark);
-			  } catch (Exception e) {
-				  Util.Print("problem while running " + benchmark + ": " +  e + " " + e.getStackTrace());
-				  if (Options.EXIT_ON_FAIL) System.exit(1);
-			  }
-			  WALACFGUtil.clearCaches();
-		  }
-	  }
-	  
-	  public static void runBenchmarks(String bench) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
-	  CallGraphBuilderCancelException {
-		  Util.DEBUG = false;
-		  // uninteresting means either no alarms or only the two "defaults" (EMPTY_SPANNED and sThreadLocal)
-		  // uninteresting: markers-for-android, DuckDuckGoSettings, Pedometer, RemoteDroid, WordPress
-		  // interesting: JecEditor (3), droidlife-read-only (2) , K9Mail (35), NPR (7), StandupTimer (7), SMSPopup (6), ConnectBot (6), OpenSudoku (5)
-		  final String[] benchmarks;
-		  if (bench != null) benchmarks = new String[] { bench };
-		  else benchmarks = new String[] { "fdroid/JecEditor", "fdroid/droidlife-read-only", "K9Mail", "StandupTimer", "Npr",  "ConnectBot", "OpenSudoku", 
-				  									 "SMSPopup" };
-		  //final String[] benchmarks0 = new String[] { "K9Mail" };
-		  final String[] benchmarks0 = new String[] { "HashMapTest" };
-		  //final String[] benchmarks0 = new String[] { "OpenSudoku" };
-		  //System.setErr(new PrintStream("../log.txt"));
-		  for (final String benchmark : benchmarks) {
-			  final String path = "../apps/" + benchmark + "/";
-			  //System.setErr(new PrintStream(path + "wala_dat/log.txt"));
-			  System.setErr(new PrintStream("../log.txt"));
-			  
-			  // read in list of refuted edges, if applicable
-			  Set<String> refutedEdges = Util.getAllLinesFromFile(path + "refuted_edges.txt");
-			  
-			  try {
-				  Util.Print("starting on bench " + benchmark);
-				  //runAnalysisActivityAndViewFieldsOnly(benchmark);
-				  runAnalysisAllStaticFields(benchmark, refutedEdges);
-			  } catch (Exception e) {
-				  Util.Print("problem while running " + benchmark + ": " +  e + " " + Util.printArray(e.getStackTrace()));
-				  Util.Log("problem while running " + benchmark + ": " +  e + " " + Util.printArray(e.getStackTrace()));
-			  }
-			  WALACFGUtil.clearCaches();
-		  }
-	  }
-	
-	  public static void runRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
-	  CallGraphBuilderCancelException {
-		 // Options options = new Options();
-		 // options.parseArgs(new String[] { "-help" } );
-		  //DEBUG = true;
 		  Util.DEBUG = true;
 		  Util.LOG = true;
 		  Util.PRINT = true;
@@ -216,26 +124,13 @@ public class Main {
 		  piecewiseExceptions.add("SimpleConjunctiveRefute");
 		  piecewiseExceptions.add("MultiLevelParamPassRefute");
 		  
-		  final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute", "ContainsKeyNoRefute"
-				  /*
-				  										   "WeakHashMapRefute",
-				  										   "SimpleArrayListRefute", 
-				  										   "SimpleArrayListNoRefute", 
-				  										   "SimpleArrayListSetRefute", 
-				  									       "SimpleArrayListSetNoRefute" */};
+		  final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute", "ContainsKeyNoRefute" };
 		  
 		  //final String[] fakeMapTests0 = new String[] { };
 		  final String[] fakeMapTests0 = new String[] { "FunctionCallRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "LoopProcRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "PathValueUpdateNoRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "IrrelevantLoopRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "BranchInLoopNoRefute" };
-		  //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
 
 		  final String[] realHashMapTests0 = new String[] { }; 
 		  //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" }; 
-		  //final String[] realHashMapTests0 = new String[] { "ManyHashMapRefute" }; 
 		  
 		  String regressionDir = "apps/tests/regression/";
 		  boolean result;
@@ -245,7 +140,6 @@ public class Main {
 		  long start = System.currentTimeMillis();
 		  
 		  for (String test : fakeMapTests) {
-		      //System.setErr(new PrintStream("../log.txt"));
 			  Util.Print("Running test " + testNum + ": " + test);
 			  long testStart = System.currentTimeMillis();
 			  try {
@@ -276,9 +170,7 @@ public class Main {
 
 		  testNum = 0;
 		
-		  //for (String test : tests0) {
 		  for (String test : realHashMapTests) {
-			  //System.setErr(new PrintStream("../log.txt"));
 			  Util.Print("Running test " + testNum + ": " + test);
 			  long testStart = System.currentTimeMillis();
 			  try {
@@ -352,22 +244,18 @@ public class Main {
 		throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
 		//String[] snkClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View"};
 		String[] snkClasses = new String[] { "Landroid/app/Activity" };
-		String[] srcClasses = new String[0]; // with no base// { "Landroid/app/Activity", "Landroid/view/View"};
+		String[] srcClasses = new String[0]; // with no base
 		return runAnalysis(appName, srcClasses, snkClasses, refutedEdges, false);
 	}
 	
 	public static boolean runAnalysisAllStaticFields(String appName) // wrapper
 			throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
 		return runAnalysisAllStaticFields(appName, EMPTY_SET);
-		//String[] snkClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View"};
-		//String[] srcClasses = new String[0]; // with no base// { "Landroid/app/Activity", "Landroid/view/View"};
-		//return runAnalysis(appName, srcClasses, snkClasses, false);
 	}
 	
 	public static boolean runAnalysisActivityAndViewFieldsOnly(String appName) // wrapper
 			throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
 		String[] srcClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View"};
-		//String[] snkClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View"};
 		String[] snkClasses = new String[] { "Landroid/app/Activity" };
 		return runAnalysis(appName, srcClasses, snkClasses, EMPTY_SET, false);
 	}
@@ -402,100 +290,32 @@ public class Main {
 	    Set<IField> staticFields = new HashSet<IField>();
 	    Set<MethodReference> saveMethods = new HashSet<MethodReference>();
 	    Util.Print("Starting on " + appPath);
-		//String appPath = "../apps/" + appName + "/wala_dat/";
-		//System.setOut(new PrintStream(appPath + "out.txt"));
 	    Logger logger = new Logger(appPath);
-		//System.setErr(new PrintStream(appPath + "log.txt"));
-		//System.setErr(new PrintStream("../log.txt"));
 		long start = System.currentTimeMillis();
 		File exclusionsFile = null;
 		if (Options.USE_EXCLUSIONS) exclusionsFile = new File("config/exclusions.txt");
 		AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
 		if (exclusionsFile != null) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
-		JarFile file = new JarFile(Options.ANDROID_JAR);// new JarFile();
+		JarFile file = new JarFile(Options.ANDROID_JAR);
 		scope.addToScope(scope.getPrimordialLoader(), file);
-		//scope.addToScope(scope.getPrimordialLoader(), new JarFile("primordial.jar.model"));
 		// add application code
 		scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 		
 	    System.out.println("making class hierarchy");
 	    IClassHierarchy cha = ClassHierarchy.make(scope);
 	    
-	    /*
-	    // TEST -- for nulls
-	    Util.Print("starting null tests");
-	    int nullConstructors = 0;
-	    int otherConstructors = 0;
-	    Iterator<IClass> clazzes = cha.iterator();
-    	IRFactory<IMethod> factory = new DefaultIRFactory();
-    	SSACache ssaCache = new SSACache(factory);
-	    while (clazzes.hasNext()) {
-	    	IClass clazz = clazzes.next();
-	    	Collection<IMethod> methods = clazz.getDeclaredMethods();
-	    	for (IMethod m : methods) {
-	    		IR ir = ssaCache.findOrCreateIR(m, Everywhere.EVERYWHERE, SSAOptions.defaultOptions());
-	    		if (ir == null) continue;
-	    		SymbolTable tbl = ir.getSymbolTable();
-	    		int max = tbl.getMaxValueNumber();
-	    		for (int i = 1; i <= max; i++) {
-	    			// check if each value number is a null constant
-	    			if (tbl.isNullConstant(i)) {
-	    				// potential null constructor
-	    				nullConstructors++;
-	    			}
-	    		}
-	    		Iterator<SSAInstruction> iter = ir.iterateNormalInstructions();
-	    		while (iter.hasNext()) {
-	    			SSAInstruction instr = iter.next();
-	    			if (instr instanceof SSAPutInstruction) {
-	    				SSAPutInstruction putInstr = (SSAPutInstruction) instr;
-	    				if (tbl.isNullConstant(instr.getUse(0))) {
-	    					// null constructor to track
-	    				}
-	    			} else if (instr instanceof SSAPhiInstruction) {
-	    				for (int i = 0; i < instr.getNumberOfUses(); i++) {
-	    					if (tbl.isNullConstant(instr.getUse(i))) {
-	    						// null constructor to track
-	    					}
-	    				}
-	    			} else if (instr instanceof SSAInvokeInstruction) {
-	    				for (int i = 0; i < instr.getNumberOfUses(); i++) {
-	    					if (tbl.isNullConstant(instr.getUse(i))) {
-	    						// null constructor to track
-	    					}
-	    				}
-	    			}
-	    			else if (instr instanceof SSAReturnInstruction) {
-	    				SSAReturnInstruction returnInstr = (SSAReturnInstruction) instr;
-	    				if (tbl.isNullConstant(returnInstr.getUse(0))) {
-	    					// null constructor to track
-	    				}
-	    			} 
-	    		}
-	    	}
-	    }
-	    Util.Print("null constructors " + nullConstructors);
-	    Util.Print("other constructors " + otherConstructors);
-	    // now, the harder bit. look for all fields not initialized in class init/constructor. those are null constructors too...
-	    System.exit(1);
-	    // END TEST
-	     */
-	    
 	    List<IClass> snkClasses = new LinkedList<IClass>();
-	 	    
     	Iterator<IClass> classes = cha.iterator();
     	while (classes.hasNext()) {
     		IClass c = classes.next();
     		if (!scope.isApplicationLoader(c.getClassLoader())) continue;
 	    	for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
-	    		//Util.Debug("Starts with on? " + m.getName().toString().startsWith("on"));
 	    		if (REGRESSIONS) {
 	    			if (m.isPublic() || m.isProtected()) {
 	    				entryPoints.add(new DefaultEntrypoint(m, cha));
 	    			}
 	    		} else {
 	    			if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { // add "on*" methods; they're the event handlers
-	    				//Util.Debug("Entrypoint " + m);
 	    				entryPoints.add(new DefaultEntrypoint(m, cha));
 	    			}
 	    		}
@@ -505,7 +325,6 @@ public class Main {
     		
     		if (srcStrings.length == 0) { // no src classes; just use all static fields
     			for (IField field : c.getAllStaticFields()) {
-    				//Util.Debug("found static field " + field);
     				staticFields.add(field);
     			}
     		}
@@ -531,15 +350,10 @@ public class Main {
 	    
 	    Collection<IClass> subclasses = HashSetFactory.make();
 	    computeSubclassesAndStaticFields(snkClasses, scope, cha, entryPoints, subclasses, staticFields, saveMethods);
-	    //computeActivitySubclassesAndStaticFields(klass, scope, cha, entryPoints, activitySubs, staticFields, saveMethods);
 
 		// gather entrypoints
 	    Collection<? extends Entrypoint> e = entryPoints;
-	    //for (Entrypoint entry : e) {
-	    	//Util.Debug(entry.toString());
-	    //}
 	    Util.Print(e.size() + " entrypoints");
-	    
  
 	    AnalysisOptions options = new AnalysisOptions(scope, e); // build call graph and pointer analysis
 	    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); // turn off handling of Method.invoke(), which dramatically speeds up points-to analysis
@@ -562,59 +376,14 @@ public class Main {
 	    ModRef modref = ModRef.make();
 	    Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
 	      
-	    Set<Pair<Object,Object>> fieldErrorList = new HashSet<Pair<Object,Object>>();//, retErrorList = new LinkedList<Pair<Object,Object>>();
-	    Set<String> fieldErrors = HashSetFactory.make();
+	    Set<Pair<Object,Object>> fieldErrorList = new HashSet<Pair<Object,Object>>();
 	    Map<String,Set<IClass>> leakedActivities = new HashMap<String, Set<IClass>>(); // map from fields -> Acts that leak via that field
-	    
-	    //Set<CGNode> retErrors = HashSetFactory.make();
-	    List<List> fieldErrorPaths = new LinkedList<List>();//, retErrorPaths = new LinkedList<List>();
-	    
-	    /*
-	    for (MethodReference m : saveMethods) {
-	    	Set<CGNode> nodes = cg.getNodes(m);
-	    	for (CGNode node : nodes) {
-	    		PointerKey k = hm.getPointerKeyForReturnValue(node);
-	    		//if (DEBUG) System.out.println("Searching from " + k);
-	    		BFSIterator<Object> iter = new BFSIterator<Object>(hg, k);
-	    		// see if an Activity is reachable from this return value
-	    		while (iter.hasNext()) {
-	    			Object next = iter.next();
-	    			IClass type = null;
-	    			if (next instanceof ConcreteTypeKey) {
-	    				type = ((ConcreteTypeKey)next).getConcreteType();
-	    			} else if (node instanceof AllocationSiteInNode) {
-	    				type = ((AllocationSiteInNode)node).getConcreteType();
-	    			}
-	    			if (type != null && snkClasses.contains(type) && !retErrors.contains(node)) {
-	    				retErrors.add(node);
-	    				Collection<Object> found = new HashSet<Object>();
-	    				found.add(node);
-	    				
-    					// no, it's a false alarm that we don't need path sensitivity to refute
-	    				// find path from field to activity; a waste of work (since we already found the path in the BFS), but useful for triaging
-	    				BFSPathFinder bfs = new BFSPathFinder(hg, k, new CollectionFilter(found));
-	    				List path = bfs.find();
-	    				if (path != null) {
-	    					Util.Debug("found return error " + node);
-	    					//retErrorPaths.add(path);
-	    					Util.Debug("<RETURN PATH Length: " + path.size());
-	    					for (int i=path.size() - 1; i >= 0; i--) Util.Debug(path.get(i) + " (" + path.get(i).getClass() + ")");
-	    					Util.Debug("</RETURN PATH>");
-	    					Pair<Object,Object> errPair = Pair.make((Object) k, next);
-	    					retErrorList.add(errPair);
-	    				}	
-	    			}
-	    		}
-	    	}
-	    }
-	    */
 	    
 	    for (IField f : staticFields) {
 	    	boolean skipThis = false;
 			for (String skip : blacklist) {
-				//if (f.toString().contains(skip)) {// || !f.toString().contains("mInstance") || !f.toString().contains("PluginManager")) {
-				if (f.toString().contains(skip)) {// || !f.toString().contains("PluginManager")) {
-					if (DEBUG) Util.Debug("skipping " + f + " due to blacklist");
+				if (f.toString().contains(skip)) {
+					Util.Print("skipping " + f + " due to blacklist");
 					skipThis = true;
 					break;
 				}
@@ -622,7 +391,6 @@ public class Main {
 			if (skipThis) continue;
 	    	
 	    	PointerKey field = hm.getPointerKeyForStaticField(f);
-	    	//Util.Debug("Searching from static field " + field);
 			BFSIterator<Object> iter = new BFSIterator<Object>(hg, field);
 			// see if an Activity is reachable from this static field
 			while (iter.hasNext()) {
@@ -633,14 +401,12 @@ public class Main {
 				} else if (node instanceof AllocationSiteInNode) {
 					type = ((AllocationSiteInNode)node).getConcreteType();
 				}
-				//if (type != null && subclasses.contains(type) && !fieldErrors.contains(field.toString())) { // enforce only one error per field
 				if (type != null && subclasses.contains(type)) { // allow arbitrary number of errors per field
 					Collection<Object> found = new HashSet<Object>();
 					found.add(node);
 					
 					// is there a path from the static field to the Activity that does not contain weak references?
 					if (removeWeakReferences(graphView, field, found, hg, cha)) {
-						
 						Set<IClass> leaked = leakedActivities.get(field.toString());
 						if (leaked == null) {
 							leaked = new HashSet<IClass>();
@@ -658,16 +424,6 @@ public class Main {
 			}
 	    }
 	    
-	    long end = System.currentTimeMillis();
-	    /*
-	    System.out.println("\nRECAP:");
-	    System.out.println(activitySubs.size() + " Activity classes:");
-	    System.out.println(staticFields.size() + "  static fields");
-	    System.out.println(e.size() + " entrypoints");
-	    System.out.println("Found " + (retErrors.size() + fieldErrors.size()) + " errors in " + ((end - start) / 1000.0) + " seconds");
-	    System.err.println("Found " + (retErrors.size() + fieldErrors.size()) + " errors in " + ((end - start) / 1000.0) + " seconds");
-	    System.err.println("DONE");
-	    */
 	    Util.Print("found " + leakedActivities.keySet().size() + " potentially problematic fields");
 	    Util.Print("found " + fieldErrorList.size() + " (field, error) pairs");
 	    logger.logNumStaticFields(staticFields.size());
@@ -697,7 +453,7 @@ public class Main {
 		IBinaryNaturalRelation relation = null;
 		// for each error
 		for (Pair<Object,Object> error : fieldErrors) {
-			//try {
+			try {
 				Util.Print("starting on error " + count++ + " of " + fieldErrors.size() + ": " + error.fst);
 				snkCollection.add(error.snd);
 				MyBFSPathFinder<Object> finder = new MyBFSPathFinder<Object>(graphView, error.fst, new CollectionFilter<Object>(snkCollection));
@@ -714,15 +470,14 @@ public class Main {
 					trueErrors.add(error);
 				}
 				relation = finder.getIgnoreIfBoth();
-				/*
 			} catch (Exception e) {
 				Util.Print("problem while examining " + error + ": " + e + " " + Util.printArray(e.getStackTrace()));
-				Util.Debug("problem while examining " + error + ": " + e + " " + Util.printArray(e.getStackTrace()));
 				logger.logFailure();
 				Thread.dumpStack();
-				if (EXIT_ON_FAIL) System.exit(1);
+				if (Options.EXIT_ON_FAIL) System.exit(1);
+				// otherwise, soundly (but not precisely) add error to witnessed list
+				trueErrors.add(error);
 			}
-			*/
 		}
 		Util.Print("Refuted " + falseErrors.size() + " errors, witnessed " + trueErrors.size() + " errors");
 		Util.Print("STATS:\n" + logger.dumpHumanReadable() + "\n" + logger.dumpCountMap());
@@ -760,22 +515,16 @@ public class Main {
 			  boolean refutation = false;
 			  int srcIndex = 1;
 			  int snkIndex = 0;
-			  //String fieldName = null;
 			  PointerKey fieldKey = null;
 			  while (srcIndex < errorPath.size()) {
 				  Object snk = errorPath.get(srcIndex);
 				  if (snk instanceof PointerKey && !(snk instanceof StaticFieldKey)) {
-					  //if (snk instanceof StaticFieldKey) fieldKey = (PointerKey) errorPath.g;
 					  // src is intermediate point in points-to edge; either field name or array contents
 					  if (snk instanceof ArrayContentsKey) {
-						  //fieldName = PointerStatement.ARRAY;
 						  fieldKey = (PointerKey) snk;
 					  } else if (snk instanceof InstanceFieldKey) {
 						  InstanceFieldKey ifk = (InstanceFieldKey) snk;
 						  fieldKey = ifk;
-						  String instanceFieldName = ifk.getField().getName().toString();
-						  String className = ifk.getField().getDeclaringClass().toString();
-						  //fieldName = className + "." + instanceFieldName;
 					  } else {
 						Util.Assert(false, "UNSUPPORTED POINTER KEY TYPE!" + snk);
 					  }
@@ -787,29 +536,23 @@ public class Main {
 					  PointerVariable source = Util.makePointerVariable(src);
 					  PointerVariable sink = Util.makePointerVariable(snk);
 					  PointsToEdge witnessMe = new PointsToEdge(source, sink, fieldKey);
-					  //Util.Print("About to witness " + src + "\n ->{" + fieldKey + "}\n" + snk);
+
 					  if (!producedEdges.contains(witnessMe)) {
-						  // TODO: TMP: for now, we insist on refuting *all* contexts for a given edge (not sure if it's sound to do otherwise...)
-						  // TODO: so if we refute an edge and then see it again in the error path, we are seeing it again because the version we refuted
-						  // TODO: was in a different context. however, since we refute for all contexts at once, we can refute this edge immediately 
-						  // TODO: (because we've already done so in the past)
+						  // for now, we insist on refuting *all* contexts for a given edge the first time we see it
+						  // so if we refute an edge and then see it again in the error path, we are seeing it again because the version we refuted
+						  // was in a different context. however, since we refute for all contexts at once, we can refute this edge immediately 
+						  // because we've already done so in the past)
 						  List<Pair<InstanceKey,Object>> srcFieldPairs; 
 						  if (refutedEdges.contains(witnessMe) || refutedEdgeStrings.contains(witnessMe.toString())) {
 							  if (DEBUG) Util.Debug("already refuted edge " + witnessMe);
 							  srcFieldPairs = new LinkedList<Pair<InstanceKey,Object>>(); 
 						  } else {
-						      //Util.Debug("generating flow-insens witness");
-							  //if (GEN_FLOW_INSENSITIVE_WITNESS && !Util.generateFlowInsensitiveWitness(witnessMe, refutedEdges, aDepRuleGenerator, hg, cg)) {
-						      //if (DEBUG) Util.Debug("couldn't find flow-insensitive witness for " + witnessMe);
-						      // srcFieldPairs = new LinkedList<Pair<InstanceKey,Object>>(); 
-						      //  } else {
-								  if (DEBUG) Util.Debug("ATTEMPTING TO REFUTE EDGE " + witnessMe);
-								  Util.Print("%%%%%%%%%%%%%%%%%Starting on edge " + witnessMe + "%%%%%%%%%%%%%%%%%");
-								  long start = System.currentTimeMillis();
-								  srcFieldPairs = generateWitness(witnessMe, aDepRuleGenerator, cha, hg, cg, refutedEdges, logger);
-								  Util.Print("Edge took " + ((System.currentTimeMillis() - start) / 1000.0) + " seconds.");
-								  WALACFGUtil.clearCaches();
-								  //  }
+							  if (DEBUG) Util.Debug("ATTEMPTING TO REFUTE EDGE " + witnessMe);
+							  Util.Print("%%%%%%%%%%%%%%%%%Starting on edge " + witnessMe + "%%%%%%%%%%%%%%%%%");
+							  long start = System.currentTimeMillis();
+							  srcFieldPairs = generateWitness(witnessMe, aDepRuleGenerator, cha, hg, cg, refutedEdges, logger);
+							  Util.Print("Edge took " + ((System.currentTimeMillis() - start) / 1000.0) + " seconds.");
+							  WALACFGUtil.clearCaches();
 						  }
 						  if (srcFieldPairs == null) {
 							  // edge produced, continue generating witnesses on this path
@@ -874,7 +617,6 @@ public class Main {
 						 if (DEBUG) Util.Debug("already produced " + witnessMe);
 					  }
 					  fieldKey = null;
-					  //fieldName = null;
 					  snkIndex = srcIndex;
 					  srcIndex++;
 				  } // end of producedEdges.contains(witnessMe) else block
@@ -902,7 +644,6 @@ public class Main {
 																  Logger logger) {
 		final Set<PointsToEdge> toProduce = new HashSet<PointsToEdge>();
 		toProduce.add(witnessMe);
-		//System.err.println("Finding witness for " + toProduce);
 
 		// find potential last rule(s) applied in witness
 		Iterator<PointsToEdge> setIter = toProduce.iterator();
@@ -926,83 +667,39 @@ public class Main {
 			PointerStatement snkStmt = lastRule.getStmt();
 			int startLine = snkStmt.getLineNum();
 			if (DEBUG) Util.Debug("start line is " + startLine);
-			// need to copy because we can add possibly add new contexts during execution
-			//lastRule.getNode();
-			final Set<CGNode> potentialNodes = new HashSet<CGNode>();//Util.deepCopySet(lineMethodMap.get(snkId));
+			final Set<CGNode> potentialNodes = new HashSet<CGNode>();
 			potentialNodes.add(lastRule.getNode());
 			int numContexts = potentialNodes.size();
-			int contextCounter = 1;
+
 			for (CGNode startNode : potentialNodes) {
 				Util.Assert(numContexts == potentialNodes.size(), "sizes don't match!");
 				Util.Print("starting in method " + startNode);
-				// record edge produced by rule
-				final PointsToQuery startQuery = new PointsToQuery(lastRule, depRuleGenerator); //new PointsToQuery(lastRule.getToShow(), lastRule.getShown(), depRuleGenerator);
-				//PointsToQuery startQuery = new PointsToQuery(lastRule.getShown(), depRuleGenerator);
-				final IQuery query = new CombinedPathAndPointsToQuery(startQuery); //new Z3Context(new Z3Config()));
-				
+				final PointsToQuery startQuery = new PointsToQuery(lastRule, depRuleGenerator); 
+				final IQuery query = new CombinedPathAndPointsToQuery(startQuery); 
 				IR ir = startNode.getIR();
 				SSACFG cfg = ir.getControlFlowGraph();
 				SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
 				int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
 				Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), 
 						"instrs dif! expected " + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
-				ISymbolicExecutor exec;
-
-				ICFGSupergraph superGraph = null;
-				if (Options.CALLGRAPH_PRUNING) superGraph = ICFGSupergraph.make(cg, depRuleGenerator.getCache());
 				
+				ISymbolicExecutor exec;
+				ICFGSupergraph superGraph = null;
+				if (Options.CALLGRAPH_PRUNING) superGraph = ICFGSupergraph.make(cg, depRuleGenerator.getCache());				
 				boolean foundWitness;
 				if (Options.PIECEWISE_EXECUTION) exec = new PiecewiseSymbolicExecutor(cg, superGraph, logger);
 				else if (Options.CALLGRAPH_PRUNING) exec = new PruningSymbolicExecutor(cg, superGraph, logger);
 				else exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
 				foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query); // start at line BEFORE snkStmt
-			
-				exec = null;
-				//System.gc(); // dump all the memory we were using during execution
 				
 				Util.Print(logger.dumpEdgeStats());
 				if (foundWitness) {
 					return null;
 				} // else, refuted this attempt; try again
-
-				//System.err.println("refuted context " + contextCounter++ + " of " + potentialNodes.size() + " for rule " + lastRuleCounter + ": " + lastRule);
-				//Util.Assert(numContexts == potentialNodes.size(), "sizes don't match after!");
 			}
-			//System.err.println("refuted all contexts for possible rule " + lastRuleCounter++ + " of " + lastApplied.size());
 		}
 		return new LinkedList<Pair<InstanceKey,Object>>(); // refuted all posssible last rules without a witness
 	}	  
-
-	public boolean addReceiverConstraint(CGNode node, IQuery query) {
-		Util.Unimp("adding receiver constraint");
-		/*
-		Context context = node.getContext();
-		ContextItem receiver = context.get(ContextKey.RECEIVER);
-		if (receiver instanceof InstanceKey) {
-			InstanceKey key = (InstanceKey) receiver;
-			if (key instanceof AllocationSiteInNode) {
-				AllocationSiteInNode alloc = (AllocationSiteInNode) key;
-				CGNode otherNode = alloc.getNode();
-				if (!addReceiverConstraint(otherNode, constraints)) return false;
-			}
-			PointerVariable site = Util.makePointerVariable(key);
-			PointerVariable receiverLocal = new ConcretePointerVariable(node.getMethod().getReference(), 1);
-			PointsToEdge receiverConstraint = new PointsToEdge(receiverLocal, site, null);
-			// make trivial dependency rule
-			DependencyRule rule = new DependencyRule(receiverConstraint, null, new TreeSet<PointsToEdge>(), node);
-			if (constraints.isRuleConsistent(rule) == Constraints.Relevant.LHS_RELEVANT) {
-				System.err.println("ADDING RECEIVER CONSTRAINT " + receiverConstraint);
-				constraints.addPointsToEdgeToConstraints(receiverConstraint);
-			} else {
-				System.err.println("constraints " + constraints + " inconsistent! returning false");
-				// inconsistent! refute
-				return false;
-			}
-		}
-		*/
-		return true;
-	}
-
 	
 	// returns true if error path still exists after removing weak references, false otherwise
 	public static boolean removeWeakReferences(MySubGraph<Object> graphView, Object srcKey, Collection<Object> snkKey, HeapGraph hg, IClassHierarchy cha) {
@@ -1014,21 +711,18 @@ public class Main {
 			  if (path == null) return false;
 			  
 			  int srcIndex = 1, snkIndex = 0;
-			  String fieldName = null;
 			  Object fieldKey = null;
 			  while (srcIndex < path.size()) {
 				  Object src = path.get(srcIndex);
 				  if (src instanceof PointerKey && !(src instanceof StaticFieldKey)) {
 					  // src is intermediate point in points-to edge; either field name or array contents
 					  if (src instanceof ArrayContentsKey) {
-						  fieldName = PointerStatement.ARRAY;
 						  fieldKey = src;
 					  } else if (src instanceof InstanceFieldKey) {
 						  InstanceFieldKey ifk = (InstanceFieldKey) src;
 						  fieldKey = ifk;
 						  String instanceFieldName = ifk.getField().getName().toString();
 						  String className = ifk.getField().getDeclaringClass().toString();
-						  fieldName = className + "." + instanceFieldName;
 					  } else {
 						Util.Assert(false, "UNSUPPORTED POINTER KEY TYPE!" + src);
 					  }
@@ -1041,7 +735,6 @@ public class Main {
 						  break;
 					  }
 					  fieldKey = null;
-					  fieldName = null;
 					  snkIndex = srcIndex;
 					  srcIndex++;
 				  }
@@ -1070,11 +763,9 @@ public class Main {
 				  IClass type = key.getConcreteType();
 				  if (type.equals(WEAK_REFERENCE) || cha.isSubclassOf(type, WEAK_REFERENCE)) return true;
 			  }
-			  
 			  // also do silly syntactic check
 			  //return src.toString().contains("WeakReference") || snk.toString().contains("WeakReference");
 		  }
 		  return false;
-	  }
-	
+	  }	
 }
