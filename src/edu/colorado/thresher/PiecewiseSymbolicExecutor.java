@@ -45,6 +45,13 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			path.declareFakeWitness();
 			return true;
 		}
+		
+		// check summary
+		if (isPathInSummary(path)) {
+			Util.Debug("refuted by summary");
+			return false;
+		}
+		
 		// get potential producers for constraints
 		Set<CGNode> producers = Util.flatten(copy.getModifiersForQuery().values());
 		if (Options.DEBUG) for (CGNode producer : producers) Util.Debug("producer: " + producer);
@@ -321,7 +328,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 					}
 					// else, try executing the class initializer to see if that produces a refutation
 					CGNode classInit = WALACFGUtil.getClassInitializerFor(proc.getMethod().getDeclaringClass(), callGraph);
-					if (!executeToProcedureBoundary(path, classInit, toProduce)) { // refuted
+					if (classInit != null && !executeToProcedureBoundary(path, classInit, toProduce)) { // refuted
 						path = getNextPath();
 						if (path == null) return false;
 						//return false; // refuted

@@ -42,9 +42,8 @@ public class Options {
 	@boolOpt( description="perform flow-insensitive points-to analysis only; don't do symbolic execution", _default=false )
 	public static boolean FLOW_INSENSITIVE_ONLY = false; // if true, perform flow-insensitive points-to analysis only; don't do symbolic execution 
 
-	// not currently enabled
-	//@boolOpt( description="use piecewise symbolic executor", _default=false )
-	public static final boolean PIECEWISE_EXECUTION = true;
+	@boolOpt( description="use piecewise symbolic executor. WARNING - under development", _default=false )
+	public static final boolean PIECEWISE_EXECUTION = false;
 
 	// not currently enabled
 	//@boolOpt( description="perform callgraph pruning based on constraint set at function boundaries", _default=false )
@@ -154,7 +153,7 @@ public class Options {
 	}
 	
 	private static void dumpHelpInfo() {
-		String optionStr = "USAGE: .\thresher.sh <options>. Use ! to negate boolean flags (e.g. -check_asserts!) \n";
+		String optionStr = "USAGE: ./thresher.sh <options>. Use ! to negate boolean flags (e.g. -check_asserts!) \n";
 		for (Field field : Options.class.getDeclaredFields()) {
 			Annotation[] annots = field.getAnnotations();
 			if (annots.length > 0) {
