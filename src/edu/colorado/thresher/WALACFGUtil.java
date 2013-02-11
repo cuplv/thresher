@@ -11,6 +11,7 @@ import java.util.Set;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.IR;
@@ -387,7 +388,9 @@ public class WALACFGUtil {
 	}
 	
 	public static CGNode getClassInitializerFor(IClass clazz, CallGraph callGraph) {
-		Set<CGNode> classInits = callGraph.getNodes(clazz.getClassInitializer().getReference());
+		IMethod classInit = clazz.getClassInitializer();
+		if (classInit == null) return null;
+		Set<CGNode> classInits = callGraph.getNodes(classInit.getReference());
 		Util.Assert(classInits.size() == 1, "should be exactly one class init!");
 		return classInits.iterator().next();
 	}
