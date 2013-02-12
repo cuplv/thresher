@@ -90,7 +90,7 @@ public class Options {
 	public static String APP;
 	
 	@stringOpt (description="usage: -android_jar <path to jar file for version of android libraries>", _default="android-2.3.jar")
-	public static String ANDROID_JAR = "android/android-2.3.jar";
+	public static String ANDROID_JAR = "android/android-2.3_stubbed.jar";
 	
 	@stringOpt (description="run regression tests", _default="")
 	public static String REGRESSIONS;
