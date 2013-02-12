@@ -46,6 +46,12 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			return false;
 		}
 		
+		// have we been at the function boundary for this node before?
+		if (!path.addSeen(path.getCurrentNode())) {
+			Util.Debug("have seen producer " + path.getCurrentNode() + " before, refuting");
+			return false;
+		}
+		
 		// get potential producers for constraints
 		Set<CGNode> producers = Util.flatten(copy.getModifiersForQuery().values());
 		if (Options.DEBUG) for (CGNode producer : producers) Util.Debug("producer: " + producer);
@@ -367,7 +373,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 				
 				if (isAbstractionBoundary(path.getCurrentNode().getMethod())) {
 					Util.Debug("path successfully produced " + toProduce);
-					Util.Debug("starting ANEW from " + path.getCurrentNode() + " " + count++);
+					Util.Debug("starting piecewise exec ANEW from " + path.getCurrentNode() + " " + count++);
 					//if (isPathInSummary(path)) return false; // summary makes path redundant
 					//if (count > 5) {
 						//Util.Debug("count exceeded-leaving");
