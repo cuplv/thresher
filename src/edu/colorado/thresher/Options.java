@@ -89,8 +89,8 @@ public class Options {
 	@stringOpt (description="usage: -app <path to directory of .class files to analyze>", _default="")
 	public static String APP;
 	
-	@stringOpt (description="usage: -android_jar <path to jar file for version of android libraries>", _default="android-2.3.jar")
-	public static String ANDROID_JAR = "android/android-2.3_stubbed.jar";
+	@stringOpt (description="usage: -android_jar <path to jar file for version of android libraries>", _default="android-2.3_annotated.jar")
+	public static String ANDROID_JAR = "android/android-2.3_annotated.jar";
 	
 	@stringOpt (description="run regression tests", _default="")
 	public static String REGRESSIONS;

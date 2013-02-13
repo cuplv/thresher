@@ -63,20 +63,20 @@ import com.ibm.wala.util.intset.OrdinalSet;
 
 
 public class Main {
-	public static final boolean DEBUG = Options.DEBUG; // print debug information (LOTS of printing)
+    public static final boolean DEBUG = Options.DEBUG; // print debug information (LOTS of printing)
 
-	public static IClassHierarchy DEBUG_cha;
-	
-	private static IClass WEAK_REFERENCE;
+    public static IClassHierarchy DEBUG_cha;
+    
+    private static IClass WEAK_REFERENCE;
 
     private static boolean REGRESSIONS = false; // don't set manually; automatically on when regression tests run and off otherwise
 	
     public static String REGRESSION = "__regression";
     
-	// field errors we see in almost every app and do not want to repeatedly re-refute
-	static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler", "CACHED_CHARSETS" };
+    // field errors we see in almost every app and do not want to repeatedly re-refute
+    static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler", "CACHED_CHARSETS" };
 	
-	static final Set<String> EMPTY_SET = Collections.EMPTY_SET;
+    static final Set<String> EMPTY_SET = Collections.EMPTY_SET;
 
     public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
 						  CallGraphBuilderCancelException {
@@ -95,6 +95,7 @@ public class Main {
 		  Util.LOG = true;
 		  Util.PRINT = true;
 		  REGRESSIONS = true;
+		  Options.ANDROID_JAR = "android/android-2.3.jar"; // use non-annotated JAR
 		  final String[] fakeMapTests = new String[] { "IntraproceduralStrongUpdate", "SimpleNoRefute", "FunctionCallRefute", "FunctionCallNoRefute",
 				  						  "BranchRefute", "BranchNoRefute", "HeapRefute", "HeapNoRefute", "InterproceduralRefute", 
 				 						  "PathValueUpdateRefute", "PathValueUpdateNoRefute", "SharedStaticMapNoRefute", "ManuNoRefute2", "MultiWayBranchNoRefute", 
@@ -127,10 +128,10 @@ public class Main {
 		  final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute", "ContainsKeyNoRefute" };
 		  
 		  //final String[] fakeMapTests0 = new String[] { };
-		  final String[] fakeMapTests0 = new String[] { "FunctionCallRefute" };
+		  final String[] fakeMapTests0 = new String[] { "SimpleNoRefute" };
 
-		  final String[] realHashMapTests0 = new String[] { }; 
-		  //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" }; 
+		  //final String[] realHashMapTests0 = new String[] { }; 
+		  final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" }; 
 		  
 		  String regressionDir = "apps/tests/regression/";
 		  boolean result;
