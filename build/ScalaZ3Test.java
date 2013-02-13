@@ -1,6 +1,6 @@
 import z3.*;
 import z3.java.*;
-class Test {
+class ScalaZ3Test {
     public static void main(String[] args) {
 	// test of checkWithAssumptions()
 	Z3Config config = new Z3Config();

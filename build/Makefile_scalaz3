@@ -2,4 +2,4 @@ SCALA_VERSION = 2.9.2
 Z3_VERSION = x64/4.3
 
 all:
-	sbt update && sbt package && javac -classpath .:target/scala_$(SCALA_VERSION)/classes ScalaZ3Test.java && LD_LIBRARY_PATH=z3/$(Z3_VERSION)/lib/ java -classpath .:target/scala_$(SCALA_VERSION)/classes/ Test
+	sbt update && sbt package && javac -classpath .:target/scala_$(SCALA_VERSION)/classes ScalaZ3Test.java && LD_LIBRARY_PATH=z3/$(Z3_VERSION)/lib/ java -classpath .:target/scala_$(SCALA_VERSION)/classes/ ScalaZ3Test
