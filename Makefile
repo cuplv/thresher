@@ -9,6 +9,9 @@ install-deps:
 deps:
 	./build/build_deps.sh
 
+update-deps:
+	./build/update_deps.sh
+
 tests:
 	./build/build_tests.sh
 
