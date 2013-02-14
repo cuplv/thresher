@@ -21,8 +21,8 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 
 public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 	
-	public PiecewiseSymbolicExecutor(CallGraph callGraph, ICFGSupergraph superGraph, Logger logger) {
-		super(callGraph, superGraph, logger);
+	public PiecewiseSymbolicExecutor(CallGraph callGraph, Logger logger) {
+		super(callGraph, logger);
 		//super(callGraph, logger);
 	}
 	

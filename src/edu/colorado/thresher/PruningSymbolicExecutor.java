@@ -13,16 +13,18 @@ import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.dataflow.IFDS.ICFGSupergraph;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ipa.callgraph.CallGraphTransitiveClosure;
 import com.ibm.wala.ipa.cfg.BasicBlockInContext;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
-import com.ibm.wala.ssa.SSACFG.BasicBlock;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.analysis.IExplodedBasicBlock;
+import com.ibm.wala.util.functions.Function;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.traverse.DFS;
+import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
  * symbolic executor that prunes the call graph to *only* the call graph relevant to the current constraints at interprocedural boundaries
@@ -31,16 +33,24 @@ import com.ibm.wala.util.graph.traverse.DFS;
  */
 public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecutor {
 
-	private final Map<Constraint,Set<CGNode>> reachableCache;
-	private final ICFGSupergraph superGraph; 
+	//private final Map<Constraint,Set<CGNode>> reachableCache;
+	// transitive closure of the "calls" relation
+	private final Map<CGNode,OrdinalSet<CGNode>> callGraphTransitiveClosure; 
 	private final Logger logger;
 	
-	public PruningSymbolicExecutor(CallGraph callGraph, ICFGSupergraph superGraph, Logger logger) {
+	public PruningSymbolicExecutor(CallGraph callGraph, Logger logger) {
 		super(callGraph, logger);
-		//this.expandedCG = expandedCallgraph; //ExpandedCallgraph.make(callGraph);
 		this.logger = logger;
-		this.superGraph = superGraph;
-		this.reachableCache = new HashMap<Constraint, Set<CGNode>>();
+		//this.reachableCache = new HashMap<Constraint, Set<CGNode>>();
+		
+		final CallGraph localCopy = callGraph; // avoid compiler error
+		Map<CGNode,Collection<CGNode>> resultMap = CallGraphTransitiveClosure.collectNodeResults(callGraph, 
+			    new Function<CGNode,Collection<CGNode>>() {
+					public Set<CGNode> apply(CGNode node) {
+						return Util.iteratorToSet(localCopy.getSuccNodes(node));
+					}
+				});
+		callGraphTransitiveClosure = CallGraphTransitiveClosure.transitiveClosure(callGraph, resultMap);
 	}
 	
 	@Override
@@ -69,13 +79,31 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		
 		if (Options.DEBUG) for (CGNode nod : modifiers) Util.Debug("possible modifier " + nod);
 				
-		//return computeReducedCallerSet(modifiers, node);
-		//return computeReducedCallerSet(modifiers, node);
-		return computeeReducedCallerSet(queryModMap, preds);
+		//return computeReducedCallerSet(queryModMap, preds);
+		return computeReducedCallerSet(modifiers, preds);
 	}
 	
+	private Iterator<CGNode> computeReducedCallerSet(Set<CGNode> modifiers, Set<CGNode> toPrune) {
+		long start = System.currentTimeMillis();
+		Set<CGNode> reachable = getCallgraphReachable(modifiers , toPrune);
+		Util.Debug("pruning took " + ((System.currentTimeMillis() - start) / 1000));
+				
+		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
+		//if (Options.DEBUG) {
+			for (CGNode pruneMe : toPrune) {
+				if (!reachable.contains(pruneMe)) {
+					Util.Debug("pruned " + pruneMe);
+					logger.log("prunedCaller");
+				} else Util.Debug("caller " + toPrune + " reachable");
+			}
+		//}
+		toPrune.retainAll(reachable);
+		return toPrune.iterator();
+	}
+	
+	/*
 	// TODO: can optimize this -- for path constraints, should really have a map from (vars in constraint) -> Set<CGNode>
-	private Iterator<CGNode> computeeReducedCallerSet(Map<Constraint,Set<CGNode>> queryModMap, Set<CGNode> callers) {
+	private Iterator<CGNode> computeReducedCallerSet(Map<Constraint,Set<CGNode>> queryModMap, Set<CGNode> callers) {
 		for (Map.Entry<Constraint,Set<CGNode>> entry : queryModMap.entrySet()) {
 			Set<CGNode> reachable = reachableCache.get(entry.getKey());
 			if (reachable == null) {
@@ -87,12 +115,14 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		}
 		return callers.iterator();
 	}
+	*/
 	
+	/*
 	private Iterator<CGNode> computeReducedCallerSet(Collection<CGNode> srcs, CGNode snk) {
 		Set<CGNode> callers = Util.iteratorToSet(this.callGraph.getPredNodes(snk));
 		Util.Print("callers: " + callers.size());
 		long start = System.currentTimeMillis();
-		Set<CGNode> toPrune = getPruneeable(srcs, callers);
+		Set<CGNode> toPrune = getPruneable(srcs, callers);
 		Util.Print("pruning took " + ((System.currentTimeMillis() - start) / 1000));
 		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
 		for (CGNode pruneMe : toPrune) {
@@ -102,49 +132,66 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		callers.removeAll(toPrune);
 		return callers.iterator();
 	}
+	*/
 	
+	// TODO: make this work
 	boolean superGraphPathExists(CGNode src, CGNode snk) {
-		if (!Options.CALLGRAPH_PRUNING) return true;
-		return getPruneable(Collections.singleton(src), Collections.singleton(snk)).isEmpty();
+	//	if (!Options.CALLGRAPH_PRUNING) return true;
+		//return getPruneable(Collections.singleton(src), Collections.singleton(snk)).isEmpty();
+		return true;
 	}
+	
 	
 	/**
 	 * @param srcs - seeds for the search
 	 * @return set of all CGNode's reachable from srcs
 	 */
-	public Set<CGNode> getCallgraphReachable(Collection<CGNode> srcs) {
+	public Set<CGNode> getCallgraphReachable(Collection<CGNode> srcs, Set<CGNode> toPrune) {
 		Set<CGNode> reachable = new HashSet<CGNode>();
-		reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
+		for (CGNode src : srcs) {
+			//	reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
+			reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
+		}
+		if (reachable.containsAll(toPrune)) return reachable; // early return if we cover everything
 		for (;;) {
 	    	boolean progress = false;
 	    	Set<CGNode> frontier = new HashSet<CGNode>();
 	    	// not all elements of toPrune are directly reachable
 	    	for (CGNode src : srcs) {
 	    		for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) { // for each caller
-	    			progress = true;
 	    			CGNode caller = callerNodes.next();
+	    			if (caller.equals(callGraph.getFakeRootNode())) continue; // don't model control flow among entrypoints
+	    			progress = true;
+	    			reachable.add(caller);
 	    			frontier.add(caller);
-	    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
-	    			IR ir = caller.getIR();
-	    			SSACFG cfg = ir.getControlFlowGraph();
-	    			for (Iterator<CallSiteReference> sites = callGraph.getPossibleSites(caller, src); sites.hasNext(); ) { // for each context for the caller
-	    				CallSiteReference site = sites.next();
-	    				ISSABasicBlock[] blks = ir.getBasicBlocksForCall(site);
-	    				for (int i = 0; i < blks.length; i++) {
-	    					possibleStartBlocks.add(blks[i]);
-	    				}
-	    			}
-	    			Set<CGNode> callees = new HashSet<CGNode>();
-	    			Set<ISSABasicBlock> localReachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
-	    			for (ISSABasicBlock blk : localReachable) {
-	    				if (blk.getLastInstructionIndex() < 0) continue; 
-	    				SSAInstruction instr = blk.getLastInstruction();
-	    				if (instr != null && instr instanceof SSAInvokeInstruction) {
-	    					SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
-	    					callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
-	    				}
-	    			}
-	    			reachable.addAll(DFS.getReachableNodes(callGraph, callees));
+	    			
+	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
+	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocedural search
+	    			if (Util.intersectionNonEmpty(OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller)), toPrune)) {
+		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
+		    			IR ir = caller.getIR();
+		    			SSACFG cfg = ir.getControlFlowGraph();
+		    			for (Iterator<CallSiteReference> sites = callGraph.getPossibleSites(caller, src); sites.hasNext(); ) { // for each context for the caller
+		    				CallSiteReference site = sites.next();
+		    				ISSABasicBlock[] blks = ir.getBasicBlocksForCall(site);
+		    				for (int i = 0; i < blks.length; i++) {
+		    					possibleStartBlocks.add(blks[i]);
+		    				}
+		    			}
+		    			Set<CGNode> callees = new HashSet<CGNode>();
+		    			Set<ISSABasicBlock> localReachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
+		    			for (ISSABasicBlock blk : localReachable) {
+		    				if (blk.getLastInstructionIndex() < 0) continue; 
+		    				SSAInstruction instr = blk.getLastInstruction();
+		    				if (instr != null && instr instanceof SSAInvokeInstruction) {
+		    					SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
+		    					callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
+		    				}
+		    			}
+		    			for (CGNode callee : callees) {
+		    				reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
+		    			}
+	    			} // end Manu's optimization
 	    		}
 	    	}
 	    	if (!progress) break;
@@ -153,7 +200,8 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		return reachable;
 	}
 	
-	private Set<CGNode> getPruneeable(Collection<CGNode> srcs, Set<CGNode> callers) {
+	/*
+	private Set<CGNode> getPruneable(Collection<CGNode> srcs, Set<CGNode> callers) {
 		Set<CGNode> toPrune = Util.deepCopySet(callers);
     	// remove nodes that are directly (via callee's) reachable from srcs from the set toPrune
     	Set<CGNode> directlyReachable = DFS.getReachableNodes(callGraph, srcs);
@@ -169,29 +217,35 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	    			progress = true;
 	    			CGNode caller = callerNodes.next();
 	    			frontier.add(caller);
-	    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
-	    			IR ir = caller.getIR();
-	    			SSACFG cfg = ir.getControlFlowGraph();
-	    			for (Iterator<CallSiteReference> sites = callGraph.getPossibleSites(caller, src); sites.hasNext(); ) { // for each context for the caller
-	    				CallSiteReference site = sites.next();
-	    				ISSABasicBlock[] blks = ir.getBasicBlocksForCall(site);
-	    				for (int i = 0; i < blks.length; i++) {
-	    					possibleStartBlocks.add(blks[i]);
-	    				}
-	    			}
-	    			Set<CGNode> callees = new HashSet<CGNode>();
-	    			Set<ISSABasicBlock> reachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
-	    			for (ISSABasicBlock blk : reachable) {
-	    				if (blk.getLastInstructionIndex() < 0) continue; 
-	    				SSAInstruction instr = blk.getLastInstruction();
-	    				if (instr != null && instr instanceof SSAInvokeInstruction) {
-	    					SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
-	    					callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
-	    				}
-	    			}
-	    			directlyReachable = DFS.getReachableNodes(callGraph, callees);
-	    			toPrune.removeAll(directlyReachable); 
-	    	    	if (toPrune.isEmpty()) return toPrune; // nothing left to prune; we're done
+
+	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
+	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocdural search
+	    			if (Util.intersectionNonEmpty(DFS.getReachableNodes(callGraph, Collections.singleton(caller)), toPrune)) {
+	    				// but if some node in toPrune is reachable, we need to make sure that it is reachable via the call site we entered the method from
+		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
+		    			IR ir = caller.getIR();
+		    			SSACFG cfg = ir.getControlFlowGraph();
+		    			for (Iterator<CallSiteReference> sites = callGraph.getPossibleSites(caller, src); sites.hasNext(); ) { // for each context for the caller
+		    				CallSiteReference site = sites.next();
+		    				ISSABasicBlock[] blks = ir.getBasicBlocksForCall(site);
+		    				for (int i = 0; i < blks.length; i++) {
+		    					possibleStartBlocks.add(blks[i]);
+		    				}
+		    			}
+		    			Set<CGNode> callees = new HashSet<CGNode>();
+		    			Set<ISSABasicBlock> reachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
+		    			for (ISSABasicBlock blk : reachable) {
+		    				if (blk.getLastInstructionIndex() < 0) continue; 
+		    				SSAInstruction instr = blk.getLastInstruction();
+		    				if (instr != null && instr instanceof SSAInvokeInstruction) {
+		    					SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
+		    					callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
+		    				}
+		    			}
+		    			directlyReachable = DFS.getReachableNodes(callGraph, callees);
+		    			toPrune.removeAll(directlyReachable); 
+		    	    	if (toPrune.isEmpty()) return toPrune; // nothing left to prune; we're done
+	    			} // end if for Manu's optimization
 	    		}
 	    	}
 	    	if (!progress) break;
@@ -199,6 +253,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     	}
     	return toPrune;
     }
+    */
 	
 	/**
 	 * returns the subset of callers that are not reachable from srcs in the supergraph
@@ -206,6 +261,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	 * @param callers
 	 * @return
 	 */
+	/*
 	private Set<CGNode> getPruneable(Collection<CGNode> srcs, Set<CGNode> callers) {
 		Set<CGNode> toPrune = Util.deepCopySet(callers);
     	// remove nodes that are directly (via callee's) reachable from srcs from the set toPrune
@@ -249,6 +305,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     	}
     	return toPrune;
 	 }
+	 */
 	
 	/**
 	 * @param srcs - list of node's where control flow can start

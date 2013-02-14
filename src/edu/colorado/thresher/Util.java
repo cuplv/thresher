@@ -1501,7 +1501,7 @@ public class Util {
 			return true;
 		}
 		
-		public static<T> boolean intersectionNonEmpty(Set<T> a, Set<T> b) {
+		public static<T> boolean intersectionNonEmpty(Collection<T> a, Set<T> b) {
 			for (T elem : a) {
 				if (b.contains(elem)) return true;
 			}

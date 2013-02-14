@@ -45,9 +45,8 @@ public class Options {
 	@boolOpt( description="use piecewise symbolic executor. WARNING - under development", _default=false )
 	public static boolean PIECEWISE_EXECUTION = false;
 
-	// not currently enabled
-	//@boolOpt( description="perform callgraph pruning based on constraint set at function boundaries", _default=false )
-	public static final boolean CALLGRAPH_PRUNING = false; 
+	@boolOpt( description="perform callgraph pruning based on constraint set at function boundaries", _default=false )
+	public static boolean CALLGRAPH_PRUNING = false; 
 
 	@boolOpt( description="read WALA exclusions from config/exclusions.txt file", _default=true )
 	public static boolean USE_EXCLUSIONS = true; 

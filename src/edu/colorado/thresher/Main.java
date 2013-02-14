@@ -128,10 +128,10 @@ public class Main {
 		  final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute", "ContainsKeyNoRefute" };
 		  
 		  //final String[] fakeMapTests0 = new String[] { };
-		  final String[] fakeMapTests0 = new String[] { "SimpleNoRefute" };
+		  final String[] fakeMapTests0 = new String[] { "CallPruningNoRefute" };
 
-		  //final String[] realHashMapTests0 = new String[] { }; 
-		  final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" }; 
+		  final String[] realHashMapTests0 = new String[] { }; 
+		  //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" }; 
 		  
 		  String regressionDir = "apps/tests/regression/";
 		  boolean result;
@@ -685,11 +685,9 @@ public class Main {
 						"instrs dif! expected " + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
 				
 				ISymbolicExecutor exec;
-				ICFGSupergraph superGraph = null;
-				if (Options.CALLGRAPH_PRUNING) superGraph = ICFGSupergraph.make(cg, depRuleGenerator.getCache());				
 				boolean foundWitness;
-				if (Options.PIECEWISE_EXECUTION) exec = new PiecewiseSymbolicExecutor(cg, superGraph, logger);
-				else if (Options.CALLGRAPH_PRUNING) exec = new PruningSymbolicExecutor(cg, superGraph, logger);
+				if (Options.PIECEWISE_EXECUTION) exec = new PiecewiseSymbolicExecutor(cg, logger);
+				else if (Options.CALLGRAPH_PRUNING) exec = new PruningSymbolicExecutor(cg, logger);
 				else exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
 				foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query); // start at line BEFORE snkStmt
 				
