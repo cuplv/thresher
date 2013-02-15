@@ -155,6 +155,9 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 			reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
 		}
 		if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
+		reachable.add(callGraph.getFakeRootNode()); // don't want to model control flow among entrypoints
+		//reachable.add(WALACFGUtil.getFakeWorldClinitNode(callGraph)); // or control flow among class initializers
+		
 		for (;;) {
 	    	boolean progress = false;
 	    	Set<CGNode> frontier = new HashSet<CGNode>();
@@ -162,14 +165,17 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	    	for (CGNode src : srcs) {
 	    		for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) { // for each caller
 	    			CGNode caller = callerNodes.next();
-	    			if (caller.equals(callGraph.getFakeRootNode())) continue; // don't model control flow among entrypoints
+	    			// avoid redundant exploration
+	    			if (reachable.contains(caller)) continue;  
+	    			
 	    			progress = true;
 	    			reachable.add(caller);
-	    			frontier.add(caller);
-	    			
+	    			frontier.add(caller);	    			
 	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
 	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocedural search
-	    			if (Util.intersectionNonEmpty(OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller)), snks)) {
+	    			Collection<CGNode> reachableFromCaller = OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller));
+	    			
+	    			if (Util.intersectionNonEmpty(reachableFromCaller, snks)) {
 		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
 		    			IR ir = caller.getIR();
 		    			SSACFG cfg = ir.getControlFlowGraph();
@@ -191,11 +197,12 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		    				}
 		    			}
 		    			for (CGNode callee : callees) {
-		    				reachable.add(callee); 
-		    				reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
+		    				if (reachable.add(callee)) { 
+		    					reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
+		    				}
 		    			}
 		    			if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
-	    			}  
+	    			} else reachable.addAll(reachableFromCaller);  
 	    		}
 	    	}
 	    	if (!progress) break;
