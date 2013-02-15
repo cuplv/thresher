@@ -191,10 +191,11 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		    				}
 		    			}
 		    			for (CGNode callee : callees) {
+		    				reachable.add(callee); 
 		    				reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
 		    			}
 		    			if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
-	    			} // end Manu's optimization
+	    			}  
 	    		}
 	    	}
 	    	if (!progress) break;

@@ -113,7 +113,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 
 				}
 				//if (witness) break; // found witness; break out of main loop
-			} // else, no path between producer and startNode in the callgraph
+			} else Util.Debug("no feasible path between " + producer + " and " + startNode); // else, no path between producer and startNode in the callgraph
 		} // end for each potential producer
 		Util.Debug("no producers successful from " + startNode + " at depth " + depth);
 		return false;
@@ -419,11 +419,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			path = selectPath(); //pathsToExplore.pop(); // explore next path
 		} else if (!branchPointStack.peek().isDummy()) { // any branch points left to explore?
 			path = mergeNextBranchPoint(); // explore next path
-			// still possible to get a dummy path here unfortunately; if we do, just replace it 
-			if (path.isDummy()) {
-				Util.Debug(Util.printCollection(this.pathsToExplore));
-				Util.Debug(Util.printCollection(this.branchPointStack));
-			}
 		} else { // no paths to explore or branches to merge; refuted.
 			Util.Debug("piecewise refuted!");
 			//return false; // refuted 
@@ -433,8 +428,10 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			// got dummy path; oops! replace it and return null
 			//Util.Assert(this.branchPointStack.peek().isDummy());
 			this.pathsToExplore.addFirst(path);
-			return null;
+			if (branchPointStack.peek().isDummy()) return null;
+			return getNextPath();
 		}
+		//Util.Assert(path != null || (pathsToExplore.peek().isDummy() && branchPointStack.peek().isDummy()), "neglected to pop non-dummy!");
 		return path;
 	}
 	
