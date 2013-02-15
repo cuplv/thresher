@@ -70,12 +70,10 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		Util.Debug("after removing all local" + path);
 		if (copy.foundWitness()) return this.callGraph.getPredNodes(node); // no heap constraints left to produce, so can't prune any callers
 		
-		long start = System.currentTimeMillis();
 		// compute set of all CGNode's that might affect our query
 		Map<Constraint,Set<CGNode>> queryModMap = copy.getModifiersForQuery();
 		// TODO: check for class inits in modifiers?
 		Set<CGNode> modifiers = Util.flatten(queryModMap.values());
-		Util.Print("getting mods took " + ((System.currentTimeMillis() - start) / 1000));
 		
 		if (Options.DEBUG) for (CGNode nod : modifiers) Util.Debug("possible modifier " + nod);
 				
@@ -85,18 +83,16 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	
 	private Iterator<CGNode> computeReducedCallerSet(Set<CGNode> modifiers, Set<CGNode> toPrune) {
 		long start = System.currentTimeMillis();
-		Util.Print("starting to prune");
 		Set<CGNode> reachable = getReachable(modifiers , toPrune);
-		Util.Print("pruning took " + ((System.currentTimeMillis() - start) / 1000));
 				
 		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
 		//if (Options.DEBUG) {
-			for (CGNode pruneMe : toPrune) {
-				if (!reachable.contains(pruneMe)) {
-					Util.Print("pruned " + pruneMe);
-					logger.log("prunedCaller");
-				}//else Util.Debug("caller " + toPrune + " reachable");
-			}
+		for (CGNode pruneMe : toPrune) {
+		    if (!reachable.contains(pruneMe)) {
+			Util.Debug("pruned " + pruneMe);
+			logger.log("prunedCaller");
+		    }//else Util.Debug("caller " + toPrune + " reachable");
+		}
 		//}
 		toPrune.retainAll(reachable);
 		return toPrune.iterator();
