@@ -85,16 +85,17 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	
 	private Iterator<CGNode> computeReducedCallerSet(Set<CGNode> modifiers, Set<CGNode> toPrune) {
 		long start = System.currentTimeMillis();
-		Set<CGNode> reachable = getCallgraphReachable(modifiers , toPrune);
-		Util.Debug("pruning took " + ((System.currentTimeMillis() - start) / 1000));
+		Util.Print("starting to prune");
+		Set<CGNode> reachable = getReachable(modifiers , toPrune);
+		Util.Print("pruning took " + ((System.currentTimeMillis() - start) / 1000));
 				
 		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
 		//if (Options.DEBUG) {
 			for (CGNode pruneMe : toPrune) {
 				if (!reachable.contains(pruneMe)) {
-					Util.Debug("pruned " + pruneMe);
+					Util.Print("pruned " + pruneMe);
 					logger.log("prunedCaller");
-				} else Util.Debug("caller " + toPrune + " reachable");
+				}//else Util.Debug("caller " + toPrune + " reachable");
 			}
 		//}
 		toPrune.retainAll(reachable);
@@ -135,28 +136,29 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	*/
 	
 	// TODO: make this work
-	boolean superGraphPathExists(CGNode src, CGNode snk) {
-	//	if (!Options.CALLGRAPH_PRUNING) return true;
-		//return getPruneable(Collections.singleton(src), Collections.singleton(snk)).isEmpty();
-		return true;
+	boolean feasiblePathExists(CGNode src, CGNode snk) {
+		if (!Options.CALLGRAPH_PRUNING) return true;
+		Set<CGNode> reachable = getReachable(Collections.singleton(src), Collections.singleton(snk)); 
+		return reachable.contains(snk);
 	}
 	
 	
 	/**
 	 * @param srcs - seeds for the search
-	 * @return set of all CGNode's reachable from srcs
+	 * @param snks - nodes we are trying to reach from the search (needed for optimization)
+	 * @return 
 	 */
-	public Set<CGNode> getCallgraphReachable(Collection<CGNode> srcs, Set<CGNode> toPrune) {
+	public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks) {
 		Set<CGNode> reachable = new HashSet<CGNode>();
 		for (CGNode src : srcs) {
 			//	reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
 			reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
 		}
-		if (reachable.containsAll(toPrune)) return reachable; // early return if we cover everything
+		if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
 		for (;;) {
 	    	boolean progress = false;
 	    	Set<CGNode> frontier = new HashSet<CGNode>();
-	    	// not all elements of toPrune are directly reachable
+	    	// not all elements of snks are directly reachable
 	    	for (CGNode src : srcs) {
 	    		for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) { // for each caller
 	    			CGNode caller = callerNodes.next();
@@ -167,7 +169,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	    			
 	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
 	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocedural search
-	    			if (Util.intersectionNonEmpty(OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller)), toPrune)) {
+	    			if (Util.intersectionNonEmpty(OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller)), snks)) {
 		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
 		    			IR ir = caller.getIR();
 		    			SSACFG cfg = ir.getControlFlowGraph();
@@ -191,6 +193,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		    			for (CGNode callee : callees) {
 		    				reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
 		    			}
+		    			if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
 	    			} // end Manu's optimization
 	    		}
 	    	}

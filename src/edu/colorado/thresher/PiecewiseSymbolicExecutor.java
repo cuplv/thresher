@@ -82,9 +82,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 				// already seen producer node... keep going
 				// TODO: this is unsound -- figure out what we should really do here.
 				// (1) is the producer the same as the current node or called by the current node?
-				//if (startNode.equals(producer)) {// || callGraphPathExists(startNode, producer, callGraph)) {
 				// yes; don't want to consider the effect of calling this twice
-				//Util.Debug("start node same as producer or calls producer, continuing");
 				Util.Debug("have seen producer " + producer + " before, continuing");
 				continue;
 			}
@@ -96,7 +94,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 			}
 			
 			// is the start node reachable from the producer?
-			if (superGraphPathExists(producer, startNode)) { 
+			if (feasiblePathExists(producer, startNode)) { 
 				Util.Debug("producer and startNode share common caller; can enter producer as callee");
 				
 				//boolean witness = false;
