@@ -149,7 +149,8 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	 * @return 
 	 */
 	public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks) {
-		Set<CGNode> reachable = new HashSet<CGNode>();
+		Set<CGNode> reachable = new HashSet<CGNode>(); // all nodes that are completely reachable
+		Set<CGNode> partiallyReachable = new HashSet<CGNode>(); // nodes whose entires are reachable, but some callees may not be reachable
 		for (CGNode src : srcs) {
 			//	reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
 			reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
@@ -169,13 +170,16 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	    			if (reachable.contains(caller)) continue;  
 	    			
 	    			progress = true;
-	    			reachable.add(caller);
+	    			// TODO: is this sound? I'm concerned about the case where do flow-sensitive intraprocedural exploration of the caller...
+	    			// TODO: it might lead us to skip where we should not
+	    			//reachable.add(caller); 
 	    			frontier.add(caller);	    			
 	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
 	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocedural search
 	    			Collection<CGNode> reachableFromCaller = OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller));
 	    			
 	    			if (Util.intersectionNonEmpty(reachableFromCaller, snks)) {
+	    				partiallyReachable.add(caller);
 		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
 		    			IR ir = caller.getIR();
 		    			SSACFG cfg = ir.getControlFlowGraph();
@@ -202,12 +206,17 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		    				}
 		    			}
 		    			if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
-	    			} else reachable.addAll(reachableFromCaller);  
+	    			} else {
+	    				reachable.add(caller);
+	    				reachable.addAll(reachableFromCaller);  
+	    			}
 	    		}
 	    	}
 	    	if (!progress) break;
 	    	srcs = frontier;
     	}
+		// add partially reachable; we only kept this set to prevent unsound skipping
+		reachable.addAll(partiallyReachable); 
 		return reachable;
 	}
 	
