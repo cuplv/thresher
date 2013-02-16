@@ -691,7 +691,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 	boolean handleFakeWorldClinit(IPathInfo path) {
 		if (Options.DEBUG) Util.Debug("trying to find witness in fakeWorldClinit");
 		CGNode fakeWorldClinitNode = path.getCurrentNode();
-		if (Options.DEBUG) Util.Assert(fakeWorldClinitNode.equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), 
+		if (Options.CHECK_ASSERTS) Util.Assert(fakeWorldClinitNode.equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), 
 				fakeWorldClinitNode + "should be fakeWorldClinit!");
 		// TODO: rather than iterating over the class initializers, be a little more selective?
 		
@@ -732,7 +732,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 					//Set<CGNode> targets = callGraph.getPossibleTargets(fakeWorldClinitNode, instruction.getCallSite()); 
 					//for (CGNode target : targets) { // for each target
 						// ask the current path if this class initializer can produce any part of its query
-					//Util.Debug("checking relevance of " + classInitializer);
+					Util.Debug("checking relevance of " + classInitializer);
 					if (path.isCallRelevantToQuery(instruction, classInitializer, callGraph)) {
 						if (Options.DEBUG) Util.Debug("Trying class init " + instr);
 						IPathInfo copy = path.deepCopy();

@@ -2,30 +2,23 @@ package edu.colorado.thresher;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
-import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.NewSiteReference;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
-import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
-import com.ibm.wala.ssa.DefUse;
-import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
@@ -34,7 +27,6 @@ import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
@@ -449,11 +441,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 	}
 	
 	boolean doesCallWriteToHeapLocsInPathConstraints(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg) {
+		// do constraints contain retval of this call?
 		if (instr.hasDef()) {
 			ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
 			if (this.pathVars.contains(retval)) return true; // constraints contain retval; definitely relevant
 		}
 
+		// do constraints contain a param passed to this function?
 		SymbolTable tbl = caller.getIR().getSymbolTable();
 		for (int i = 0; i < instr.getNumberOfParameters(); i++) {
 			if (!tbl.isConstant(instr.getUse(i))) {
@@ -462,54 +456,24 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 			}
 		}
 		
-		/*
-		//Set<PointerVariable> toDrop = new HashSet<PointerVariable>();
-		Set<PointerVariable> relevantVars = new HashSet<PointerVariable>();
-		for (PointerVariable var : this.pathVars) {
-			if (!var.isLocalVar()) relevantVars.add(var);
-			else { // this is a local
-				// try to use pts-to constraints to determine which heap loc this local corresponds to
-				PointerVariable pointedTo = this.pointsToQuery.getPointedTo(var);
-				if (pointedTo == null) {
-					// can't find this var in our points-to constraints; no telling what it might point to. must drop it.
-					return true;
-					//toDrop.add(var);
-				}
-				//Util.Assert(pointedTo != null, "couldn't find " + var + " in pts-to constraints. this is possible, but unexpected");
-				relevantVars.add(pointedTo);
-			}
-		}
-		//for (PointerVariable var : toDrop) dropConstraintsContaining(var);
-		
-		// collect all dependency rules produceable by this call
-		Set<DependencyRule> rulesProducedByCall = Util.getRulesProducableByCall(callee, cg, depRuleGenerator);
-		// see a dependency rules can write to one of the heap loc's in the path constraints
-		for (DependencyRule rule : rulesProducedByCall) {
-			if (relevantVars.contains(rule.getShown().getSource())) { // this is only useful for static fields I think
-				Util.Debug("relevant: " + rule.getShown().getSource());
-				return true; // for static fields
-			}
-		}
-		*/
-		
+		// does this call modify our path constraints according to its precomputed mod set?
 		OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
 		for (AtomicPathConstraint constraint : constraints) {
 			for (PointerKey key : constraint.getPointerKeys()) {
-				//Util.Debug("modref set has " + key + " ?");
-				if (keys.contains(key)) return true; 
-				
-				if (key instanceof StaticFieldKey) {
-					StaticFieldKey k = (StaticFieldKey) key; 
-					//Util.Debug("have staticfieldkey " + k + " with declaring class " + k.getField().getDeclaringClass());
-					//Util.Debug("callee: " + callee.getMethod().getDeclaringClass());
-					// enter the class
-					if (k.getField().getDeclaringClass().equals(callee.getMethod().getDeclaringClass()) &&
+				if (keys.contains(key)) return true; // mod set says yes 
+				IClass declaringClass = null;
+				if (key instanceof StaticFieldKey) { 
+					declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
+				} else if (key instanceof InstanceFieldKey) {
+					declaringClass = ((InstanceFieldKey) key).getField().getDeclaringClass();
+				}
+				if (declaringClass != null) {
+					// if this is an <init>/<clinit>, might initialize field to default values
+					if (declaringClass.equals(callee.getMethod().getDeclaringClass()) &&
 						(callee.getMethod().isClinit() || callee.getMethod().isInit())) {
-						//!caller.getMethod().getDeclaringClass().equals(callee.getMethod().getDeclaringClass())) {
 						return true;
 					}
 				}
-				//Util.Debug("false");
 			}
 		}
 		

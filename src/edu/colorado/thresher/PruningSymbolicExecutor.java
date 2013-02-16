@@ -53,6 +53,10 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		callGraphTransitiveClosure = CallGraphTransitiveClosure.transitiveClosure(callGraph, resultMap);
 	}
 	
+	public boolean isCalledByClassInit(CGNode node) {
+		return callGraphTransitiveClosure.get(WALACFGUtil.getFakeWorldClinitNode(callGraph)).contains(node);
+	}
+	
 	@Override
 	public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
 		if (!Options.CALLGRAPH_PRUNING) return this.callGraph.getPredNodes(path.getCurrentNode());
@@ -82,7 +86,8 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	}
 	
 	private Iterator<CGNode> computeReducedCallerSet(Set<CGNode> modifiers, Set<CGNode> toPrune) {
-		long start = System.currentTimeMillis();
+		// assume everything is reachable from the class inits 
+		for (CGNode node : modifiers) if (isCalledByClassInit(node)) return toPrune.iterator();
 		Set<CGNode> reachable = getReachable(modifiers , toPrune);
 				
 		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
@@ -98,46 +103,12 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		return toPrune.iterator();
 	}
 	
-	/*
-	// TODO: can optimize this -- for path constraints, should really have a map from (vars in constraint) -> Set<CGNode>
-	private Iterator<CGNode> computeReducedCallerSet(Map<Constraint,Set<CGNode>> queryModMap, Set<CGNode> callers) {
-		for (Map.Entry<Constraint,Set<CGNode>> entry : queryModMap.entrySet()) {
-			Set<CGNode> reachable = reachableCache.get(entry.getKey());
-			if (reachable == null) {
-				reachable = getCallgraphReachable(entry.getValue());
-				reachableCache.put(entry.getKey(), reachable);
-			}
-			callers.retainAll(reachable);
-			if (callers.isEmpty()) break;
-		}
-		return callers.iterator();
-	}
-	*/
-	
-	/*
-	private Iterator<CGNode> computeReducedCallerSet(Collection<CGNode> srcs, CGNode snk) {
-		Set<CGNode> callers = Util.iteratorToSet(this.callGraph.getPredNodes(snk));
-		Util.Print("callers: " + callers.size());
-		long start = System.currentTimeMillis();
-		Set<CGNode> toPrune = getPruneable(srcs, callers);
-		Util.Print("pruning took " + ((System.currentTimeMillis() - start) / 1000));
-		// TODO: this is unecessary (could just modify caller list in method call), but want to be explicit about what's pruned
-		for (CGNode pruneMe : toPrune) {
-			Util.Debug("pruned " + pruneMe);
-			logger.log("prunedCaller");
-		}
-		callers.removeAll(toPrune);
-		return callers.iterator();
-	}
-	*/
-	
-	// TODO: make this work
 	boolean feasiblePathExists(CGNode src, CGNode snk) {
 		if (!Options.CALLGRAPH_PRUNING) return true;
+		if (isCalledByClassInit(src)) return true; // assume everything is reachable from the class inits 
 		Set<CGNode> reachable = getReachable(Collections.singleton(src), Collections.singleton(snk)); 
 		return reachable.contains(snk);
 	}
-	
 	
 	/**
 	 * @param srcs - seeds for the search
@@ -145,14 +116,14 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	 * @return 
 	 */
 	public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks) {
-		Set<CGNode> reachable = new HashSet<CGNode>();
+		Set<CGNode> reachable = new HashSet<CGNode>(); // all nodes that are completely reachable
+		Set<CGNode> partiallyReachable = new HashSet<CGNode>(); // nodes whose entires are reachable, but some callees may not be reachable
 		for (CGNode src : srcs) {
 			//	reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
 			reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
 		}
 		if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
 		reachable.add(callGraph.getFakeRootNode()); // don't want to model control flow among entrypoints
-		//reachable.add(WALACFGUtil.getFakeWorldClinitNode(callGraph)); // or control flow among class initializers
 		
 		for (;;) {
 	    	boolean progress = false;
@@ -161,17 +132,23 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 	    	for (CGNode src : srcs) {
 	    		for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) { // for each caller
 	    			CGNode caller = callerNodes.next();
+	    			// class inits should be handled separately...
+	    		    Util.Assert(!caller.getMethod().isClinit());
+	    			
 	    			// avoid redundant exploration
 	    			if (reachable.contains(caller)) continue;  
 	    			
 	    			progress = true;
-	    			reachable.add(caller);
+	    			// TODO: is this sound? I'm concerned about the case where do flow-sensitive intraprocedural exploration of the caller...
+	    			// TODO: it might lead us to skip where we should not
+	    			//reachable.add(caller); 
 	    			frontier.add(caller);	    			
 	    			// Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
 	    			// if no nodes in toPrune are reachable according to the callgraph, we needn't do the expensive intraprocedural search
 	    			Collection<CGNode> reachableFromCaller = OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller));
 	    			
 	    			if (Util.intersectionNonEmpty(reachableFromCaller, snks)) {
+	    				partiallyReachable.add(caller);
 		    			Set<ISSABasicBlock> possibleStartBlocks = new HashSet<ISSABasicBlock>();
 		    			IR ir = caller.getIR();
 		    			SSACFG cfg = ir.getControlFlowGraph();
@@ -198,12 +175,17 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 		    				}
 		    			}
 		    			if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
-	    			} else reachable.addAll(reachableFromCaller);  
+	    			} else {
+	    				reachable.add(caller);
+	    				reachable.addAll(reachableFromCaller);  
+	    			}
 	    		}
 	    	}
 	    	if (!progress) break;
 	    	srcs = frontier;
     	}
+		// add partially reachable; we only kept this set to prevent unsound skipping
+		reachable.addAll(partiallyReachable); 
 		return reachable;
 	}
 	
