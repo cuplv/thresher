@@ -30,24 +30,25 @@ import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.IntSet;
 
 /**
- * This class searches breadth-first for node that matches some criteria. If found, it reports a path to the first node found.
+ * This class searches breadth-first for node that matches some criteria. If
+ * found, it reports a path to the first node found.
  * 
- * This class follows the outNodes of the graph nodes to define the graph, but this behavior can be changed by overriding the
- * getConnected method.
+ * This class follows the outNodes of the graph nodes to define the graph, but
+ * this behavior can be changed by overriding the getConnected method.
  * 
- * TODO: if finding many paths, use a dynamic programming algorithm instead of calling this repeatedly.
+ * TODO: if finding many paths, use a dynamic programming algorithm instead of
+ * calling this repeatedly.
  */
 public class MyBFSPathFinder<T> {
 
   private final boolean DEBUG = false;
 
-  
   /**
-   * Pairs of edges that cannot be used together 
+   * Pairs of edges that cannot be used together
    */
   private IBinaryNaturalRelation ignoreIfBoth;
   private IntSet notAllowed;
-  
+
   /**
    * The graph to search
    */
@@ -64,9 +65,11 @@ public class MyBFSPathFinder<T> {
   final private Iterator<T> roots;
 
   /**
-   * Construct a breadth-first enumerator starting with a particular node in a directed graph.
+   * Construct a breadth-first enumerator starting with a particular node in a
+   * directed graph.
    * 
-   * @param G the graph whose nodes to enumerate
+   * @param G
+   *          the graph whose nodes to enumerate
    */
   public MyBFSPathFinder(NumberedGraph<T> G, T N, Filter<T> f) {
     if (G == null) {
@@ -82,10 +85,13 @@ public class MyBFSPathFinder<T> {
   }
 
   /**
-   * Construct a breadth-first enumerator starting with a particular node in a directed graph.
+   * Construct a breadth-first enumerator starting with a particular node in a
+   * directed graph.
    * 
-   * @param G the graph whose nodes to enumerate
-   * @throws IllegalArgumentException if G is null
+   * @param G
+   *          the graph whose nodes to enumerate
+   * @throws IllegalArgumentException
+   *           if G is null
    */
   public MyBFSPathFinder(NumberedGraph<T> G, T src, final T target) throws IllegalArgumentException {
     if (G == null) {
@@ -105,8 +111,8 @@ public class MyBFSPathFinder<T> {
   }
 
   /**
-   * @return a List of nodes that specifies the first path found from a root to a node accepted by the filter. Returns null if no
-   *         path found.
+   * @return a List of nodes that specifies the first path found from a root to
+   *         a node accepted by the filter. Returns null if no path found.
    */
   public List<T> find() {
 
@@ -119,15 +125,14 @@ public class MyBFSPathFinder<T> {
     }
     while (!Q.isEmpty()) {
       T N = Q.removeFirst();
-      //System.err.println("Node is " + N);
+      // System.err.println("Node is " + N);
       /*
-      // check for edges that should be excluded
-      if (notAllowed != null && notAllowed.contains(G.getNumber(N))) {
-    	  System.err.println("found second ignored edge ending in " + N);
-    	  // edge is second of pair of edges that should be excluded; don't continue along this path
-          continue;
-      }
-      */
+       * // check for edges that should be excluded if (notAllowed != null &&
+       * notAllowed.contains(G.getNumber(N))) {
+       * System.err.println("found second ignored edge ending in " + N); // edge
+       * is second of pair of edges that should be excluded; don't continue
+       * along this path continue; }
+       */
 
       if (DEBUG) {
         System.err.println(("visit " + N));
@@ -139,11 +144,10 @@ public class MyBFSPathFinder<T> {
       while (children.hasNext()) {
         T c = children.next();
         /*
-        if (ignoreIfBoth.contains(G.getNumber(N), G.getNumber(c))) {
-        	System.err.println("found first ignored edge " + N + " -> " + c);
-            notAllowed = ignoreIfBoth.getRelated(G.getNumber(c));
-        }
-        */
+         * if (ignoreIfBoth.contains(G.getNumber(N), G.getNumber(c))) {
+         * System.err.println("found first ignored edge " + N + " -> " + c);
+         * notAllowed = ignoreIfBoth.getRelated(G.getNumber(c)); }
+         */
         if (!history.containsKey(c)) {
           Q.addLast(c);
           history.put(c, N);
@@ -155,7 +159,8 @@ public class MyBFSPathFinder<T> {
   }
 
   /**
-   * @return a List which represents a path in the breadth-first search to Q[i]. Q holds the nodes visited during the BFS, in order.
+   * @return a List which represents a path in the breadth-first search to Q[i].
+   *         Q holds the nodes visited during the BFS, in order.
    */
   private List<T> makePath(T node, Map<Object, T> history) {
     ArrayList<T> result = new ArrayList<T>();
@@ -175,25 +180,25 @@ public class MyBFSPathFinder<T> {
   /**
    * get the out edges of a given node
    * 
-   * @param n the node of which to get the out edges
+   * @param n
+   *          the node of which to get the out edges
    * @return the out edges
    * 
    */
   protected Iterator<? extends T> getConnected(T n) {
     return G.getSuccNodes(n);
   }
-  
-  
+
   public IBinaryNaturalRelation getIgnoreIfBoth() {
-  	return ignoreIfBoth;
+    return ignoreIfBoth;
   }
-  
+
   public void setIgnoreIfBoth(IBinaryNaturalRelation ignoreIfBoth) {
-  	this.ignoreIfBoth = ignoreIfBoth;
+    this.ignoreIfBoth = ignoreIfBoth;
   }
-  
+
   public void addIgnoreIfBoth(T src, T field, T snk) {
-      this.ignoreIfBoth.add(G.getNumber(src), G.getNumber(field));  
-      this.ignoreIfBoth.add(G.getNumber(field), G.getNumber(snk));  
+    this.ignoreIfBoth.add(G.getNumber(src), G.getNumber(field));
+    this.ignoreIfBoth.add(G.getNumber(field), G.getNumber(snk));
   }
 }
