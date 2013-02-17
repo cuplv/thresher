@@ -7,8 +7,12 @@ import java.util.TreeSet;
 import z3.java.Z3AST;
 import z3.java.Z3Context;
 
+import com.ibm.wala.classLoader.IField;
+import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.shrikeBT.IUnaryOpInstruction.Operator;
 import com.ibm.wala.types.FieldReference;
@@ -381,12 +385,46 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
       fields.addAll(rhs.getFields());
     return fields;
   }
-
-  public Set<PointerKey> getPointerKeys() {
+  
+  
+  private Set<PointerKey> getPointerKeys() {
     Set<PointerKey> keys = new HashSet<PointerKey>();
     keys.addAll(lhs.getPointerKeys());
     keys.addAll(rhs.getPointerKeys());
     return keys;
+  }
+  
+  /**
+   * @return - set of *all* pointer keys associated with constraint
+   */
+  //private Set<PointerKey> getPointerKeysForPathConstraint(AtomicPathConstraint constraint) {
+  public Set<PointerKey> getPointerKeys(AbstractDependencyRuleGenerator depRuleGenerator) {
+    ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    Set<PointerKey> keysForConstraint = new HashSet<PointerKey>();
+    // add pointer keys already known to be associated with this constraint
+    keysForConstraint.addAll(this.getPointerKeys());
+
+    // resolve fields to get additional keys
+    Set<SimplePathTerm> terms = this.getTerms();
+    for (SimplePathTerm term : terms) {
+      if (term.getObject() != null && term.getFields() != null) {
+        PointerVariable pointedTo = term.getObject();// this.pointsToQuery.getPointedTo(term.getObject());
+        if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
+          FieldReference fieldRef = term.getFirstField();
+          if (fieldRef == null)
+            continue;
+          IField fld = cha.resolveField(fieldRef);
+          if (fld == null)
+            continue;
+          PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
+          if (fieldKey == null)
+            continue;
+          keysForConstraint.add(fieldKey);
+        }
+      }
+    }
+    return keysForConstraint;
   }
 
   @Override

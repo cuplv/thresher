@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
@@ -27,6 +28,7 @@ import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
@@ -35,17 +37,13 @@ import com.ibm.wala.util.intset.OrdinalSet;
  * @author sam
  */
 
-// PathQuery is the base class because it takes most of the info from the
-// points-to query
 public class CombinedPathAndPointsToQuery extends PathQuery {
 
   final PointsToQuery pointsToQuery;
   boolean fakeWitness = false;
 
-  public CombinedPathAndPointsToQuery(PointsToQuery pointsToQuery) {// ,
-                                                                    // Z3Context
-                                                                    // ctx) {
-    super(pointsToQuery.depRuleGenerator);// , ctx);
+  public CombinedPathAndPointsToQuery(PointsToQuery pointsToQuery) {
+    super(pointsToQuery.depRuleGenerator);
     this.pointsToQuery = pointsToQuery;
   }
 
@@ -75,7 +73,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   public void intersect(IQuery other) {
     Util.Assert(other instanceof CombinedPathAndPointsToQuery, "Not sure how to deal with query type " + other.getClass());
     CombinedPathAndPointsToQuery query = (CombinedPathAndPointsToQuery) other;
-    // this.pointsToQuery.intersect(query.pointsToQuery);
     super.intersect((PathQuery) query);
   }
 
@@ -91,49 +88,29 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       return IQuery.INFEASIBLE;
     Util.Debug("CONS " + this.toString());
     return combinePathAndPointsToQueries(ptResults, pathResults);
-    // return ptResults;
   }
 
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(local)) {
-      if (instr.getNewSite().getDeclaredType().isArrayType()) { // special case
-                                                                // for arrays
+      // special case for arrays
+      if (instr.getNewSite().getDeclaredType().isArrayType()) { 
         // may need to update path constraints with the length of this array
         SimplePathTerm arrLength;
-        if (tbl.isConstant(instr.getUse(0)))
+        if (tbl.isConstant(instr.getUse(0))) {
           arrLength = new SimplePathTerm(tbl.getIntValue(instr.getUse(0)));
-        else
+        } else {
           arrLength = new SimplePathTerm(new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()));
+        }
         substituteExpForFieldRead(arrLength, local, SimplePathTerm.LENGTH);
       }
-
-      boolean found = false;
 
       InstanceKey key = depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
       if (key != null) {
         PointerVariable newVar = Util.makePointerVariable(key);
         substituteExpForVar(new SimplePathTerm(newVar), local);
       }
-      /*
-       * for (PointsToEdge edge : this.pointsToQuery.constraints) {
-       * Util.Debug("constraint pt edge " + edge); if
-       * (edge.getSource().equals(local)) { // does the points-to analysis hold
-       * a ref to this allocation site? substituteExpForVar(new
-       * SimplePathTerm(edge.getSink()), local); found = true; } } // if not
-       * found, no ref in points constraints; all a new() instr can do for us is
-       * resolve a constraint of the form "x != null"
-       * 
-       * for (PointsToEdge edge : this.pointsToQuery.produced) {
-       * Util.Debug("produced pt edge " + edge); if
-       * (edge.getSource().equals(local)) { // does the points-to analysis hold
-       * a ref to this allocation site? substituteExpForVar(new
-       * SimplePathTerm(edge.getSink()), local); found = true; } } // if not
-       * found, no ref in points constraints; all a new() instr can do for us is
-       * resolve a constraint of the form "x != null"
-       */
-      // if (!found) substituteExpForVar(SimplePathTerm.NON_NULL, local);
       return isFeasible();
     }
     return true; // didn't add any constraints, can't be infeasible
@@ -143,38 +120,23 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath, Set<PointsToEdge> refuted) {
     // visit path constraints first, since they can't cause case-splits
     List<IQuery> pathResults = super.visit(instr, currentPath, refuted);
-    if (pathResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(pathResults.isEmpty(), "should never be case splits on path constraints!");
 
     List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, refuted);
-    if (ptResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
-    if (Options.DEBUG)
-      Util.Debug("CONS " + this.toString());
+    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
+    if (Options.DEBUG) Util.Debug("CONS " + this.toString());
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
 
   @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
-    /*
-     * // visit path constraints first, since they can't cause case-splits
-     * List<IQuery> pathResults = super.visit(instr, currentPath); if
-     * (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-     * Util.Assert(pathResults.isEmpty(),
-     * "should never be case splits on path constraints!");
-     */
-
     List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, new HashSet<PointsToEdge>());
-    if (ptResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
-    if (Options.DEBUG)
-      Util.Debug("CONS " + this.toString());
+    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
+    if (Options.DEBUG) Util.Debug("CONS " + this.toString());
 
-    // visit path constraints first, since they can't cause case-splits
     List<IQuery> pathResults = super.visit(instr, currentPath);
-    if (pathResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(pathResults.isEmpty(), "should never be case splits on path constraints!");
 
     return combinePathAndPointsToQueries(ptResults, pathResults);
@@ -183,12 +145,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
     List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath, this.pathVars);
-    if (ptResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(ptResults.isEmpty(), "Unimp: handling case splits at calls!");
     List<IQuery> pathResults = super.enterCall(instr, callee, currentPath);
-    if (pathResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
 
@@ -304,54 +264,36 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   private void dropPathConstraintsWrittenInLoop(SSACFG.BasicBlock loopHead, CGNode node) {
-    if (this.constraints.isEmpty())
-      return;
+    if (this.constraints.isEmpty()) return;
     Set<DependencyRule> loopRules = new TreeSet<DependencyRule>();
-    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(node); // get
-                                                                        // all
-                                                                        // rules
-                                                                        // for
-                                                                        // node
+    // get all rules for node
+    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(node);
+
     if (rules != null) {
       for (DependencyRule rule : rules) { // keep only rules produced in loop
-        // Util.Debug("rule shown " + rule.getShown());
         Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
         if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, node.getIR())) {
-          // Util.Debug("rule is loop rule");
           loopRules.add(rule);
         }
       }
-      dropConstraintsProuceableByRuleSet(loopRules); // remove all constraints
-                                                     // produceable by one of
-                                                     // these rules
+      // remove all constraints produceable by one of these rules
+      dropConstraintsProuceableByRuleSet(loopRules); 
     }
 
     // check for additional relevant keys by consulting the points-to analysis
     ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     HeapModel hm = depRuleGenerator.getHeapModel();
-    /*
-     * Set<PointerKey> keys = new HashSet<PointerKey>(); for
-     * (AtomicPathConstraint constraint : this.constraints) {
-     * keys.addAll(constraint.getPointerKeys()); Set<SimplePathTerm> terms =
-     * constraint.getTerms(); for (SimplePathTerm term : terms) { if
-     * (term.getObject() != null && term.getFields() != null) { PointerVariable
-     * pointedTo = term.getObject(); if (pointedTo != null && pointedTo
-     * instanceof InstanceKey) { PointerKey key =
-     * hm.getPointerKeyForInstanceField((InstanceKey)
-     * pointedTo.getInstanceKey(), cha.resolveField(term.getFirstField())); if
-     * (key != null) keys.add(key); } } } }
-     */
 
     // the loop may also contain callees. drop any constraint containing vars
     // that these callees can write to
     Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
     Set<AtomicPathConstraint> toDrop = new HashSet<AtomicPathConstraint>();
-    for (CGNode callNode : targets) { // drop all vars that can be written by a
-                                      // call in the loop body
+    // drop all vars that can be written by a call in the loop body
+    for (CGNode callNode : targets) { 
       OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
 
       for (AtomicPathConstraint constraint : constraints) {
-        for (PointerKey key : constraint.getPointerKeys()) {
+        for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
           if (callKeys.contains(key)) {
             toDrop.add(constraint);
             break;
@@ -383,9 +325,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
     }
     for (AtomicPathConstraint dropMe : toDrop) {
-      if (Options.DEBUG)
-        Util.Debug("dropping loop constraint " + dropMe);
-      // constraints.remove(dropMe);
+      if (Options.DEBUG) Util.Debug("dropping loop constraint " + dropMe);
       removeConstraint(dropMe);
     }
   }
@@ -423,42 +363,33 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       if (!var.isLocalVar())
         relevantVars.add(var);
       else { // this is a local
-        // try to use pts-to constraints to determine which heap loc this local
-        // corresponds to
+        // try to use pts-to constraints to determine which heap loc this local corresponds to
         PointerVariable pointedTo = this.pointsToQuery.getPointedTo(var);
         if (pointedTo == null) {
-          // can't find this var in our points-to constraints; no telling what
-          // it might point to. must drop it.
+          // can't find this var in our points-to constraints; no telling what it might point to. must drop it.
           toDrop.add(var);
         }
         relevantVars.add(pointedTo);
       }
     }
-    for (PointerVariable var : toDrop)
-      dropConstraintsContaining(var);
+    for (PointerVariable var : toDrop) dropConstraintsContaining(var);
     relevantVars.removeAll(toDrop);
 
     Set<AtomicPathConstraint> toRemove = new HashSet<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : this.constraints) {
-      // Util.Debug("constraint is " + constraint);
       Set<PointerVariable> vars = constraint.getVars();
       Set<FieldReference> fields = constraint.getFields();
-      // see if a dependency rules can write to one of the heap loc's in the
-      // path constraints
+      // see if a dependency rules can write to one of the heap loc's in the path constraints
       for (DependencyRule rule : rules) {
-        PointerVariable src = rule.getShown().getSource(); // snk =
-                                                           // rule.getShown().getSink();
-        // FieldReference field = rule.getShown().getFieldRef().getReference();
+        PointerVariable src = rule.getShown().getSource(); 
         if (vars.contains(src))
           toRemove.add(constraint);
         if (rule.getShown().getFieldRef() != null && fields.contains(rule.getShown().getFieldRef().getReference()))
           toRemove.add(constraint);
-        // || vars.contains(snk)) toRemove.add(constraint);
       }
     }
     for (AtomicPathConstraint constraint : toRemove) {
-      if (Options.DEBUG)
-        Util.Debug("dropping constraint produceable by rule set" + constraint);
+      if (Options.DEBUG) Util.Debug("dropping constraint produceable by rule set" + constraint);
       removeConstraint(constraint);
     }
     super.rebuildZ3Constraints();
@@ -470,15 +401,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
       dropConstraintsContaining(retval);
     }
-    // Set<DependencyRule> rulesProducedByCall =
-    // Util.getRulesProducableByCall(callee, depRuleGenerator.getCallGraph(),
-    // depRuleGenerator);
-    // dropConstraintsProuceableByRuleSet(rulesProducedByCall);
-
+   
     List<AtomicPathConstraint> toDrop = new LinkedList<AtomicPathConstraint>();
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (AtomicPathConstraint constraint : constraints) {
-      for (PointerKey key : constraint.getPointerKeys()) {
+      for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
         if (keys.contains(key)) {
           toDrop.add(constraint);
           break;
@@ -502,81 +429,32 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       if (!tbl.isConstant(instr.getUse(i))) {
         PointerVariable arg = new ConcretePointerVariable(caller, instr.getUse(i), this.depRuleGenerator.getHeapModel());
-        if (this.pathVars.contains(arg))
-          return true; // constraints contain a non-constant param that's passed
-                       // to this function; possibly relevant
+        // constraints contain a non-constant param that's passed to this function; possibly relevant
+        if (this.pathVars.contains(arg)) return true; 
       }
     }
-
-    // does this call modify our path constraints according to its precomputed
-    // mod set?
+    
+    // does this call modify our path constraints according to its precomputed mod set?
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (AtomicPathConstraint constraint : constraints) {
-      for (PointerKey key : constraint.getPointerKeys()) {
-        if (keys.contains(key)) return true; // mod set says yes
-        IClass declaringClass = null;
+      for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
+      if (keys.contains(key)) return true; // mod set says yes
         if (key instanceof StaticFieldKey) {
-          declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
-        } else if (key instanceof InstanceFieldKey) {
-          declaringClass = ((InstanceFieldKey) key).getField().getDeclaringClass();
-        }
-        if (declaringClass != null) {
-          // if this is an <init>/<clinit>, might initialize field to default values
-          if (declaringClass.equals(callee.getMethod().getDeclaringClass())
-              && (callee.getMethod().isClinit() || callee.getMethod().isInit())) {
-            return true;
-          }
-        }
+          IClass declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
+          // if this is a <clinit>, might initialize field to default values
+          return declaringClass.equals(callee.getMethod().getDeclaringClass())
+              && (callee.getMethod().isClinit());
+        } 
       }
     }
 
     return false;
   }
 
-  /**
-   * substitute actuals for formals in our constraint set (i.e., when returning
-   * from call)
-   * 
-   * @param callerSymbolTable
-   *          - symbol table for the caller
-   */
-  /*
-   * boolean substituteActualsForFormals(SSAInvokeInstruction instr, CGNode
-   * callerMethod, CGNode calleeMethod, SymbolTable callerSymbolTable) {
-   * Util.Pre(!calleeMethod.equals(callerMethod),
-   * "recursion should be handled elsewhere");
-   * Util.Debug("substituting actuals for formals in path query"); for (int i =
-   * 0; i < instr.getNumberOfParameters(); i++) { int use = instr.getUse(i);
-   * PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1,
-   * this.depRuleGenerator.getHeapModel());
-   * 
-   * SimplePathTerm actual = null; if (callerSymbolTable.isIntegerConstant(use))
-   * { Util.Debug("integer const"); actual = new
-   * SimplePathTerm(callerSymbolTable.getIntValue(use)); } else if
-   * (callerSymbolTable.isNullConstant(use)) { actual = SimplePathTerm.NULL; //
-   * check for formal in pts-to constraints for (PointsToEdge edge :
-   * pointsToQuery.constraints) { Util.Debug(edge.getSource() + " eq " +
-   * formal); if (edge.getSource().equals(formal)) { Util.Debug("refuted! " +
-   * formal + " must point to " + edge.getSink() + ", but it points to null.");
-   * this.feasible = false; return false; } } } else if
-   * (callerSymbolTable.isStringConstant(use)) actual = SimplePathTerm.NON_NULL;
-   * // the only modeling we do of strings is that they are non-nul else if
-   * (callerSymbolTable.isConstant(use)) Util.Unimp("other kinds of constants");
-   * // TODO: support other constants else actual = new SimplePathTerm(new
-   * ConcretePointerVariable(callerMethod, instr.getUse(i),
-   * this.depRuleGenerator.getHeapModel()));
-   * 
-   * 
-   * 
-   * Util.Debug("subbing " + actual + " for " + formal);
-   * substituteExpForVar(actual, formal); } return isFeasible(); }
-   */
-
   @Override
   public void removeAllLocalConstraints() {
-    this.removeAllLocalPathConstraints(); // IMPORTANT! must do this first,
-                                          // otherwise we lose the local pts-to
-                                          // info!
+    // IMPORTANT! must do this first, otherwise we lose the local pts-to info!
+    this.removeAllLocalPathConstraints(); 
     pointsToQuery.removeAllLocalConstraints();
   }
 
@@ -585,8 +463,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * value, if known
    */
   public void removeAllLocalPathConstraints() {
-    // first, sub out all locals for their corresponding heap locations, if we
-    // know them
+    // first, sub out all locals for their corresponding heap locations, if we know them
     for (PointsToEdge edge : pointsToQuery.constraints) {
       PointerVariable src = edge.getSource();
       if (src.isLocalVar() && this.pathVars.contains(src)) {
@@ -707,87 +584,48 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     super.intializeStaticFieldsToDefaultValues();
   }
 
-  /**
-   * @return - set of *all* pointer keys associated with constraint, including
-   *         the ones related according to the points-to analysis
-   */
-  private Set<PointerKey> getPointerKeysForPathConstraint(AtomicPathConstraint constraint) {
-    /*
-     * Set<PointerKey> keysForConstraint = new HashSet<PointerKey>();
-     * ClassHierarchy cha = depRuleGenerator.getClassHierarchy(); HeapModel hm =
-     * depRuleGenerator.getHeapModel(); // add pointer keys already known to be
-     * associated with this constraint
-     * keysForConstraint.addAll(constraint.getPointerKeys());
-     * Set<SimplePathTerm> terms = constraint.getTerms(); for (SimplePathTerm
-     * term : terms) { if (term.getObject() != null && term.getFields() != null)
-     * { PointerVariable pointedTo = term.getObject(); if (pointedTo != null &&
-     * pointedTo instanceof InstanceKey) { PointerKey key =
-     * hm.getPointerKeyForInstanceField((InstanceKey)
-     * pointedTo.getInstanceKey(), cha.resolveField(term.getFirstField())); if
-     * (key != null) keysForConstraint.add(key); } } } return keysForConstraint;
-     */
-
-    ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-    Set<PointerKey> keysForConstraint = new HashSet<PointerKey>();
-    // add pointer keys already known to be associated with this constraint
-    keysForConstraint.addAll(constraint.getPointerKeys());
-
-    // check for refs in pts-to constraints
-    Set<SimplePathTerm> terms = constraint.getTerms();
-    for (SimplePathTerm term : terms) {
-      if (term.getObject() != null && term.getFields() != null) {
-        PointerVariable pointedTo = term.getObject();// this.pointsToQuery.getPointedTo(term.getObject());
-        if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
-          FieldReference fieldRef = term.getFirstField();
-          if (fieldRef == null)
-            continue;
-          IField fld = cha.resolveField(fieldRef);
-          if (fld == null)
-            continue;
-          PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
-          if (fieldKey == null)
-            continue;
-          keysForConstraint.add(fieldKey);
-        }
-      }
-    }
-    return keysForConstraint;
-  }
-
   private Map<Constraint, Set<CGNode>> getModifiersForQueryHelper() {
     Map<PointerKey, Set<CGNode>> reversedModRef = this.depRuleGenerator.getReversedModRef();
     Map<Constraint, Set<CGNode>> constraintModMap = new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = new HashSet<CGNode>();
+      addInitsForConstraintFields(constraint,nodes);
       // addClassInitsForConstraintFields(constraint, nodes); // add class init
       // if it may write to the constraint
-      for (PointerKey key : getPointerKeysForPathConstraint(constraint)) {
+      for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
         Set<CGNode> modRefNodes = reversedModRef.get(key);
-        if (modRefNodes == null)
-          continue; // this can happen when var is the this param for a class
-                    // with no fields
-        // Util.Assert(modRefNodes != null, "no mod ref set for " + key);
+        // this can happen when var is the this param for a class with no fields
+        if (modRefNodes == null) continue;
         for (CGNode node : modRefNodes) {
-          // add to mapping *only* if node modifies pointer key directly (not
-          // via callees)
-          // this is because the use of the reversed mod/ref is to jump directly
-          // to
+          // add to mapping *only* if node modifies pointer key directly (not via callees)
+          // this is because the use of the reversed mod/ref is to jump directly to
           // the node that might modify our key of interest
-          if (Util.writesKeyLocally(node, key, this.depRuleGenerator.getHeapModel(), this.depRuleGenerator.getHeapGraph(),
-              this.depRuleGenerator.getClassHierarchy())) {
+          if (Util.writesKeyLocally(node, key, this.depRuleGenerator.getHeapModel(), 
+              this.depRuleGenerator.getHeapGraph(), this.depRuleGenerator.getClassHierarchy())) {
             nodes.add(node);
           }
         }
-        // nodes.addAll(modRefNodes);
       }
       constraintModMap.put(constraint, nodes);
     }
     return constraintModMap;
   }
+  
+  private void addInitsForConstraintFields(AtomicPathConstraint constraint, Set<CGNode> nodes) {
+    for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
+      if (key instanceof InstanceFieldKey) {
+        IField fieldKey = ((InstanceFieldKey) key).getField(); 
+        for (IMethod method : fieldKey.getDeclaringClass().getDeclaredMethods()) {
+          if (method.isInit()) {
+            nodes.addAll(this.depRuleGenerator.getCallGraph().getNodes(method.getReference()));
+          }
+        }
+      }
+    }
+  }
 
   /**
-   * add the class init for each field to the set of relevant nodes need to do
+   * add the class init for each field to the set of relevant nodes. need to do
    * this because class inits can write to fields by writing their default
    * values. this implicit write is not reflected in the normal mod/ref analysis
    * 
@@ -795,20 +633,21 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * @param nodes
    */
   /*
-   * private void addClassInitsForConstraintFields(AtomicPathConstraint
-   * constraint, Set<CGNode> nodes) {
-   * Util.Debug("adding clinits for constraint " + constraint); for (PointerKey
-   * key :constraint.getPointerKeys()) { IField fieldKey; if (key instanceof
-   * InstanceFieldKey) fieldKey = ((InstanceFieldKey) key).getField(); else if
-   * (key instanceof StaticFieldKey) fieldKey = ((StaticFieldKey)
-   * key).getField(); else continue; fieldKey.getDeclaringClass(); IMethod clit
-   * = fieldKey.getDeclaringClass().getClassInitializer();
-   * Util.Debug("classInit is " + clit); MethodReference classInit =
-   * fieldKey.getDeclaringClass().getClassInitializer().getReference();
-   * Set<CGNode> classInitNodes =
-   * this.depRuleGenerator.getCallGraph().getNodes(classInit);
-   * Util.Assert(classInitNodes.size() == 1); // should only be one class init
-   * nodes.add(classInitNodes.iterator().next()); } }
+    private void addClassInitsForConstraintFields(AtomicPathConstraint constraint, Set<CGNode> nodes) {
+      Util.Debug("adding clinits for constraint " + constraint); 
+      for (PointerKey key : constraint.getPointerKeys()) { 
+        IField fieldKey; 
+        if (key instanceof InstanceFieldKey) fieldKey = ((InstanceFieldKey) key).getField(); 
+        else if (key instanceof StaticFieldKey) fieldKey = ((StaticFieldKey) key).getField(); 
+        else continue; 
+        IMethod clinit= fieldKey.getDeclaringClass().getClassInitializer();
+        Util.Debug("classInit is " + clinit); 
+        MethodReference classInit = fieldKey.getDeclaringClass().getClassInitializer().getReference();
+        Set<CGNode> classInitNodes = this.depRuleGenerator.getCallGraph().getNodes(classInit);
+        Util.Assert(classInitNodes.size() == 1); // should only be one class init
+        nodes.add(classInitNodes.iterator().next()); 
+      } 
+   }
    */
 
   @Override

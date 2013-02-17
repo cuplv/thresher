@@ -16,7 +16,7 @@ import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 
-// a path variable is one of three things: a constant, an object, or an object and a field
+// a path variable is one of three things: a constant, an object, or an object and an access path
 public class SimplePathTerm implements PathTerm {
 
   public static final SimplePathTerm NULL = new SimplePathTerm(0);
@@ -27,11 +27,12 @@ public class SimplePathTerm implements PathTerm {
       .findOrCreate(ClassLoaderReference.Primordial, "array", "length", "Int");
 
   private final int constant;
-  private final PointerVariable object; // either a local pointer to an object
-                                        // or a heap location
-  private final PointerKey pointer; // either a local pointer to an object or a
-                                    // heap location
-  // list of field references from (derefs closer to base obj occur earlier
+  // either a local pointer to an object or a heap location
+  private final PointerVariable object; 
+                                    
+  private final PointerKey pointer; 
+                                    
+  // list of field references from (derefs closer to base obj occur earlier)
   private final LinkedList<FieldReference> fields;
   private final Set<PointerVariable> vars = new TreeSet<PointerVariable>();
   private boolean substituted = false;
@@ -63,7 +64,8 @@ public class SimplePathTerm implements PathTerm {
     this.repr = this.toString();
   }
 
-  public SimplePathTerm(int constant) { // constant
+  // constant
+  public SimplePathTerm(int constant) { 
     this.object = null;
     this.pointer = null;
     this.fields = null;
@@ -71,13 +73,8 @@ public class SimplePathTerm implements PathTerm {
     this.repr = this.toString();
   }
 
-  public SimplePathTerm(PointerVariable object, FieldReference field) { // field
-                                                                        // read
-                                                                        // with
-                                                                        // single
-                                                                        // level
-                                                                        // of
-                                                                        // dereference
+  //field read with single level of dereference
+  public SimplePathTerm(PointerVariable object, FieldReference field) { 
     Util.Pre(field != null, "field should never be null here!");
     Util.Pre(object != null, "obj should not be null here");
     this.object = object;
@@ -521,8 +518,7 @@ public class SimplePathTerm implements PathTerm {
   @Override
   public Set<PointerKey> getPointerKeys() {
     Set<PointerKey> keys = new HashSet<PointerKey>();
-    if (pointer != null)
-      keys.add(pointer);
+    if (pointer != null) keys.add(pointer);
     return keys;
   }
 

@@ -57,8 +57,6 @@ public class PointsToQuery implements IQuery {
   private boolean feasible = true; // this is just a sanity check to make sure
                                    // that refuted queries are not re-used
 
-  private int hash;
-
   // public PointsToQuery(Set<PointsToEdge> startConstraints, PointsToEdge
   // producedEdge, AbstractDependencyRuleGenerator depRuleGenerator) {
   public PointsToQuery(DependencyRule startRule, AbstractDependencyRuleGenerator depRuleGenerator) {

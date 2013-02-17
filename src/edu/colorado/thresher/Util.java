@@ -235,16 +235,11 @@ public class Util {
    * @return
    */
   public static boolean writesKeyLocally(CGNode node, PointerKey key, HeapModel hm, HeapGraph hg, ClassHierarchy cha) {
-    if (key instanceof InstanceFieldKey)
-      return writesKeyLocally(node, ((InstanceFieldKey) key).getField(), hm, cha);
-    else if (key instanceof StaticFieldKey)
-      return writesKeyLocally(node, ((StaticFieldKey) key).getField(), hm, cha);
-    else if (key instanceof ArrayContentsKey)
-      return writesKeyLocally(node, ((ArrayContentsKey) key), hm, hg, cha);
+    if (key instanceof InstanceFieldKey) return writesKeyLocally(node, ((InstanceFieldKey) key).getField(), hm, cha);
+    else if (key instanceof StaticFieldKey) return writesKeyLocally(node, ((StaticFieldKey) key).getField(), hm, cha);
+    else if (key instanceof ArrayContentsKey) return writesKeyLocally(node, ((ArrayContentsKey) key), hm, hg, cha);
     // TODO: do we need to do something smarter for array length?
-    else if (key instanceof ArrayLengthKey)
-      return false; // nothing modifies an array length other than the array
-                    // constructor
+    else if (key instanceof ArrayLengthKey) return false; // nothing modifies an array length other than the array constructor
     Util.Assert(false, "bad pointer key type " + key.getClass() + " " + key);
     return false;
   }
@@ -258,8 +253,7 @@ public class Util {
         SSAPutInstruction put = (SSAPutInstruction) instr;
         FieldReference f = put.getDeclaredField();
         IField field = cha.resolveField(f);
-        if (field != null && field.equals(fld))
-          return true;
+        if (field != null && field.equals(fld)) return true;
       }
     }
     return false;
@@ -267,8 +261,9 @@ public class Util {
 
   public static <T> Set<T> iteratorToSet(Iterator<T> iter) {
     Set<T> set = new HashSet<T>();
-    while (iter.hasNext())
+    while (iter.hasNext()) {
       set.add(iter.next());
+    }
     return set;
   }
 

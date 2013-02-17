@@ -758,12 +758,9 @@ public class PathQuery implements IQuery {
       Util.Debug("initializing fields to default values");
       // returning from constructors is a special case because we have to
       // initialize all untouched fields to their default values
-      PointerVariable thisVar = new ConcretePointerVariable(callee, 1, this.depRuleGenerator.getHeapModel()); // the
-                                                                                                              // "this"
-                                                                                                              // var
-                                                                                                              // is
-                                                                                                              // always
-                                                                                                              // v1
+      // the "this" var is always v1
+      final int THIS = 1;
+      PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.depRuleGenerator.getHeapModel()); 
       List<FieldReference> toSub = new LinkedList<FieldReference>();
       for (AtomicPathConstraint constraint : constraints) {
         if (constraint.getLhs() instanceof SimplePathTerm) {
@@ -783,10 +780,13 @@ public class PathQuery implements IQuery {
           }
         }
       }
+      
+      
+      
       // init to default values
       for (FieldReference field : toSub) {
         substituteExpForFieldRead(new SimplePathTerm(0), thisVar, field);
-        // check if substituion made query infeasible
+        // check if substitution made query infeasible
         if (!this.isFeasible())
           return IQuery.INFEASIBLE;
       }
@@ -1417,7 +1417,7 @@ public class PathQuery implements IQuery {
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = new HashSet<CGNode>();
       Util.Debug("getting pointer keys for " + constraint);
-      for (PointerKey key : constraint.getPointerKeys()) {
+      for (PointerKey key : constraint.getPointerKeys(this.depRuleGenerator)) {
         Util.Debug("POINTER KEY " + key);
         nodes.addAll(reversedModRef.get(key));
       }

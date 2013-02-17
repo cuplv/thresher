@@ -846,19 +846,14 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    */
   @Override
   boolean handleFakeWorldClinit(IPathInfo path) {
-    if (Options.DEBUG)
-      Util.Debug("trying to find witness in fakeWorldClinit");
+    if (Options.DEBUG) Util.Debug("trying to find witness in fakeWorldClinit");
     CGNode fakeWorldClinitNode = path.getCurrentNode();
-    if (Options.CHECK_ASSERTS)
+    if (Options.CHECK_ASSERTS) {
       Util.Assert(fakeWorldClinitNode.equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), fakeWorldClinitNode
           + "should be fakeWorldClinit!");
-    // TODO: rather than iterating over the class initializers, be a little more
-    // selective?
-
-    // path.removeAllLocalConstraintsFromQuery(); // can't reason about params
-    // to fakeWorldClinit!
-    if (path.foundWitness())
-      return true;
+    }
+    // TODO: rather than iterating over the class initializers, be a little more selective?
+    if (path.foundWitness()) return true;
 
     SSAInstruction[] instrs = fakeWorldClinitNode.getIR().getInstructions();
     addPathAndBranchPlaceholders();
@@ -866,7 +861,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     while (path != null) {
       if (!path.getCurrentNode().equals(fakeWorldClinitNode)) {
         boolean hitProcBoundary = this.executeBackwardsPathIntraprocedural(path);
-        // boolean hitProcBoundary = true;
         if (path.foundWitness())
           return true;
         if (hitProcBoundary) {
@@ -876,36 +870,26 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           // at proc boundary for fakeWorldClinit; witness not produced
           if (!path.isCallStackEmpty()) {
             // leaving callee and returning to called method
-            if (path.returnFromCall())
-              continue;// addPath(path); // add path if it is feasible
-            // continue;
+            if (path.returnFromCall()) continue;
           }
         }
       } else {
         boolean skipInitialization = false;
         for (SSAInstruction instr : instrs) { // for each class initializer
-          if (!alreadyTried.add(instr))
-            continue;
-          if (instr == null)
-            continue;
-          if (!(instr instanceof SSAInvokeInstruction)) { // this is an
-                                                          // instruction, but
-                                                          // not an entrypoint
-            if (!super.visitIPathInfoWrapper(instr, path))
-              break; // refuted; try next path
-            if (path.foundWitness())
-              return true;
+          if (!alreadyTried.add(instr)) continue;
+          if (instr == null) continue;
+          // this is an instruction, not an entrypoint
+          if (!(instr instanceof SSAInvokeInstruction)) { 
+            if (!super.visitIPathInfoWrapper(instr, path)) break; // refuted; try next path
+            if (path.foundWitness()) return true;
             continue; // not refuted or witnessed; try next instr
           }
           SSAInvokeInstruction instruction = (SSAInvokeInstruction) instr;
           Set<CGNode> targets = callGraph.getPossibleTargets(fakeWorldClinitNode, instruction.getCallSite());
-          if (Options.DEBUG)
+          if (Options.DEBUG) {
             Util.Assert(targets.size() == 1, "Not expecting dynamic dispatch in class inits; everything should be static");
+          }
           CGNode classInitializer = targets.iterator().next();
-          // Set<CGNode> targets =
-          // callGraph.getPossibleTargets(fakeWorldClinitNode,
-          // instruction.getCallSite());
-          // for (CGNode target : targets) { // for each target
           // ask the current path if this class initializer can produce any part
           // of its query
           Util.Debug("checking relevance of " + classInitializer);
@@ -922,84 +906,20 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         } // end for each class initializer
         if (!skipInitialization) {
           path.initializeStaticFieldsToDefaultValues();
-          if (path.isFeasible())
-            path.removeAllLocalConstraintsFromQuery();
+          if (path.isFeasible()) path.removeAllLocalConstraintsFromQuery();
         }
-        if (path.foundWitness())
-          return true; // last constraint was a static field pointing to it's
-                       // default value
+        // last constraint was a static field pointing to its default value
+        if (path.foundWitness()) return true; 
       }
       path = selectNonDummyPath();
     }
     // else, still haven't produced...
-    // path.removeAllLocalConstraintsFromQuery(); // can't reason about params
-    // to fakeWorldClinit!
-    if (Options.DEBUG)
-      Util.Debug("witness not produced in class inits! refuted.");
-    if (Options.CHECK_ASSERTS)
-      split = true;
+    if (Options.DEBUG) Util.Debug("witness not produced in class inits! refuted.");
+    if (Options.CHECK_ASSERTS) split = true;
     cleanupPathAndBranchPlaceholders();
-    // Util.Unimp("witness not produced in class inits for " + path);
     return false;
   }
 
-  /*
-   * //@Override boolean handleFakeWoerldClinit(IPathInfo path) {
-   * Util.Debug("trying to find witness in fakeWorldClinit"); CGNode
-   * fakeWorldClinitNode = path.getCurrentNode();
-   * Util.Assert(fakeWorldClinitNode
-   * .equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), fakeWorldClinitNode
-   * + "should be fakeWorldClinit!"); // TODO: rather than iterating over the
-   * class initializers, be a little more selective?
-   * 
-   * path.removeAllLocalConstraintsFromQuery(); // can't reason about params to
-   * fakeWorldClinit! if (path.foundWitness()) return true;
-   * 
-   * SSAInstruction[] instrs = fakeWorldClinitNode.getIR().getInstructions();
-   * addPathAndBranchPlaceholders(); Set<SSAInstruction> alreadyTried = new
-   * HashSet<SSAInstruction>(); for (;;) { // allow class inits to be executed
-   * in any order, keep making progress towards witness boolean progress =
-   * false; for (SSAInstruction instr : instrs) { // for each class initializer
-   * if (alreadyTried.contains(instr)) continue; if (instr == null) continue; if
-   * (!(instr instanceof SSAInvokeInstruction)) { if
-   * (!super.visitIPathInfoWrapper(instr, path)) return false; continue; }
-   * //Util.Assert(instr instanceof SSAInvokeInstruction, "non-invoke instr " +
-   * instr + " in class inits"); SSAInvokeInstruction instruction =
-   * (SSAInvokeInstruction) instr; Set<CGNode> targets =
-   * callGraph.getPossibleTargets(fakeWorldClinitNode,
-   * instruction.getCallSite()); Util.Assert(targets.size() == 1,
-   * "Not expecting dynamic dispatch in class inits!"); CGNode classInitializer
-   * = targets.iterator().next();
-   * 
-   * // ask the current path if this class initializer can produce any part of
-   * its query if (path.isCallRelevantToQuery(instruction, classInitializer,
-   * callGraph)) { Util.Debug("Trying class initializer " + instr);
-   * alreadyTried.add(instruction); // yes; push the class initializer on the
-   * call stack and execute it path.pushCallStack(instruction,
-   * classInitializer); while (true) { // until we're done exploring this call
-   * if (this.executeBackwardsPathIntraprocedural(path)) { if
-   * (path.foundWitness()) {
-   * Util.Debug("found witness while exploring class inits! done."); return
-   * true; // found witness } // else, finished executing call, but did not
-   * produce witness if (!path.returnFromCall()) {
-   * cleanupPathAndBranchPlaceholders(); return false; // return from the class
-   * init or current method } if (!path.isCallStackEmpty()) {
-   * Util.Debug("call stack not empty; continuing to execute"); continue; // not
-   * done with the class init; keep executing } progress = true; break; // and
-   * pick a new one } else { path = selectNonDummyPath(); if (path == null) {
-   * cleanupPathAndBranchPlaceholders(); return false; } // else, the path is
-   * fine; go ahead and execute continue; } } } else Util.Debug("class init " +
-   * classInitializer + " not relevant"); } // end for each instructon if
-   * (!progress) { path.removeAllLocalConstraintsFromQuery(); if
-   * (path.foundWitness()) return true; path = selectNonDummyPath(); if (path ==
-   * null) break; // if there's no progress, stop executing class initializers.
-   * the witness is not going to be produced in the loop } } // end for // else,
-   * still haven't produced...
-   * Util.Debug("witness not produced in class inits! refuted.");
-   * cleanupPathAndBranchPlaceholders();
-   * //Util.Unimp("witness not produced in class inits for " + path); return
-   * false; }
-   */
   /**
    * symbolic execution in fakeRootMethod (WALA's model of the Java class
    * initializers) requires special handling. we do not attempt to model the
@@ -1105,76 +1025,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // didn't produce a witness anywhere; return false
     return false;
   }
-
-  /*
-   * boolean handleFakeRootMethod(IPathInfo path, CGNode entrypoint) {
-   * Util.Debug("trying to find witness in fakeRootMethod");
-   * Util.Assert(path.getCurrentNode().equals(this.callGraph.getFakeRootNode()),
-   * "current node should be fakeRootNode at this point!");
-   * 
-   * path.removeAllLocalConstraintsFromQuery(); // can't reason about params to
-   * entrypoints if (path.foundWitness()) return true;
-   * 
-   * //CGNode fakeWorldClinitNode = path.getCurrentNode();
-   * //Util.Assert(fakeWorldClinitNode
-   * .equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), //
-   * fakeWorldClinitNode + "should be fakeWorldClinit!"); // TODO: rather than
-   * iterating over the class initializers, be a little more selective?
-   * 
-   * Set<IPathInfo> toTryInFakeWorldClinit = new TreeSet<IPathInfo>();
-   * 
-   * CGNode fakeRootMethod = path.getCurrentNode(); SSAInstruction[] instrs =
-   * fakeRootMethod.getIR().getInstructions(); addPathAndBranchPlaceholders();
-   * Set<SSAInstruction> alreadyTried = new HashSet<SSAInstruction>(); CGNode
-   * fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph); for (;;) {
-   * // allow entrypoints to be executed in any order, keep making progress
-   * towards witness boolean progress = false; for (SSAInstruction instr :
-   * instrs) { // for each class initializer if (alreadyTried.contains(instr))
-   * continue; if (instr == null) continue; if (!(instr instanceof
-   * SSAInvokeInstruction)) { if (!super.visitIPathInfoWrapper(instr, path))
-   * return false; //progress = true; // we made progress continue; }
-   * //Util.Assert(instr instanceof SSAInvokeInstruction, "non-invoke instr " +
-   * instr + " in class inits"); SSAInvokeInstruction instruction =
-   * (SSAInvokeInstruction) instr; Set<CGNode> targets =
-   * callGraph.getPossibleTargets(fakeRootMethod, instruction.getCallSite());
-   * for (CGNode target : targets) { //Util.Assert(targets.size() == 1,
-   * "Not expecting dynamic dispatch in fakeRootMethod!"); CGNode
-   * classInitializer = target; if (classInitializer.equals(fakeWorldClinit))
-   * continue; // class inits are handled separately else if
-   * (classInitializer.equals(entrypoint)) continue; // don't want to execute
-   * our same entrypoint again // ask the current path if this class initializer
-   * can produce any part of its query if
-   * (path.isCallRelevantToQuery(instruction, classInitializer, callGraph)) {
-   * Util.Debug("Trying entrypoint " + instr); alreadyTried.add(instruction); //
-   * yes; push the class initializer on the call stack and execute it
-   * path.pushCallStack(instruction, classInitializer); while (true) { // until
-   * we're done exploring this call if
-   * (this.executeBackwardsPathIntraprocedural(path)) { if (path.foundWitness())
-   * { Util.Debug("found witness while exploring class inits! done."); return
-   * true; // found witness } // else, finished executing call, but did not
-   * produce witness if (!path.returnFromCall()) {
-   * cleanupPathAndBranchPlaceholders(); return false; // return from the class
-   * init or current method } if (!path.isCallStackEmpty()) {
-   * Util.Debug("call stack not empty; continuing to execute"); continue; // not
-   * done with the class init; keep executing } progress = true; break; // and
-   * pick a new one } else { // visit false; pick new path path =
-   * selectNonDummyPath(); if (path == null) {
-   * cleanupPathAndBranchPlaceholders(); return false; } continue; } } } else
-   * Util.Debug("class init " + classInitializer + " not relevant"); } // end
-   * for each instructon } if (!progress) { toTryInFakeWorldClinit.add(path);
-   * path = selectNonDummyPath(); if (path == null) break; // if there's no
-   * progress, stop executing fakeRootMethod. the witness is not going to be
-   * produced here } } // end for
-   * 
-   * Util.Debug(
-   * "witness not produced in fakeRootMethod! proceeding to fakeWorldClinit");
-   * cleanupPathAndBranchPlaceholders(); for (IPathInfo info :
-   * toTryInFakeWorldClinit) { info.removeAllLocalConstraintsFromQuery(); if
-   * (info.foundWitness()) return true;
-   * info.setCurrentNode(WALACFGUtil.getFakeWorldClinitNode(callGraph)); if
-   * (handleFakeWorldClinit(info)) return true; } // didn't produce a witness
-   * anywhere; return false return false; }
-   */
 
   public void addPathAndBranchPlaceholders() {
     if (Options.DEBUG)
