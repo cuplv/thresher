@@ -432,16 +432,8 @@ public class Main {
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
 
     Set<Pair<Object, Object>> fieldErrorList = new HashSet<Pair<Object, Object>>();
-    Map<String, Set<IClass>> leakedActivities = new HashMap<String, Set<IClass>>(); // map
-                                                                                    // from
-                                                                                    // fields
-                                                                                    // ->
-                                                                                    // Acts
-                                                                                    // that
-                                                                                    // leak
-                                                                                    // via
-                                                                                    // that
-                                                                                    // field
+    // map from fields -> Acts that leak via that field
+    Map<String, Set<IClass>> leakedActivities = new HashMap<String, Set<IClass>>(); 
 
     for (IField f : staticFields) {
       boolean skipThis = false;
@@ -466,15 +458,11 @@ public class Main {
         } else if (node instanceof AllocationSiteInNode) {
           type = ((AllocationSiteInNode) node).getConcreteType();
         }
-        if (type != null && subclasses.contains(type)) { // allow arbitrary
-                                                         // number of errors per
-                                                         // field
-          Collection<Object> found = new HashSet<Object>();
-          found.add(node);
-
+        // allow arbitrary number of errors per field
+        if (type != null && subclasses.contains(type)) {
           // is there a path from the static field to the Activity that does not
           // contain weak references?
-          if (removeWeakReferences(graphView, field, found, hg, cha)) {
+          if (removeWeakReferences(graphView, field, node, hg, cha) != null) {
             Set<IClass> leaked = leakedActivities.get(field.toString());
             if (leaked == null) {
               leaked = new HashSet<IClass>();
@@ -483,14 +471,8 @@ public class Main {
               logger.logErrorField();
             }
             InstanceKey activityInstance = (InstanceKey) node;
-            if (leaked.add(activityInstance.getConcreteType())) { // see if we
-                                                                  // already
-                                                                  // know that
-                                                                  // this
-                                                                  // Activity
-                                                                  // can leak
-                                                                  // via this
-                                                                  // field
+            // see if we already know that this Activity can leak via this field
+            if (leaked.add(activityInstance.getConcreteType())) { 
               Pair<Object, Object> errPair = Pair.make((Object) field, node);
               fieldErrorList.add(errPair);
             }
@@ -691,7 +673,10 @@ public class Main {
               logger.logEdgeRefutation();
               // run another DFS to see if error path can still be created
               // without refuted edge
-              errorPath = finder.find();
+              
+              errorPath = removeWeakReferences(graphView, error.fst, error.snd, hg, cha); 
+              //errorPath = finder.find();
+              
               if (errorPath != null) {
                 if (DEBUG)
                   Util.Debug("refuted edge, but err path still exists; size " + errorPath.size());
@@ -791,12 +776,8 @@ public class Main {
           exec = new PruningSymbolicExecutor(cg, logger);
         else
           exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
-        foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query); // start
-                                                                                                // at
-                                                                                                // line
-                                                                                                // BEFORE
-                                                                                                // snkStmt
-
+        // start at line BEFORE snkStmt
+        foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query); 
         Util.Print(logger.dumpEdgeStats());
         if (foundWitness) {
           return null;
@@ -808,17 +789,15 @@ public class Main {
                                                         // witness
   }
 
-  // returns true if error path still exists after removing weak references,
-  // false otherwise
-  public static boolean removeWeakReferences(MySubGraph<Object> graphView, Object srcKey, Collection<Object> snkKey, HeapGraph hg,
+  // returns error path without weak refs if one can be found, null otherwise
+  public static List<Object> removeWeakReferences(MySubGraph<Object> graphView, Object srcKey, Object snkKey, HeapGraph hg,
       IClassHierarchy cha) {
     boolean foundWeakRef;
     for (;;) {
       foundWeakRef = false;
-      BFSPathFinder<Object> bfs = new BFSPathFinder<Object>(graphView, srcKey, new CollectionFilter<Object>(snkKey));
+      BFSPathFinder<Object> bfs = new BFSPathFinder<Object>(graphView, srcKey, new CollectionFilter<Object>(Collections.singletonList(snkKey)));
       List<Object> path = bfs.find();
-      if (path == null)
-        return false;
+      if (path == null) return null;
 
       int srcIndex = 1, snkIndex = 0;
       Object fieldKey = null;
@@ -832,8 +811,6 @@ public class Main {
           } else if (src instanceof InstanceFieldKey) {
             InstanceFieldKey ifk = (InstanceFieldKey) src;
             fieldKey = ifk;
-            String instanceFieldName = ifk.getField().getName().toString();
-            String className = ifk.getField().getDeclaringClass().toString();
           } else {
             Util.Assert(false, "UNSUPPORTED POINTER KEY TYPE!" + src);
           }
@@ -857,7 +834,7 @@ public class Main {
             System.out.println(path.get(i) + " (" + path.get(i).getClass() + ")");
           System.out.println("</FIELD PATH>");
         }
-        return true;
+        return path;
       }
     }
   }
