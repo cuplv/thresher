@@ -250,8 +250,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public void removeLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
-    if (!Options.LOOP_INVARIANT_INFERENCE)
-      pointsToQuery.removeLoopProduceableConstraints(loopHead, currentNode);
+    if (!Options.LOOP_INVARIANT_INFERENCE) pointsToQuery.removeLoopProduceableConstraints(loopHead, currentNode);
     // else, only need to drop path constraints; we're computing a fixed point
     // over pt-constraints
     // super.removeLoopProduceableConstraints(loopHead, currentNode);
@@ -305,14 +304,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
               PointerVariable pointedTo = this.pointsToQuery.getPointedTo(term.getObject());
               if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
                 FieldReference fieldRef = term.getFirstField();
-                if (fieldRef == null)
-                  continue;
+                if (fieldRef == null) continue;
                 IField fld = cha.resolveField(fieldRef);
-                if (fld == null)
-                  continue;
+                if (fld == null) continue;
                 PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
-                if (fieldKey == null)
-                  continue;
+                if (fieldKey == null) continue;
                 if (callKeys.contains(fieldKey)) {
                   toDrop.add(constraint);
                   break;

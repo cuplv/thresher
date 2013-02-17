@@ -548,25 +548,28 @@ public class PointsToQuery implements IQuery {
           toRemove.add(edge);
         }
       }
-      for (PointsToEdge edge : toRemove)
+      for (PointsToEdge edge : toRemove) {
         Util.Assert(constraints.remove(edge), "Couldn't remove edge " + edge + " from " + this);
-      for (PointsToEdge edge : toAdd)
+      }
+      for (PointsToEdge edge : toAdd) {
         Util.Assert(addConstraint(edge), "Couldn't add edge " + edge);
+      }
     }
 
     toRemove.clear();
     Util.Debug("binding formals to actuals: caller " + callerMethod + "; callee: " + calleeMethod);
     Set<PointerVariable> formalsAssigned = new HashSet<PointerVariable>();
+
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       PointerVariable arg = new ConcretePointerVariable(callerMethod, instr.getUse(i), this.depRuleGenerator.getHeapModel());
       PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.depRuleGenerator.getHeapModel());
+      
       for (PointsToEdge edge : constraints) {
         if (edge.getSource().equals(arg)) {
-          // Util.Debug("binding " + formal + " to " + edge.getSink());
+          //Util.Debug("binding " + formal + " to " + edge.getSink());
           PointsToEdge newEdge = new PointsToEdge(formal, edge.getSink());
 
           // DEBUG
-
           for (PointsToEdge prod : produced) {
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
               // multipe assignments to formal; let's see if ther consistent
@@ -582,10 +585,6 @@ public class PointsToQuery implements IQuery {
                           + Util.constraintSetToString(produced));
               }
             }
-            // Util.Assert(!prod.getSource().equals(formal) ||
-            // prod.equals(newEdge),
-            // "multiple assignments to " + formal + " edge " + newEdge +
-            // " produced " + Util.constraintSetToString(produced));
           }
 
           for (PointsToEdge prod : constraints) {
@@ -603,13 +602,10 @@ public class PointsToQuery implements IQuery {
                           + Util.constraintSetToString(constraints));
               }
             }
-            // Util.Assert(!prod.getSource().equals(formal) ||
-            // prod.equals(newEdge),
-            // "multiple assignments to " + formal + " edge " + newEdge +
-            // " produced " + Util.constraintSetToString(produced));
           }
 
           // END DEBUG
+           
           for (PointsToEdge removeMe : toRemove)
             Util.Assert(produced.remove(removeMe), "couldn't remove edge " + removeMe);
           toRemove.clear();
@@ -642,8 +638,8 @@ public class PointsToQuery implements IQuery {
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, Set<PointerVariable> extraVars) {
     if (Options.GEN_DEPENDENCY_RULES_EAGERLY)
       depRuleGenerator.generateRulesForNode(callee);
-    CGNode caller = currentPath.getCurrentNode(); // the call instruction occurs
-                                                  // in the caller
+    // the call instruction occurs in the caller
+    CGNode caller = currentPath.getCurrentNode(); 
     // need to do this even if there are no rules at the line because the return
     // value may be important (and is not represented in the dependency rules)
     Set<PointerVariable> formalsAlreadyAssigned = bindFormalsToActuals(instr, caller, callee);
@@ -667,18 +663,17 @@ public class PointsToQuery implements IQuery {
     // rule;
     Set<Integer> assignedParams = new HashSet<Integer>();
 
-    for (DependencyRule rule : rulesAtLine) { // create map of rules to
-                                              // parameters
+    for (DependencyRule rule : rulesAtLine) { // create map of rules to parameters
       // Util.Assert(calleeMethod.getSignature().equals(
       // rule.getShown().getSource().getNode().getMethod().getSignature()),
       // "method signatures don't match! " +
       // instr.getCallSite().getDeclaredTarget().getSignature() + " and " +
       // rule.getShown().getSource().getNode().getMethod().getSignature());
       Util.Debug("trying rule for call " + rule);
-      if (formalsAlreadyAssigned.contains(rule.getShown().getSource())) {
-        Util.Debug("formal already assigned; continuing");
-        continue; // this formal is already spoken for
-      }
+      //if (formalsAlreadyAssigned.contains(rule.getShown().getSource())) {
+        //Util.Debug("formal already assigned; continuing");
+        //continue; // this formal is already spoken for
+      //}
       if (isRuleRelevant(rule, currentPath, extraVars)) {
         int paramId = rule.getShown().getSource().hashCode();
         Set<DependencyRule> newRules = isRuleConsistent(rule, this, new TreeSet<DependencyRule>(), this.unsatCore,

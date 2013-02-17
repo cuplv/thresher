@@ -50,8 +50,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   @Override
   boolean handleLoopHead(IPathInfo info, SSAInstruction instr) {
     Util.Pre(WALACFGUtil.isLoopHead(info.getCurrentBlock(), info.getCurrentNode().getIR()), "only call this on paths at loop head!");
-    if (Options.DEBUG)
-      Util.Debug("at loop head on path " + info.getPathId());
+    if (Options.DEBUG) Util.Debug("at loop head on path " + info.getPathId());
     final String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
     IBranchPoint point = branchPointMap.get(key);
     final SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
@@ -61,8 +60,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // normalize query w.r.t to loop produceable constraints in order to get
     // more mileage out of summaries
     info.removeLoopProduceableConstraints(currentBlock);
-    if (info.foundWitness())
-      return true;
+    if (info.foundWitness()) return true;
 
     // use summaries to avoid redundant exploration
     Pair<CGNode, Integer> loopKey = Pair.make(info.getCurrentNode(), info.getCurrentBlock().getNumber());
@@ -224,11 +222,10 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (path.isLoopMergeIndicator()) { // special case for merging loops; we
                                          // must do so eagerly or we will drop
                                          // too many constraints
-        if (Options.DEBUG)
-          Util.Debug("forcing loop merge");
+        if (Options.DEBUG) Util.Debug("forcing loop merge");
         if (!branchPointStack.isEmpty())
-          return mergeBranchPointForLoopHead(path.getCurrentBlock()); // do
-                                                                      // merge
+          return mergeBranchPointForLoopHead(path.getCurrentBlock()); 
+                                                                      
         else
           return this.selectPath(); // else do nothing
         // else Util.Assert(false, "couldn't find branch point for loop head " +
@@ -614,10 +611,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * @return - top path in path stack if there is one, null otherwise
    */
   public IPathInfo mergeBranchPointForLoopHead(SSACFG.BasicBlock mergeBlock) {
-    if (Options.DEBUG)
-      Util.Pre(!branchPointStack.isEmpty(), "Trying to merge with no mergeable branch points!");
-    if (branchPointStack.peek().isDummy())
-      return null;
+    if (Options.DEBUG) Util.Pre(!branchPointStack.isEmpty(), "Trying to merge with no mergeable branch points!");
+    if (branchPointStack.peek().isDummy()) return null;
     IBranchPoint point = branchPointStack.pop();
     branchPointMap.remove(point.getBranchPointKey());
     if (!point.getBlock().equals(mergeBlock)) {

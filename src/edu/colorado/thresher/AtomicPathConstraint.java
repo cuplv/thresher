@@ -1,12 +1,14 @@
 package edu.colorado.thresher;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
 import z3.java.Z3AST;
 import z3.java.Z3Context;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -14,7 +16,6 @@ import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
-import com.ibm.wala.shrikeBT.IUnaryOpInstruction.Operator;
 import com.ibm.wala.types.FieldReference;
 
 /**
@@ -409,18 +410,34 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     Set<SimplePathTerm> terms = this.getTerms();
     for (SimplePathTerm term : terms) {
       if (term.getObject() != null && term.getFields() != null) {
-        PointerVariable pointedTo = term.getObject();// this.pointsToQuery.getPointedTo(term.getObject());
-        if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
-          FieldReference fieldRef = term.getFirstField();
-          if (fieldRef == null)
-            continue;
-          IField fld = cha.resolveField(fieldRef);
-          if (fld == null)
-            continue;
-          PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
-          if (fieldKey == null)
-            continue;
-          keysForConstraint.add(fieldKey);
+        PointerVariable pointedTo = term.getObject();
+        if (pointedTo != null) {
+          if (pointedTo.getInstanceKey() instanceof InstanceKey) {
+            FieldReference fieldRef = term.getFirstField();
+            if (fieldRef == null) continue;
+            IField fld = cha.resolveField(fieldRef);
+            if (fld == null) continue;
+            PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
+            if (fieldKey == null) continue;
+            keysForConstraint.add(fieldKey);
+          } else if (pointedTo != null && pointedTo.getInstanceKey() instanceof LocalPointerKey) {
+            LocalPointerKey lpk = (LocalPointerKey) pointedTo.getInstanceKey();
+            FieldReference fieldRef = term.getFirstField();
+            if (fieldRef == null) continue;
+            IField fld = cha.resolveField(fieldRef);
+            if (fld == null) continue;
+            HeapGraph hg = depRuleGenerator.getHeapGraph();
+            // TODO: use points-to constraints here when applicable
+            Iterator<Object> succs = hg.getSuccNodes(lpk);
+            while (succs.hasNext()) {
+              Object next = succs.next();
+              if (next instanceof InstanceKey) {
+                PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) next, fld);
+                if (fieldKey == null) continue;
+                keysForConstraint.add(fieldKey);
+              }
+            }
+          }
         }
       }
     }
