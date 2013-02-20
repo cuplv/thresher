@@ -46,12 +46,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
       return false;
     }
 
-    // have we been at the function boundary for this node before?
-    if (!path.addSeen(path.getCurrentNode())) {
-      Util.Debug("have seen producer " + path.getCurrentNode() + " before, refuting");
-      return false;
-    }
-
     // get potential producers for constraints
     Set<CGNode> producers = Util.flatten(copy.getModifiersForQuery().values());
     if (Options.DEBUG) {
@@ -65,6 +59,12 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     boolean result = this.handleFakeWorldClinit(classInitPath);
     if (result) return true; // found witness in fakeWorldClinit
     // else, refuted; try other producers
+
+    // have we been at the function boundary for this node before?
+    if (!path.addSeen(path.getCurrentNode())) {
+      Util.Debug("have seen producer " + path.getCurrentNode() + " before, refuting");
+      return false;
+    }
 
     for (CGNode producer : producers) {
       //IPathInfo newPath = copy.deepCopy();
