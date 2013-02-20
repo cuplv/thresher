@@ -61,8 +61,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
   
   @Override
   public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
-    if (!Options.CALLGRAPH_PRUNING)
-      return this.callGraph.getPredNodes(path.getCurrentNode());
+    if (!Options.CALLGRAPH_PRUNING) return this.callGraph.getPredNodes(path.getCurrentNode());
     IPathInfo copy = path.deepCopy();
     CGNode node = copy.getCurrentNode();
 

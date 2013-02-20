@@ -1,14 +1,11 @@
 package edu.colorado.thresher;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -20,6 +17,8 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
@@ -47,7 +46,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     this.callGraph = callGraph;
     this.logger = logger;
     this.pathsToExplore = new LinkedList<IPathInfo>();
-    this.seenPaths = new HashMap<CGNode, Set<IPathInfo>>();
+    this.seenPaths = HashMapFactory.make();//new HashMap<CGNode, Set<IPathInfo>>();
   }
 
   /**
@@ -97,6 +96,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       if (++pathCount > Options.PATH_EXPLORE_LIMIT || oom) {
         logger.logTimeout();
         Util.Print("TIMEOUT");
+        Util.Print("oom? " + oom);
         Util.Print("Had " + pathsToExplore.size() + " paths left to explore");
         logger.logPathCount(pathCount);
         return true;
@@ -167,7 +167,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     if (seen == null) {
       // create seen and add this path to it
       // seen = new TreeSet<IPathInfo>();
-      seen = new HashSet<IPathInfo>();
+      seen = HashSetFactory.make();//new HashSet<IPathInfo>();
       seenPaths.put(path.getCurrentNode(), seen);
       seen.add(path);
     } else {
@@ -202,11 +202,30 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
   /**
    * exposed to allow the inclusion of heuristics for not exploring certain
-   * callers this implementation uses no heuristics and simply returns all
+   * callers. this implementation uses no heuristics and simply returns all
    * callers
    */
+  
   @Override
   public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
+    /* TODO: determinize
+    List<CGNode> callers = new LinkedList<CGNode>();
+    
+    Iterator<CGNode> preds = graph.getPredNodes(path.getCurrentNode());
+    while (preds.hasNext()) {
+      callers.add(preds.next());
+    }
+      
+    if (callers.size() > 1) {
+      Collections.sort(callers, new Comparator<CGNode>() {
+        public int compare(CGNode node1, CGNode node2) {
+          // TODO: are graph node Id's consistent across different runs?
+          return node1.getGraphNodeId() - node2.getGraphNodeId();
+        }
+      });
+    }
+    */
+    
     return graph.getPredNodes(path.getCurrentNode());
   }
 
@@ -225,18 +244,15 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         addPath(path); // add path if it is feasible
       return false;
     } // else, call stack is empty; we are branching backwards into caller
-    if (Options.DEBUG)
-      Util.Debug("at function boundary for path " + path.getCurrentNode());
+    if (Options.DEBUG) Util.Debug("at function boundary for path " + path.getCurrentNode());
 
-    if (isPathInSummary(path))
-      return false; // summary makes path redundant
+    if (isPathInSummary(path)) return false; // summary makes path redundant
 
     CGNode callee = path.getCurrentNode();
 
     // if this is an entrypoint and the only call is FakeRootNode
     if (this.callGraph.getEntrypointNodes().contains(callee) && this.callGraph.getPredNodeCount(callee) == 1) {
-      if (Options.DEBUG)
-        Util.Debug("reached entrypoint!");
+      if (Options.DEBUG) Util.Debug("reached entrypoint!");
       // Util.Print(callers.next().getIR().toString());
       CGNode entrypoint = path.getCurrentNode();
 
@@ -244,11 +260,9 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       easyWitness.setCurrentNode(WALACFGUtil.getFakeWorldClinitNode(callGraph));
       // first, try getting easy witness by going straight from entrypoint to
       // fakeWorldClinit
-      if (Options.DEBUG)
-        Util.Debug("trying to get easy witness in fakeWorldClinit");
+      if (Options.DEBUG) Util.Debug("trying to get easy witness in fakeWorldClinit");
       if (handleFakeWorldClinit(easyWitness)) {
-        if (Options.DEBUG)
-          Util.Debug("got easy witness in fakeWorldClinit");
+        if (Options.DEBUG) Util.Debug("got easy witness in fakeWorldClinit");
         easyWitness.declareFakeWitness();
         return true;
       }

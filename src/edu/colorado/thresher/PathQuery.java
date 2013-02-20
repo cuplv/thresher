@@ -97,20 +97,21 @@ public class PathQuery implements IQuery {
     this.witnessList = new LinkedList<AtomicPathConstraint>();
     this.currentPathAssumption = null;
   }
+  
+  public void dispose() { ctx.delete(); }
 
   // constructor for deep copying only
   // PathQuery(TreeSet<AtomicPathConstraint> constraints, Set<PointerVariable>
   // pathVars, List<AtomicPathConstraint> witnessList,
   PathQuery(Set<AtomicPathConstraint> constraints, Set<PointerVariable> pathVars, List<AtomicPathConstraint> witnessList,
-      AbstractDependencyRuleGenerator depRuleGenerator) { // Z3Context ctx) {
+      AbstractDependencyRuleGenerator depRuleGenerator, Z3Context ctx) {
     this.constraints = constraints;
     this.pathVars = pathVars;
     this.witnessList = witnessList;
     this.depRuleGenerator = depRuleGenerator;
     this.heapModel = depRuleGenerator.getHeapModel();
-    this.ctx = new Z3Context(new Z3Config());
+    this.ctx = ctx; //new Z3Context(new Z3Config());
     this.currentPathAssumption = null;
-    ;
     rebuildZ3Constraints();
   }
 
@@ -120,7 +121,7 @@ public class PathQuery implements IQuery {
     // Util.deepCopySet(pathVars), Util.deepCopyList(witnessList),
     // depRuleGenerator);//, ctx);
     return new PathQuery(Util.deepCopySet(constraints), Util.deepCopySet(pathVars), Util.deepCopyList(witnessList),
-        depRuleGenerator);// , ctx);
+        depRuleGenerator, ctx);// , ctx);
   }
 
   @Override
@@ -852,9 +853,8 @@ public class PathQuery implements IQuery {
 
     if (!result) {
       this.feasible = false;
-      if (Options.DEBUG)
-        Util.Debug("refuted by path constraint!");
-      ctx.delete();
+      if (Options.DEBUG) Util.Debug("refuted by path constraint!");
+      //ctx.delete();
       // deleted = true;
     }
     return result;
@@ -1322,8 +1322,8 @@ public class PathQuery implements IQuery {
     if (other.constraints.isEmpty()) return true;
     if (this.constraints.isEmpty()) return false;
     // temporary context for performing implication checking
-    Z3Context tmp = new Z3Context(new Z3Config());
-    Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
+    final Z3Context tmp = new Z3Context(new Z3Config());
+    final Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
     int i = 0;
     for (AtomicPathConstraint constraint : this.constraints) {
       conjuncts0[i++] = constraint.toZ3AST(tmp);
@@ -1333,13 +1333,15 @@ public class PathQuery implements IQuery {
       conjuncts1[i++] = constraint.toZ3AST(tmp);
     }
 
-    Z3AST implLHS = tmp.mkAnd(conjuncts0);
-    Z3AST implRHS = tmp.mkAnd(conjuncts1);
-    tmp.assertCnstr(implLHS);
+    final Z3AST implLHS = tmp.mkAnd(conjuncts0);
+    final Z3AST implRHS = tmp.mkAnd(conjuncts1);
+    //tmp.assertCnstr(implLHS);
     // ask: is there some assignment for which LHS does not imply RHS?
     tmp.assertCnstr(tmp.mkNot(tmp.mkImplies(implLHS, implRHS)));
     // if not, then we know LHS => RHS for all values
-    return !tmp.check();
+    boolean result = !tmp.check();
+    tmp.delete();
+    return result;//!tmp.check();
   }
 
   @Override

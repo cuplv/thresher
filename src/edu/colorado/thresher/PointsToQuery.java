@@ -1802,6 +1802,9 @@ public class PointsToQuery implements IQuery {
       return false;
     return this.constraints.contains(constraint);
   }
+  
+  @Override
+  public void dispose() { }
 
   /*
    * @Override public boolean equals(Object other) { if (!(other instanceof

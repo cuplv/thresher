@@ -182,6 +182,8 @@ public interface IQuery { // extends Comparable {
   public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath);
 
   public List<DependencyRule> getWitnessList();
+  
+  public void dispose();
 
   /**
    * Query that is always refuted (cannot be witnessed)
@@ -224,6 +226,9 @@ public interface IQuery { // extends Comparable {
     public List<DependencyRule> getWitnessList() {
       return null;
     }
+    
+    @Override
+    public void dispose() { }
     
     @Override
     public int hashCode() {

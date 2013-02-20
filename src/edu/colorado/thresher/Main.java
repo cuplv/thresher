@@ -5,10 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +48,7 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.CollectionFilter;
+import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
@@ -116,7 +114,7 @@ public class Main {
         "CallPruningNoRefute", "SingletonNoRefute" };
 
     // tests that we expect to fail under piecewise execution
-    final Set<String> piecewiseExceptions = new HashSet<String>();
+    final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
     piecewiseExceptions.add("SimpleDynamicDispatchRefute");
     piecewiseExceptions.add("NullRefute");
     piecewiseExceptions.add("SimpleDisjunctiveRefute");
@@ -308,8 +306,8 @@ public class Main {
   public static boolean runAnalysis(String appPath, String[] srcStrings, String[] snkStrings, Set<String> refutedEdges,
       boolean fakeMap) throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
-    Set<IField> staticFields = new HashSet<IField>();
-    Set<MethodReference> saveMethods = new HashSet<MethodReference>();
+    Set<IField> staticFields = HashSetFactory.make();
+    Set<MethodReference> saveMethods = HashSetFactory.make();
     Util.Print("Starting on " + appPath);
     Logger logger = new Logger(appPath);
     long start = System.currentTimeMillis();
@@ -430,9 +428,9 @@ public class Main {
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
 
     // using LinkedHashSet for deterministic iteration order
-    Set<Pair<Object, Object>> fieldErrorList = new LinkedHashSet<Pair<Object, Object>>();
+    Set<Pair<Object, Object>> fieldErrorList = HashSetFactory.make();
     // map from fields -> Acts that leak via that field
-    Map<String, Set<IClass>> leakedActivities = new HashMap<String, Set<IClass>>(); 
+    Map<String, Set<IClass>> leakedActivities = HashMapFactory.make();
 
     for (IField f : staticFields) {
       boolean skipThis = false;
@@ -464,7 +462,7 @@ public class Main {
           if (removeWeakReferences(graphView, field, node, hg, cha) != null) {
             Set<IClass> leaked = leakedActivities.get(field.toString());
             if (leaked == null) {
-              leaked = new HashSet<IClass>();
+              leaked = HashSetFactory.make();
               leakedActivities.put(field.toString(), leaked);
               Util.Print("found field error " + field);
               logger.logErrorField();
@@ -721,7 +719,7 @@ public class Main {
   private static List<Pair<InstanceKey, Object>> generateWitness(PointsToEdge witnessMe,
       AbstractDependencyRuleGenerator depRuleGenerator, IClassHierarchy cha, HeapGraph hg, CallGraph cg,
       Set<PointsToEdge> refutedEdges, Logger logger) {
-    final Set<PointsToEdge> toProduce = new HashSet<PointsToEdge>();
+    final Set<PointsToEdge> toProduce = HashSetFactory.make();
     toProduce.add(witnessMe);
 
     // find potential last rule(s) applied in witness
@@ -751,7 +749,7 @@ public class Main {
       int startLine = snkStmt.getLineNum();
       if (DEBUG)
         Util.Debug("start line is " + startLine);
-      final Set<CGNode> potentialNodes = new HashSet<CGNode>();
+      final Set<CGNode> potentialNodes = HashSetFactory.make();
       potentialNodes.add(lastRule.getNode());
       int numContexts = potentialNodes.size();
 
@@ -776,7 +774,8 @@ public class Main {
         else
           exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
         // start at line BEFORE snkStmt
-        foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query); 
+        foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query);
+        query.dispose(); // have the query free any resources it might be using (theorem prover contexts e.t.c)
         Util.Print(logger.dumpEdgeStats());
         if (foundWitness) {
           return null;

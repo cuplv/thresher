@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,6 +28,8 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
@@ -68,7 +69,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   CombinedPathAndPointsToQuery(PointsToQueryWrapper pointsToQuery, PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator); // pathQuery.ctx);
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx); // pathQuery.ctx);
     this.pointsToQuery = pointsToQuery;
   }
 
@@ -151,7 +152,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
-    List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, new HashSet<PointsToEdge>());
+    Set<PointsToEdge> edgeSet = HashSetFactory.make();
+    List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, edgeSet);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     if (Options.DEBUG) Util.Debug("CONS " + this.toString());
 
@@ -306,7 +308,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     // the loop may also contain callees. drop any constraint containing vars
     // that these callees can write to
     Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
-    Set<AtomicPathConstraint> toDrop = new HashSet<AtomicPathConstraint>();
+    Set<AtomicPathConstraint> toDrop = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
     // drop all vars that can be written by a call in the loop body
     for (CGNode callNode : targets) { 
       OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
@@ -373,8 +375,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   void dropConstraintsProuceableByRuleSet(Set<DependencyRule> rules) {
-    Set<PointerVariable> toDrop = new HashSet<PointerVariable>();
-    Set<PointerVariable> relevantVars = new HashSet<PointerVariable>();
+    Set<PointerVariable> toDrop = HashSetFactory.make(); //new HashSet<PointerVariable>();
+    Set<PointerVariable> relevantVars = HashSetFactory.make();// new HashSet<PointerVariable>();
     for (PointerVariable var : this.pathVars) {
       if (!var.isLocalVar())
         relevantVars.add(var);
@@ -602,7 +604,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   private Map<Constraint, Set<CGNode>> getModifiersForQueryHelper() {
     Map<PointerKey, Set<CGNode>> reversedModRef = this.depRuleGenerator.getReversedModRef();
-    Map<Constraint, Set<CGNode>> constraintModMap = new HashMap<Constraint, Set<CGNode>>();
+    Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make();//new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = new HashSet<CGNode>();
       addInitsForConstraintFields(constraint, nodes);

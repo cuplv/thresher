@@ -1,12 +1,11 @@
 package edu.colorado.thresher;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.Collection;
+import java.util.TreeSet;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -41,12 +40,13 @@ import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.OrdinalSet;
 import com.ibm.wala.util.strings.Atom;
 
 public class AbstractDependencyRuleGenerator {
 
-  private static boolean VISUALIZE = false;
   private boolean DEBUG;
 
   // map from globally unique line id to call graph nodes containing that line
@@ -75,7 +75,7 @@ public class AbstractDependencyRuleGenerator {
   // don't do redundant work
   private final Set<CGNode> alreadyGenerated;
 
-  private final HashMap<Integer, DependencyRule> rules;
+  private final Map<Integer, DependencyRule> rules;
   private final HeapGraph hg;
   private final HeapModel heapModel;
   private final CallGraph cg;
@@ -85,7 +85,6 @@ public class AbstractDependencyRuleGenerator {
   // ALL files
   private int lineIdCounter;
 
-  private Set<PointsToEdge> refutedEdges;
   private final Map<CGNode, OrdinalSet<PointerKey>> modRef;
   private Map<PointerKey, Set<CGNode>> reversedModRef;
 
@@ -101,19 +100,18 @@ public class AbstractDependencyRuleGenerator {
     this.lineIdCounter = 0;
     // list of all dependency rules
     // rules = new LinkedList<DependencyRule>();
-    this.rules = new HashMap<Integer, DependencyRule>();
+    this.rules = HashMapFactory.make();
     // map of (globally) unique line number to IR containing instruction at line
     // number
-    this.lineMethodMap = new HashMap<Integer, Set<CGNode>>();
-    this.methodLineMap = new HashMap<IMethod, Integer>();
-    this.instrLineMap = new HashMap<SSAInstruction, Integer>();
+    this.lineMethodMap = HashMapFactory.make();//new HashMap<Integer, Set<CGNode>>();
+    this.methodLineMap = HashMapFactory.make();//new HashMap<IMethod, Integer>();
+    this.instrLineMap = HashMapFactory.make();//new HashMap<SSAInstruction, Integer>();
     // this.instrModMap = new HashMap<SSAInstruction,Set<DependencyRule>>();
-    this.alreadyGenerated = new HashSet<CGNode>();
-    this.nodeRuleMap = new HashMap<CGNode, TreeSet<DependencyRule>>();
-    this.nodeAndCalleesRuleMap = new HashMap<CGNode, TreeSet<DependencyRule>>();
-    this.instrModMap = new HashMap<String, TreeSet<DependencyRule>>();
+    this.alreadyGenerated = HashSetFactory.make();// new HashSet<CGNode>();
+    this.nodeRuleMap = HashMapFactory.make();//new HashMap<CGNode, TreeSet<DependencyRule>>();
+    this.nodeAndCalleesRuleMap = HashMapFactory.make();//new HashMap<CGNode, TreeSet<DependencyRule>>();
+    this.instrModMap = HashMapFactory.make();//new HashMap<String, TreeSet<DependencyRule>>();
     this.modRef = modRef;
-    this.refutedEdges = refutedEdges;
     this.cache = cache;
     // generateRules();
   }
@@ -122,7 +120,7 @@ public class AbstractDependencyRuleGenerator {
     rules.clear();
   }
 
-  static Set<DependencyRule> EMPTY = new HashSet<DependencyRule>();
+  static Set<DependencyRule> EMPTY = HashSetFactory.make();//new HashSet<DependencyRule>();
 
   public Set<DependencyRule> getRulesForNode(CGNode node) {
     this.generateRulesForNode(node);
@@ -156,7 +154,7 @@ public class AbstractDependencyRuleGenerator {
     Util.Unimp("don't call this.");
     Set<DependencyRule> rules = this.nodeAndCalleesRuleMap.get(node);
     if (rules == null) {
-      Set<CGNode> explored = new HashSet<CGNode>();
+      Set<CGNode> explored = HashSetFactory.make();//new HashSet<CGNode>();
       rules = getRulesForNodeAndCallees(node, explored);
     } // else, rules already cached
     return filterOutRefuted(rules);
@@ -498,7 +496,7 @@ public class AbstractDependencyRuleGenerator {
             PointerVariable rhsPointer = Util.makePointerVariable(use);
             PointerStatement stmt = new PointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
                 lineNum);
-            Set<InstanceKey> possibleRHSs = new HashSet<InstanceKey>();
+            Set<InstanceKey> possibleRHSs = HashSetFactory.make();//new HashSet<InstanceKey>();
             Iterator<Object> iter = hg.getSuccNodes(use);
             while (iter.hasNext()) {
               Object next = iter.next();
@@ -531,7 +529,7 @@ public class AbstractDependencyRuleGenerator {
         PointerVariable rhsPointer = Util.makePointerVariable(returnValue);
         PointerStatement stmt = new PointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
             lineNum);
-        Set<InstanceKey> possibleRHSs = new HashSet<InstanceKey>();
+        Set<InstanceKey> possibleRHSs = HashSetFactory.make();//new HashSet<InstanceKey>();
         Iterator<Object> iter = hg.getSuccNodes(returnValue);
         while (iter.hasNext()) {
           Object next = iter.next();
@@ -580,8 +578,8 @@ public class AbstractDependencyRuleGenerator {
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointerName, PointerStatement.EdgeType.GetField,
               fieldName, lineId, lineNum);
 
-          Set<InstanceKey> possibleXObjs = new HashSet<InstanceKey>();
-          Set<InstanceKey> possibleFVals = new HashSet<InstanceKey>();
+          Set<InstanceKey> possibleXObjs = HashSetFactory.make();// new HashSet<InstanceKey>();
+          Set<InstanceKey> possibleFVals = HashSetFactory.make();//new HashSet<InstanceKey>();
           Iterator<Object> iter = hg.getSuccNodes(refKey);
           while (iter.hasNext()) { // see what abstract loc's x could possible
                                    // point to
@@ -692,8 +690,8 @@ public class AbstractDependencyRuleGenerator {
           PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
-          Iterator retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
-          Set<InstanceKey> possibleRetvals = new HashSet<InstanceKey>();
+          Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
+          Set<InstanceKey> possibleRetvals = HashSetFactory.make(); //new HashSet<InstanceKey>();
           while (retvalSuccs.hasNext()) {
             possibleRetvals.add((InstanceKey) retvalSuccs.next());
           }
@@ -719,10 +717,10 @@ public class AbstractDependencyRuleGenerator {
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
 
-          Set<InstanceKey> possibleParamVals = new HashSet<InstanceKey>();
+          Set<InstanceKey> possibleParamVals = HashSetFactory.make();// new HashSet<InstanceKey>();
 
           // consider possible values for rhs
-          Iterator ptValues = hg.getSuccNodes(rhsKey);
+          Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
           while (ptValues.hasNext()) {
             possibleParamVals.add((InstanceKey) ptValues.next());
           }
@@ -883,7 +881,7 @@ public class AbstractDependencyRuleGenerator {
           PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
-          Iterator retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
+          Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
           while (retvalSuccs.hasNext()) {
             PointerVariable succ = Util.makePointerVariable(retvalSuccs.next());
             PointsToEdge shown = new PointsToEdge(lhs, succ);
@@ -902,7 +900,6 @@ public class AbstractDependencyRuleGenerator {
           // Util.Assert(!tbl.isStringConstant(j), "found str " +
           // instruction.getCallSite());
           // String varName = Util.makeLocalVarName(method, j+1, cha);
-          String varName = Util.makeLocalVarName(callee, j + 1);
           // System.out.println("var name: " + varName);
           PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
           // System.out.println("LHS " + lhs);
@@ -921,7 +918,7 @@ public class AbstractDependencyRuleGenerator {
           // System.err.println("Same as TYPE: " +
           // instruction.getCallSite().getDeclaredTarget().getParameterType(j));
 
-          Iterator ptValues = hg.getSuccNodes(rhsKey);
+          Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
           // if (!tbl.isConstant(instruction.getUse(j)) && rhsKey.)
           // Util.Assert(ptValues.hasNext(), "no succs for rhsKey " + rhsKey +
           // " " + rhsPointer);
@@ -975,7 +972,7 @@ public class AbstractDependencyRuleGenerator {
       SSAGetInstruction instruction = (SSAGetInstruction) instr;
       FieldReference field = instruction.getDeclaredField();
       // skip getfields of primitive type (optimization)
-      boolean primitive = field.getFieldType().isPrimitiveType();
+      //boolean primitive = field.getFieldType().isPrimitiveType();
       // if (field.getFieldType().isPrimitiveType()) return;
 
       IField f = cg.getClassHierarchy().resolveField(field);
@@ -1012,18 +1009,16 @@ public class AbstractDependencyRuleGenerator {
           // f.getName().toString(), lineId, lineNum);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointerName, PointerStatement.EdgeType.GetField,
               fieldName, lineId, lineNum);
-          Set<Object> seenRHSes = new HashSet<Object>();
 
-          int ruleCounter = 0;
           // deref level 1 : what reference ref0 does the local var point to?
-          Iterator ref0Values = hg.getSuccNodes(refKey);
+          Iterator<Object> ref0Values = hg.getSuccNodes(refKey);
           while (ref0Values.hasNext()) {
             Object ref0 = ref0Values.next();
             PointerVariable rhsPointer = Util.makePointerVariable(ref0);
             // deref level 2 : what reference ref1 does ref0 point to through
             // its field?
 
-            Iterator ref1Values = hg.getSuccNodes(ref0);
+            Iterator<Object> ref1Values = hg.getSuccNodes(ref0);
             while (ref1Values.hasNext()) {
               Object ref1 = ref1Values.next();
               Util.Assert(ref1 instanceof InstanceFieldKey, "What's going on here? " + ref1 + " not an instance field key");
@@ -1033,7 +1028,7 @@ public class AbstractDependencyRuleGenerator {
               // if (f == ifk.getField()) {
               if (f.equals(ifk.getField())) {
                 // deref level 3 : what reference ref2 does the ref1 point to?
-                Iterator ref2Values = hg.getSuccNodes(ref1);
+                Iterator<Object> ref2Values = hg.getSuccNodes(ref1);
                 // Util.Assert(ref2Values.hasNext(), ref1 +
                 // " has no successors! huh?");
 
@@ -1229,7 +1224,7 @@ public class AbstractDependencyRuleGenerator {
     // generate dependency rule for each possible value of rhs
     // Iterator<Object> ptValues = hg.getSuccNodes(lhsKey);
     Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
-    Set<InstanceKey> possibleKeys = new HashSet<InstanceKey>();
+    Set<InstanceKey> possibleKeys = HashSetFactory.make();// new HashSet<InstanceKey>();
     while (ptValues.hasNext()) {
       Object next = ptValues.next();
       Util.Assert(next instanceof InstanceKey, "found non-instance key " + next);
@@ -1351,7 +1346,7 @@ public class AbstractDependencyRuleGenerator {
     PointerStatement stmt = Util.makePointerStatement(instr, x, y, PointerStatement.EdgeType.PutField, field.toString(), lineId,
         lineNum);
 
-    Set<InstanceKey> possibleXObjs = new HashSet<InstanceKey>(), possibleYVals = new HashSet<InstanceKey>();
+    Set<InstanceKey> possibleXObjs = HashSetFactory.make(), possibleYVals = HashSetFactory.make();
     // consider possible values for x
     Iterator<Object> fieldValues = hg.getSuccNodes(lhsKey);
     while (fieldValues.hasNext()) {
@@ -1437,8 +1432,8 @@ public class AbstractDependencyRuleGenerator {
     PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.PutField,
         PointerStatement.ARRAY, lineId, lineNum);
 
-    Set<InstanceKey> possibleXValues = new HashSet<InstanceKey>();
-    Set<InstanceKey> possibleYValues = new HashSet<InstanceKey>();
+    Set<InstanceKey> possibleXValues = HashSetFactory.make();//new HashSet<InstanceKey>();
+    Set<InstanceKey> possibleYValues = HashSetFactory.make();//new HashSet<InstanceKey>();new HashSet<InstanceKey>();
 
     // consider possible values for x
     Iterator<Object> xValues = hg.getSuccNodes(lhsKey);
@@ -1508,7 +1503,7 @@ public class AbstractDependencyRuleGenerator {
    */
   // end test
 
-  public HashMap<Integer, DependencyRule> getRules() {
+  public Map<Integer, DependencyRule> getRules() {
     return rules;
   }
 
@@ -1532,7 +1527,7 @@ public class AbstractDependencyRuleGenerator {
   public void addToLineMethodMap(int line, CGNode node) {
     Set<CGNode> methods = lineMethodMap.get(line);
     if (methods == null) {
-      methods = new HashSet<CGNode>();
+      methods = HashSetFactory.make();//new HashSet<CGNode>();
       // System.err.println("linemethod adding " + node);
       methods.add(node);
       lineMethodMap.put(line, methods);
@@ -1588,11 +1583,7 @@ public class AbstractDependencyRuleGenerator {
       if (Options.ABSTRACT_DEPENDENCY_RULES) {
         return generateAbstractRulesForInstr(instr, node, 0, 1, node.getIR());
       } else {
-        String instrKey = makeKeyForInstr(instr, node);
-        // Set<DependencyRule> rules = instrModMap.get(instrKey);
-        // if (rules == null) {
         Set<DependencyRule> rules = visit(instr, node, 0, 1, node.getIR());
-        // }
         return rules;
       }
     }
@@ -1613,21 +1604,18 @@ public class AbstractDependencyRuleGenerator {
           lineId, lineNum);
       // PointerStatement stmt = Util.makePointerStatement(lhs, rhsPointerName,
       // PointerStatement.ARRAY, fieldName, lineId, lineNum);
-      Set<Object> seenRHSes = new HashSet<Object>();
-
-      int ruleCounter = 0;
       // deref level 1 : what reference ref0 does the local var point to?
-      Iterator ref0Values = hg.getSuccNodes(refKey);
+      Iterator<Object> ref0Values = hg.getSuccNodes(refKey);
       while (ref0Values.hasNext()) {
         InstanceKey ref0 = (InstanceKey) ref0Values.next();
         PointerVariable rhsPointer = Util.makePointerVariable(ref0);
         // deref level 2 : what reference ref1 does ref0 point to through its
         // array field?
-        Iterator ref1Values = hg.getSuccNodes(ref0);
+        Iterator<Object> ref1Values = hg.getSuccNodes(ref0);
         while (ref1Values.hasNext()) {
           // deref level 3 : what reference ref2 does the ref1 point to?
           Object ref1 = ref1Values.next();
-          Iterator ref2Values = hg.getSuccNodes(ref1);
+          Iterator<Object> ref2Values = hg.getSuccNodes(ref1);
           while (ref2Values.hasNext()) {
             // generate dependency rule
             PointerVariable rhs = Util.makePointerVariable(ref2Values.next());
@@ -1666,21 +1654,21 @@ public class AbstractDependencyRuleGenerator {
       PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointerName, PointerStatement.EdgeType.GetField, fieldName,
           lineId, lineNum);
 
-      Set<InstanceKey> possibleYObjs = new HashSet<InstanceKey>();
-      Set<InstanceKey> possibleArrValues = new HashSet<InstanceKey>();
+      Set<InstanceKey> possibleYObjs = HashSetFactory.make(); //new HashSet<InstanceKey>();
+      Set<InstanceKey> possibleArrValues = HashSetFactory.make(); //new HashSet<InstanceKey>();
 
       // TODO: possible loss of preicison here (merging contents of all arrays
       // that y can point to). consider addressing if it is a problem
 
       // deref level 1 : what reference ref0 does y point to?
-      Iterator ref0Values = hg.getSuccNodes(refKey);
+      Iterator<Object> ref0Values = hg.getSuccNodes(refKey);
       while (ref0Values.hasNext()) {
         InstanceKey ref0 = (InstanceKey) ref0Values.next();
         possibleYObjs.add(ref0);
-        Iterator ref1Values = hg.getSuccNodes(ref0);
+        Iterator<Object> ref1Values = hg.getSuccNodes(ref0);
         while (ref1Values.hasNext()) { // for each ArrayContentsKey of ref0
           Object ref1 = ref1Values.next();
-          Iterator ref2Values = hg.getSuccNodes(ref1);
+          Iterator<Object> ref2Values = hg.getSuccNodes(ref1);
           while (ref2Values.hasNext()) { // for each possible value in the array
             // generate dependency rule
             possibleArrValues.add((InstanceKey) ref2Values.next());
@@ -1773,7 +1761,7 @@ public class AbstractDependencyRuleGenerator {
 
   public Map<PointerKey, Set<CGNode>> getReversedModRef() {
     if (reversedModRef == null) {
-      reversedModRef = new HashMap<PointerKey, Set<CGNode>>();
+      reversedModRef = HashMapFactory.make();//new HashMap<PointerKey, Set<CGNode>>();
       // create reverse mod/ref mapping: map from PointerKey's to CGNode's that
       // might modify them
       for (CGNode node : modRef.keySet()) { // for each CGNode

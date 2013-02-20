@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
@@ -17,6 +16,7 @@ import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 /**
  * disjunct-free path constraint
@@ -77,7 +77,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     this.rhs = new SimplePathTerm(rhs);
     this.op = op;
     this.id = id;
-    this.vars = new HashSet<PointerVariable>();
+    this.vars = HashSetFactory.make();//new HashSet<PointerVariable>();
     vars.add(lhs);
     vars.add(rhs);
     this.hash = makeHash();
@@ -97,7 +97,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     this.rhs = rhs;
     this.op = op;
     this.id = id;
-    this.vars = new HashSet<PointerVariable>();
+    this.vars = HashSetFactory.make();//new HashSet<PointerVariable>();
     vars.addAll(lhs.getVars());
     vars.addAll(rhs.getVars());
     this.hash = makeHash();
@@ -379,7 +379,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   }
 
   public Set<FieldReference> getFields() {
-    HashSet<FieldReference> fields = new HashSet<FieldReference>();
+    Set<FieldReference> fields = HashSetFactory.make(); //new HashSet<FieldReference>();
     if (lhs.getFields() != null)
       fields.addAll(lhs.getFields());
     if (rhs.getFields() != null)
@@ -389,7 +389,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   
   
   private Set<PointerKey> getPointerKeys() {
-    Set<PointerKey> keys = new HashSet<PointerKey>();
+    Set<PointerKey> keys = HashSetFactory.make(); //new HashSet<PointerKey>();
     keys.addAll(lhs.getPointerKeys());
     keys.addAll(rhs.getPointerKeys());
     return keys;
@@ -402,7 +402,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   public Set<PointerKey> getPointerKeys(AbstractDependencyRuleGenerator depRuleGenerator) {
     ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     HeapModel hm = depRuleGenerator.getHeapModel();
-    Set<PointerKey> keysForConstraint = new HashSet<PointerKey>();
+    Set<PointerKey> keysForConstraint = HashSetFactory.make();//new HashSet<PointerKey>();
     // add pointer keys already known to be associated with this constraint
     keysForConstraint.addAll(this.getPointerKeys());
 
