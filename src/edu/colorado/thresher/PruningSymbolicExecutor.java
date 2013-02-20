@@ -110,7 +110,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     // if (Options.DEBUG) {
     for (CGNode pruneMe : toPrune) {
       if (!reachable.contains(pruneMe)) {
-        Util.Debug("pruned " + pruneMe);
+        Util.Print("pruned " + pruneMe);
         logger.log("prunedCaller");
       }// else Util.Debug("caller " + toPrune + " reachable");
     }

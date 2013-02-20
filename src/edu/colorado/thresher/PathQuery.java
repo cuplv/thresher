@@ -1319,10 +1319,8 @@ public class PathQuery implements IQuery {
   }
 
   public boolean symbContains(PathQuery other) {
-    if (other.constraints.isEmpty())
-      return true;
-    if (this.constraints.isEmpty())
-      return false;
+    if (other.constraints.isEmpty()) return true;
+    if (this.constraints.isEmpty()) return false;
     // temporary context for performing implication checking
     Z3Context tmp = new Z3Context(new Z3Config());
     Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
@@ -1335,34 +1333,13 @@ public class PathQuery implements IQuery {
       conjuncts1[i++] = constraint.toZ3AST(tmp);
     }
 
-    // prevent z3 from giving a satisfying assignment that makes left side of
-    // implication false
     Z3AST implLHS = tmp.mkAnd(conjuncts0);
     Z3AST implRHS = tmp.mkAnd(conjuncts1);
     tmp.assertCnstr(implLHS);
-    tmp.assertCnstr(implRHS);
-    // check this => other
-    tmp.assertCnstr(tmp.mkImplies(implLHS, implRHS));
-    return tmp.check();
-    // Util.Debug(this + " => " + other + "?" + result);
-    // return tmp.check();
-    /*
-     * // TODO: rather than doing this check, should just use Z3 to check
-     * implication here if (other.constraints.isEmpty()) return true; if
-     * (this.constraints.isEmpty()) return false; if (other.constraints.size() >
-     * this.constraints.size()) return false;
-     * 
-     * //Util.Debug("asking if " + this.constraints + " contains " +
-     * otherQuery.constraints);
-     * 
-     * for (AtomicPathConstraint constraint1 : other.constraints) { // for each
-     * constraint in other boolean contained = false; for (AtomicPathConstraint
-     * constraint2 : this.constraints) { // for each constraint in this
-     * //Util.Debug("eq " + constraint1 + " and " + constraint2); if
-     * (constraint2.symbContains(constraint1)) { // if this contains the
-     * constraint from other contained = true; break; } } if (!contained) return
-     * false; } return true;
-     */
+    // ask: is there some assignment for which LHS does not imply RHS?
+    tmp.assertCnstr(tmp.mkNot(tmp.mkImplies(implLHS, implRHS)));
+    // if not, then we know LHS => RHS for all values
+    return !tmp.check();
   }
 
   @Override

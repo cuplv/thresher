@@ -605,7 +605,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Map<Constraint, Set<CGNode>> constraintModMap = new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = new HashSet<CGNode>();
-      addInitsForConstraintFields(constraint,nodes);
+      addInitsForConstraintFields(constraint, nodes);
       // addClassInitsForConstraintFields(constraint, nodes); // add class init
       // if it may write to the constraint
       for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
