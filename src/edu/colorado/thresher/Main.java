@@ -3,12 +3,12 @@ package edu.colorado.thresher;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +21,6 @@ import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.dataflow.IFDS.ICFGSupergraph;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -54,7 +53,6 @@ import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
-import com.ibm.wala.util.config.AnalysisScopeReader;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
@@ -431,7 +429,8 @@ public class Main {
     ModRef modref = ModRef.make();
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
 
-    Set<Pair<Object, Object>> fieldErrorList = new HashSet<Pair<Object, Object>>();
+    // using LinkedHashSet for deterministic iteration order
+    Set<Pair<Object, Object>> fieldErrorList = new LinkedHashSet<Pair<Object, Object>>();
     // map from fields -> Acts that leak via that field
     Map<String, Set<IClass>> leakedActivities = new HashMap<String, Set<IClass>>(); 
 
@@ -565,7 +564,7 @@ public class Main {
       return true;
     }
     // reverse list and print
-    LinkedList newPath = new LinkedList<Object>();
+    LinkedList<Object> newPath = new LinkedList<Object>();
     for (Object edge : errorPath) {
       newPath.addFirst(edge);
       Util.Print(edge.toString());
