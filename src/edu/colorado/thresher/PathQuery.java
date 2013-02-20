@@ -1,7 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +45,8 @@ import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.ssa.SSAUnaryOpInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 /**
  * Query regarding path feasibility containing formulae acquired from path
@@ -92,8 +92,8 @@ public class PathQuery implements IQuery {
     this.heapModel = depRuleGenerator.getHeapModel();
     this.ctx = new Z3Context(new Z3Config());
     // this.constraints = new TreeSet<AtomicPathConstraint>();
-    this.constraints = new HashSet<AtomicPathConstraint>();
-    this.pathVars = new HashSet<PointerVariable>();
+    this.constraints = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
+    this.pathVars = HashSetFactory.make(); //new HashSet<PointerVariable>();
     this.witnessList = new LinkedList<AtomicPathConstraint>();
     this.currentPathAssumption = null;
   }
@@ -634,7 +634,7 @@ public class PathQuery implements IQuery {
     if (Options.DEBUG)
       Util.Debug("subsExpForVar subbing " + toSub + " for " + subFor);
     SimplePathTerm subForTerm = new SimplePathTerm(subFor);
-    Set<AtomicPathConstraint> toAdd = new HashSet<AtomicPathConstraint>();
+    Set<AtomicPathConstraint> toAdd = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
     List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : constraints) {
       // AtomicPathConstraints are (almost) pure, so we can't do substitution
@@ -1364,7 +1364,7 @@ public class PathQuery implements IQuery {
 
   @Override
   public void intializeStaticFieldsToDefaultValues() {
-    Set<PointerVariable> toSub = new HashSet<PointerVariable>();
+    Set<PointerVariable> toSub = HashSetFactory.make(); //new HashSet<PointerVariable>();
     for (PointerVariable var : pathVars) {
       if (var.getInstanceKey() instanceof StaticFieldKey)
         toSub.add(var);
@@ -1382,9 +1382,9 @@ public class PathQuery implements IQuery {
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {
     Map<PointerKey, Set<CGNode>> reversedModRef = this.depRuleGenerator.getReversedModRef();
-    Map<Constraint, Set<CGNode>> constraintModMap = new HashMap<Constraint, Set<CGNode>>();
+    Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make(); //new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
-      Set<CGNode> nodes = new HashSet<CGNode>();
+      Set<CGNode> nodes = HashSetFactory.make();//new HashSet<CGNode>();
       Util.Debug("getting pointer keys for " + constraint);
       for (PointerKey key : constraint.getPointerKeys(this.depRuleGenerator)) {
         Util.Debug("POINTER KEY " + key);

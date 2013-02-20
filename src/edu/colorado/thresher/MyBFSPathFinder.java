@@ -1,43 +1,25 @@
 package edu.colorado.thresher;
 
-/*******************************************************************************
- * Copyright (c) 2002 - 2006 IBM Corporation.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     IBM Corporation - initial API and implementation
- *******************************************************************************/
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.Filter;
 import com.ibm.wala.util.collections.HashMapFactory;
-import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.NonNullSingletonIterator;
 import com.ibm.wala.util.graph.NumberedGraph;
 import com.ibm.wala.util.intset.BasicNaturalRelation;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
-import com.ibm.wala.util.intset.IntSet;
 
 /**
- * This class searches breadth-first for node that matches some criteria. If
- * found, it reports a path to the first node found.
+ * This class extends a normal BFS with a notion of "ignore edges". 
+ * We use this so we can ignore edges that have been pruned from the
+ * graph with actually mutating the graph. To be used in conjunction with
+ * MySubGraph.
  * 
- * This class follows the outNodes of the graph nodes to define the graph, but
- * this behavior can be changed by overriding the getConnected method.
- * 
- * TODO: if finding many paths, use a dynamic programming algorithm instead of
- * calling this repeatedly.
+ * @author sam
  */
 public class MyBFSPathFinder<T> {
 
@@ -47,7 +29,6 @@ public class MyBFSPathFinder<T> {
    * Pairs of edges that cannot be used together
    */
   private IBinaryNaturalRelation ignoreIfBoth;
-  private IntSet notAllowed;
 
   /**
    * The graph to search
@@ -117,7 +98,7 @@ public class MyBFSPathFinder<T> {
   public List<T> find() {
 
     LinkedList<T> Q = new LinkedList<T>();
-    HashMap<Object, T> history = HashMapFactory.make();
+    Map<Object, T> history = HashMapFactory.make();
     while (roots.hasNext()) {
       T next = roots.next();
       Q.addLast(next);

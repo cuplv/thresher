@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.Set;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -9,6 +8,7 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 /**
  * represents a conditional branch instruction and the paths on each of its
@@ -27,7 +27,7 @@ public class IBranchPoint {
   private final SymbolTable symbolTable; // symbolTable for the method
                                          // containing this point
   // paths that we have seen on the true/false branch of this instruction
-  private final Set<IPathInfo> truePaths, falsePaths, seenPaths;
+  private final Set<IPathInfo> truePaths, falsePaths;
   // does this branch point correspond to a loop head?
   private final boolean loopHead;
   private final String branchPointKey;
@@ -58,7 +58,6 @@ public class IBranchPoint {
     this.loopHead = false;
     this.truePaths = null;
     this.falsePaths = null;
-    this.seenPaths = null;
     this.branchPointKey = null;
     this.id = DUMMY_ID;
   }
@@ -74,12 +73,8 @@ public class IBranchPoint {
     this.node = node;
     this.ir = node.getIR();
     this.symbolTable = ir.getSymbolTable();
-    // this.truePaths = new TreeSet<IPathInfo>();
-    this.truePaths = new HashSet<IPathInfo>();
-    // this.falsePaths = new TreeSet<IPathInfo>();
-    this.falsePaths = new HashSet<IPathInfo>();
-    // this.seenPaths = new TreeSet<IPathInfo>();
-    this.seenPaths = new HashSet<IPathInfo>();
+    this.truePaths = HashSetFactory.make();//new HashSet<IPathInfo>();
+    this.falsePaths = HashSetFactory.make();// new HashSet<IPathInfo>();
     this.branchPointKey = makeBranchPointKey(instr, blk, node);
     this.loopHead = loopHead;
     this.id = id;

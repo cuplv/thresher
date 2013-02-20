@@ -1,8 +1,6 @@
 package edu.colorado.thresher;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +15,8 @@ import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 /**
  * interprocedural symbolic executor that precisely tracks correlations between
@@ -86,7 +86,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
 
-    Map<Integer, List<IPathInfo>> phiIndexPathsMap = new HashMap<Integer, List<IPathInfo>>();
+    Map<Integer, List<IPathInfo>> phiIndexPathsMap = HashMapFactory.make();//new HashMap<Integer, List<IPathInfo>>();
 
     for (int i = instrs.size() - 1; i > -1; i--) {
       SSAInstruction instr = instrs.get(i);
@@ -340,7 +340,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
   boolean executeAllInstructionsInLoopHeadSequence(IPathInfo info, LinkedList<IPathInfo> splitPaths) {
     if (Options.DEBUG)
       Util.Pre(splitPaths.isEmpty(), "not expecting any split paths here!");
-    Set<IPathInfo> cases = new HashSet<IPathInfo>(); // list to handle case
+    Set<IPathInfo> cases = HashSetFactory.make();//new HashSet<IPathInfo>(); // list to handle case
                                                      // splits in straight-line
                                                      // code (i.e. many
                                                      // applicable rules)
@@ -375,7 +375,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
             // found a phi node; need to do path splitting early in order to
             // decide which value is assigned on which path
             if (phiIndexMap == null) {
-              phiIndexMap = new HashMap<Integer, List<IPathInfo>>(instr.getNumberOfUses());
+              phiIndexMap = HashMapFactory.make();//new HashMap<Integer, List<IPathInfo>>(instr.getNumberOfUses());
               for (IPathInfo path : cases) {
                 path.setCurrentLineNum(i - 1);
                 splitPaths.clear();

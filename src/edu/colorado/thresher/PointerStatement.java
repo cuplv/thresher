@@ -2,7 +2,6 @@ package edu.colorado.thresher;
 
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
-import com.ibm.wala.ssa.SSAPutInstruction;
 
 public class PointerStatement implements Comparable {
   public static final String ARRAY = "0__ARRAY";

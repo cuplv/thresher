@@ -10,7 +10,6 @@ import com.ibm.wala.util.graph.NumberedEdgeManager;
 import com.ibm.wala.util.graph.NumberedGraph;
 import com.ibm.wala.util.graph.NumberedNodeManager;
 import com.ibm.wala.util.intset.BasicNaturalRelation;
-import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;

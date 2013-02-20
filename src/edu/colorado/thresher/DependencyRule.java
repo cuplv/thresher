@@ -1,14 +1,13 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
-import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class DependencyRule implements Comparable {
 
@@ -224,7 +223,7 @@ public class DependencyRule implements Comparable {
   }
 
   public Set<SymbolicPointerVariable> getSymbolicVars() {
-    Set<SymbolicPointerVariable> symbolicVars = new HashSet<SymbolicPointerVariable>();
+    Set<SymbolicPointerVariable> symbolicVars = HashSetFactory.make();//new HashSet<SymbolicPointerVariable>();
     symbolicVars.addAll(shown.getSymbolicVars());
     for (PointsToEdge edge : toShow) {
       symbolicVars.addAll(edge.getSymbolicVars());

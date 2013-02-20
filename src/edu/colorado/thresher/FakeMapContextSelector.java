@@ -7,24 +7,19 @@ import com.ibm.wala.ipa.callgraph.propagation.*;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.*;
 import com.ibm.wala.ipa.cha.*;
 import com.ibm.wala.types.*;
-import com.ibm.wala.util.debug.*;
 import com.ibm.wala.util.intset.*;
 
+/** special context-sensitivity policy for test purposes only 
+ * 
+ * @author sam
+ */
 public class FakeMapContextSelector implements ContextSelector {
 
   private final static TypeName FakeMapName = TypeName.string2TypeName("LFakeMap");
 
   public final static TypeReference FakeMap = TypeReference.findOrCreate(ClassLoaderReference.Application, FakeMapName);
-  private final IClassHierarchy cha;
-  private final ZeroXInstanceKeys delegate;
 
-  public FakeMapContextSelector(IClassHierarchy cha, ZeroXInstanceKeys delegate) {
-    this.cha = cha;
-    this.delegate = delegate;
-    if (delegate == null) {
-      throw new IllegalArgumentException("null delegate");
-    }
-  }
+  public FakeMapContextSelector() {}
 
   public Context getCalleeTarget(CGNode caller, CallSiteReference site, IMethod callee, InstanceKey[] keys) {
     InstanceKey receiver = null;

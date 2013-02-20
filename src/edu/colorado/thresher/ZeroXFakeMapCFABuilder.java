@@ -6,6 +6,10 @@ import com.ibm.wala.ipa.callgraph.propagation.*;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.*;
 import com.ibm.wala.ipa.cha.*;
 
+/** the other piece of a special context-sensitivity policy for test purposes only 
+ * 
+ * @author sam
+ */
 public class ZeroXFakeMapCFABuilder extends ZeroXCFABuilder {
   public ZeroXFakeMapCFABuilder(IClassHierarchy cha, AnalysisOptions options, AnalysisCache cache,
       ContextSelector appContextSelector, SSAContextInterpreter appContextInterpreter, int instancePolicy) {
@@ -16,6 +20,6 @@ public class ZeroXFakeMapCFABuilder extends ZeroXCFABuilder {
   }
 
   protected ContextSelector makeFakeMapContextSelector(IClassHierarchy cha, ZeroXInstanceKeys keys) {
-    return new FakeMapContextSelector(cha, keys);
+    return new FakeMapContextSelector();
   }
 }

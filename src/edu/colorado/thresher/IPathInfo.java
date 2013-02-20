@@ -1,7 +1,6 @@
 package edu.colorado.thresher;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +13,7 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 
 /**
@@ -115,7 +115,7 @@ public class IPathInfo { // implements Comparable {
     this.currentLineNum = currentLineNum;
     this.callStack = new LinkedList<IStackFrame>();
     // this.branchStack = new LinkedList<Pair<IBranchPoint,Boolean>>();
-    this.loopHeadSet = new HashSet<Pair<CGNode, SSACFG.BasicBlock>>();
+    this.loopHeadSet = HashSetFactory.make();//new HashSet<Pair<CGNode, SSACFG.BasicBlock>>();
     this.query = query;
     this.initialQuery = query.deepCopy();
     this.piecewiseGraph = new PiecewiseGraph();
@@ -765,9 +765,9 @@ public class IPathInfo { // implements Comparable {
     private final Set<CGNode> seenNodes;
 
     public PiecewiseGraph() {
-      this.traversedEdges = new HashSet<Pair<CGNode, CGNode>>();
-      this.skippedEdges = new HashSet<Pair<CGNode, CGNode>>();
-      this.seenNodes = new HashSet<CGNode>();
+      this.traversedEdges = HashSetFactory.make();//new HashSet<Pair<CGNode, CGNode>>();
+      this.skippedEdges = HashSetFactory.make();//new HashSet<Pair<CGNode, CGNode>>();
+      this.seenNodes = HashSetFactory.make();//new HashSet<CGNode>();
     }
 
     private PiecewiseGraph(Set<Pair<CGNode, CGNode>> traversedEdges, Set<Pair<CGNode, CGNode>> skippedEdges, Set<CGNode> seenNodes) {

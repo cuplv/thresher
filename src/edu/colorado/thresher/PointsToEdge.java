@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +11,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class PointsToEdge implements Constraint, Comparable {
 
@@ -24,8 +24,6 @@ public class PointsToEdge implements Constraint, Comparable {
   private final int hash;
 
   private static final int NONE = -1;
-  private static final int ARRAY_CONTENTS = -2;
-
   // private final String uniqueId;
 
   public PointsToEdge(PointerVariable source, PointerVariable sink) {
@@ -357,7 +355,7 @@ public class PointsToEdge implements Constraint, Comparable {
   }
 
   public Set<SymbolicPointerVariable> getSymbolicVars() {
-    Set<SymbolicPointerVariable> symbolicVars = new HashSet<SymbolicPointerVariable>();
+    Set<SymbolicPointerVariable> symbolicVars = HashSetFactory.make();
     if (this.source.isSymbolic())
       symbolicVars.add((SymbolicPointerVariable) this.source);
     if (this.sink.isSymbolic())

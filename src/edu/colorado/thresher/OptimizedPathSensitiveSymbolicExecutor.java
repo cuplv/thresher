@@ -1,8 +1,7 @@
 package edu.colorado.thresher;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +16,8 @@ import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 
 /**
@@ -27,24 +28,23 @@ import com.ibm.wala.util.collections.Pair;
  */
 public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymbolicExecutor {
 
-  private final HashMap<String, IBranchPoint> branchPointMap;
+  private final Map<String, IBranchPoint> branchPointMap;
   LinkedList<IBranchPoint> branchPointStack;
   // map from (CGNode, Block#) -> set of paths seen at block
   private final Map<Pair<CGNode, Integer>, Set<IPathInfo>> loopHeadSeenPaths;
 
   Set<PointsToEdge> refuted; // set of edges that were already refuted
-  private static final Set<PointsToEdge> EMPTY_SET = new HashSet<PointsToEdge>(0);
 
   public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger) {
-    this(callGraph, logger, EMPTY_SET);
+    this(callGraph, logger, Collections.EMPTY_SET);
   }
 
   public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger, Set<PointsToEdge> refuted) {
     super(callGraph, logger);
-    this.branchPointMap = new HashMap<String, IBranchPoint>();
+    this.branchPointMap = HashMapFactory.make();//new HashMap<String, IBranchPoint>();
     this.branchPointStack = new LinkedList<IBranchPoint>();
     this.refuted = refuted;
-    this.loopHeadSeenPaths = new HashMap<Pair<CGNode, Integer>, Set<IPathInfo>>();
+    this.loopHeadSeenPaths = HashMapFactory.make(); //new HashMap<Pair<CGNode, Integer>, Set<IPathInfo>>();
   }
 
   @Override
@@ -66,7 +66,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     Pair<CGNode, Integer> loopKey = Pair.make(info.getCurrentNode(), info.getCurrentBlock().getNumber());
     Set<IPathInfo> seen = loopHeadSeenPaths.get(loopKey);
     if (seen == null) { // don't have a summary list for this loop head
-      seen = new HashSet<IPathInfo>();// new TreeSet<IPathInfo>();
+      seen = HashSetFactory.make(); 
       loopHeadSeenPaths.put(loopKey, seen);
       seen.add(info);
     } else { // do have a summary list for this loop head
@@ -611,7 +611,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   public IPathInfo mergeBranchPoint(IBranchPoint point) {
     Set<IPathInfo> truePaths = point.getTruePaths();
     Set<IPathInfo> falsePaths = point.getFalsePaths();
-    Set<IPathInfo> toRemove = new HashSet<IPathInfo>();
+    Set<IPathInfo> toRemove = HashSetFactory.make();//new HashSet<IPathInfo>();
 
     // remove infeasible true paths
     for (IPathInfo info : truePaths) {
@@ -654,7 +654,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
                                                                  // constraints
     }
 
-    Set<IPathInfo> toAdd = new HashSet<IPathInfo>();
+    Set<IPathInfo> toAdd = HashSetFactory.make();
     if (truePathsEmpty && falsePathsEmpty) { // no paths are feasible
       if (Options.DEBUG)
         Util.Debug("no paths feasible");
@@ -816,7 +816,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
     SSAInstruction[] instrs = fakeWorldClinitNode.getIR().getInstructions();
     addPathAndBranchPlaceholders();
-    Set<SSAInstruction> alreadyTried = new HashSet<SSAInstruction>();
+    Set<SSAInstruction> alreadyTried = HashSetFactory.make();//new HashSet<SSAInstruction>();
     while (path != null) {
       if (!path.getCurrentNode().equals(fakeWorldClinitNode)) {
         boolean hitProcBoundary = this.executeBackwardsPathIntraprocedural(path);
@@ -896,12 +896,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // to entrypoints
     if (path.foundWitness())
       return true;
-    Set<IPathInfo> toTryInFakeWorldClinit = new HashSet<IPathInfo>();
+    Set<IPathInfo> toTryInFakeWorldClinit = HashSetFactory.make(); //new HashSet<IPathInfo>();
 
     CGNode fakeRootMethod = path.getCurrentNode();
     SSAInstruction[] instrs = fakeRootMethod.getIR().getInstructions();
     addPathAndBranchPlaceholders();
-    Set<SSAInstruction> alreadyTried = new HashSet<SSAInstruction>();
+    Set<SSAInstruction> alreadyTried = HashSetFactory.make();//new HashSet<SSAInstruction>();
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph);
 
     while (path != null) {

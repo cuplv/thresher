@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +11,7 @@ import z3.java.Z3Context;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class PathTermWithBinOp implements PathTerm {
 
@@ -145,7 +145,7 @@ public class PathTermWithBinOp implements PathTerm {
 
   @Override
   public Set<PointerKey> getPointerKeys() {
-    Set<PointerKey> keys = new HashSet<PointerKey>();
+    Set<PointerKey> keys = HashSetFactory.make();//new HashSet<PointerKey>();
     keys.addAll(lhs.getPointerKeys());
     keys.addAll(rhs.getPointerKeys());
     return keys;

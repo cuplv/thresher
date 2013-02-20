@@ -1,7 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -10,6 +8,8 @@ import java.util.Set;
 import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.IR;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 
@@ -17,7 +17,7 @@ public class Logger {
 
   final String benchmark;
 
-  final Map<String, Integer> countMap = new HashMap<String, Integer>();
+  final Map<String, Integer> countMap = HashMapFactory.make();
 
   int failures = 0;
   int timeouts = 0;
@@ -36,7 +36,7 @@ public class Logger {
   int totalPaths = 0;
   int totalPathsWithRelevantLoop = 0;
 
-  Set<String> witnessedFields = new HashSet<String>();
+  Set<String> witnessedFields = HashSetFactory.make();
 
   final MutableIntSet pathsWithRelevantLoop = new BitVectorIntSet();
 
