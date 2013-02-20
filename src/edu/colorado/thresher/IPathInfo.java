@@ -752,8 +752,10 @@ public class IPathInfo { // implements Comparable {
 
   @Override
   public String toString() {
-    if (query == null)
-      return "DUMMY";// this.getPathId() + "";
+    if (query == null) {
+      if (pathId == DUMMY_ID) return "DUMMY";// this.getPathId() + "";
+      else if (pathId == MERGE_ID) return "MERGE";
+    }
     return this.getPathId() + " " + query.toString();
   }
 

@@ -58,7 +58,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
   public boolean isCalledByClassInit(CGNode node) {
     return callGraphTransitiveClosure.get(WALACFGUtil.getFakeWorldClinitNode(callGraph)).contains(node);
   }
-
+  
   @Override
   public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
     if (!Options.CALLGRAPH_PRUNING)
@@ -100,9 +100,9 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 
   private Iterator<CGNode> computeReducedCallerSet(Set<CGNode> modifiers, Set<CGNode> toPrune) {
     // assume everything is reachable from the class inits
-    for (CGNode node : modifiers)
-      if (isCalledByClassInit(node))
-        return toPrune.iterator();
+    for (CGNode node : modifiers) {
+      if (isCalledByClassInit(node)) return toPrune.iterator();
+    }
     Set<CGNode> reachable = getReachable(modifiers, toPrune);
 
     // TODO: this is unecessary (could just modify caller list in method call),

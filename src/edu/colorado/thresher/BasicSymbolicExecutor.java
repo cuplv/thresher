@@ -405,7 +405,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
     // if this is an entrypoint and the only call is FakeRootNode
     if (this.callGraph.getEntrypointNodes().contains(callee) && this.callGraph.getPredNodeCount(callee) == 1) {
-      Util.Assert(false, "caller is entrypoint!");
+      Util.Assert(false, "callee " + callee + " is entrypoint!");
     }
 
     if (path.getCurrentNode().getMethod().isClinit()) {

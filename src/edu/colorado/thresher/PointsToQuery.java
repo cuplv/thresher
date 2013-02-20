@@ -51,7 +51,7 @@ public class PointsToQuery implements IQuery {
   // need to be ordered for comparison
   final Set<PointsToEdge> produced;
   // the constraints produced, in the order they were produced
-  private final List<DependencyRule> witnessList;
+  final List<DependencyRule> witnessList;
   private List<PointsToEdge> unsatCore = new LinkedList<PointsToEdge>();
 
   private boolean feasible = true; // this is just a sanity check to make sure
@@ -264,9 +264,7 @@ public class PointsToQuery implements IQuery {
     } else if (applicableRules.size() == 1) {
       DependencyRule rule = applicableRules.get(0);
       // PointsToQuery copy = this.deepCopy();
-      if (!Options.ABSTRACT_DEPENDENCY_RULES)
-        caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
-                                         // now done elsewhere, no longer needed
+      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
       applyRule(rule, this);
       return caseSplits;
     } else { // many applicable rules
@@ -280,8 +278,7 @@ public class PointsToQuery implements IQuery {
         for (DependencyRule rule : applicableRules) {
           Util.Debug("rule " + rule);
         }
-      if (!Options.ABSTRACT_DEPENDENCY_RULES)
-        caseSplits.add(copy); // add "rule not applied" path
+      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(copy); // add "rule not applied" path
       // many applicable rules; case split!
       for (DependencyRule rule : applicableRules) {
         if (first) {
@@ -290,9 +287,8 @@ public class PointsToQuery implements IQuery {
           continue; // first query will be the path we continue on (not added to
                     // case split array)
         }
-        PointsToQuery curQuery = copy.deepCopy(); // create copy for this case
-                                                  // and add it to case split
-                                                  // array)
+        // create copy for this case and add it to the case split array
+        PointsToQuery curQuery = copy.deepCopy(); 
         applyRule(rule, curQuery);
         cases.addLast(curQuery);
       }
@@ -983,8 +979,7 @@ public class PointsToQuery implements IQuery {
         fieldsEqual = Util.equal(edge.getFieldRef(), shown.getFieldRef());
       } else {
         lhsMatch = edge.getSource().equals(shown.getSource()); // lhs's match
-        fieldsEqual = Util.equal(edge.getField(), shown.getField()); // fields
-                                                                     // match
+        fieldsEqual = Util.equal(edge.getField(), shown.getField()); // fields match
       }
 
       if (lhsMatch && fieldsEqual) {
@@ -993,6 +988,31 @@ public class PointsToQuery implements IQuery {
         return true;
       }
     }
+  
+    for (PointsToEdge edge : produced) {
+      boolean lhsMatch;
+      boolean fieldsEqual;
+      if (shownSymbolic && edge.getSource().isSymbolic()) {
+        lhsMatch = Util.intersectionNonEmpty(edge.getSource().getPossibleValues(), shown.getSource().getPossibleValues());
+        fieldsEqual = Util.equal(edge.getFieldRef(), shown.getFieldRef());
+      } else if (shownSymbolic) {
+        lhsMatch = shown.getSource().getPossibleValues().contains(edge.getSource().getInstanceKey());
+        fieldsEqual = Util.equal(edge.getFieldRef(), shown.getFieldRef());
+      } else if (edge.getSource().isSymbolic()) {
+        lhsMatch = edge.getSource().getPossibleValues().contains(shown.getSource().getInstanceKey());
+        fieldsEqual = Util.equal(edge.getFieldRef(), shown.getFieldRef());
+      } else {
+        lhsMatch = edge.getSource().equals(shown.getSource()); // lhs's match
+        fieldsEqual = Util.equal(edge.getField(), shown.getField()); // fields match
+      }
+
+      if (lhsMatch && fieldsEqual) {
+        if (Options.DEBUG)
+          Util.Debug("relevant: " + edge);
+        return true;
+      }
+    }
+    
     return false;
   }
 
@@ -1105,9 +1125,8 @@ public class PointsToQuery implements IQuery {
     return rule;
   }
 
-  boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
-    if (rule.isSymbolic())
-      return isSymbolicRuleRelevant(rule, currentPath, extraVars);
+  public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
+    if (rule.isSymbolic()) return isSymbolicRuleRelevant(rule, currentPath, extraVars);
     TreeSet<PointsToEdge> checkMe = new TreeSet<PointsToEdge>();
     checkMe.add(rule.getShown());
 
@@ -1308,7 +1327,7 @@ public class PointsToQuery implements IQuery {
           // and one where it is not. otherwise, we must do a case split for
           // each instance number...
           // if (caseSplits.isEmpty()) caseSplits.add(currentPath.deepCopy());
-          // // a single "rule not applied" case suffices
+          // a single "rule not applied" case suffices
           Util.Debug("refuted: " + edge + " and " + constraint);
           unsatCore.add(constraint);
           return false; // ok to label as inconsistent; only the rule not taken

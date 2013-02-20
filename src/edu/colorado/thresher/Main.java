@@ -128,11 +128,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
 
-    final String[] fakeMapTests0 = new String[] {};
-    // final String[] fakeMapTests0 = new String[] { "CallPruningNoRefute" };
+    //final String[] fakeMapTests0 = new String[] {};
+    final String[] fakeMapTests0 = new String[] { "PathValueUpdateNoRefute" };
 
-    // final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { };
+    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -315,14 +315,14 @@ public class Main {
     Util.Print("Starting on " + appPath);
     Logger logger = new Logger(appPath);
     long start = System.currentTimeMillis();
-    File exclusionsFile = null;
-    if (Options.USE_EXCLUSIONS)
-      exclusionsFile = new File("config/exclusions.txt");
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    if (exclusionsFile != null)
-      scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
-    JarFile file = new JarFile(Options.ANDROID_JAR);
-    scope.addToScope(scope.getPrimordialLoader(), file);
+    if (Options.USE_EXCLUSIONS) {
+      File exclusionsFile = new File("config/exclusions.txt");
+      if (exclusionsFile != null) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+    }
+    JarFile androidJar = new JarFile(Options.ANDROID_JAR);
+    // add Android code
+    scope.addToScope(scope.getPrimordialLoader(), androidJar);
     // add application code
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 

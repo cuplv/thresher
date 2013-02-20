@@ -67,8 +67,9 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     // else, refuted; try other producers
 
     for (CGNode producer : producers) {
-      Util.Debug("start node is " + startNode + " at depth " + depth);
+      //IPathInfo newPath = copy.deepCopy();
       IPathInfo newPath = copy.deepCopy();
+      Util.Debug("start node is " + startNode + " at depth " + depth + " on path " + newPath);
       // do callgraph feasability checks
 
       if (!newPath.addSeen(producer)) {
@@ -107,7 +108,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
             path.declareFakeWitness();
             return true;
           } else { // TODO: disruptor check!
-            Util.Debug("refuted! " + producer + " from " + startNode + "at depth " + depth + " trying next producer"); 
+            Util.Debug("refuted! " + producer + " from " + startNode + " at depth " + depth + " trying next producer"); 
           }                                                                                                     
         }
       } else {
@@ -133,8 +134,14 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
   /**
    * change to add new heuristics for what an abstraction boundary is
    */
-  private static boolean isAbstractionBoundary(IMethod method) {
-    return method.isPublic();
+  private static boolean isAbstractionBoundary(IMethod method, IPathInfo path) {
+    if (method.isPublic()) {
+      IPathInfo copy = path.deepCopy();
+      copy.removeAllLocalConstraintsFromQuery();
+      // don't want to give up witness for free
+      return !copy.foundWitness();
+    }
+    return false;
   }
 
   /**
@@ -160,12 +167,13 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     final CGNode startNode = path.getCurrentNode();
     final IMethod startMethod = startNode.getMethod();
 
+    
     if (startMethod.isClinit()) {
       path.setCurrentNode(WALACFGUtil.getFakeWorldClinitNode(callGraph));
       return handleFakeWorldClinit(path);
     }
 
-    if (isAbstractionBoundary(startMethod)) { 
+    if (isAbstractionBoundary(startMethod, path)) { 
       Util.Debug("at abstraction boundary. going to do piecewise execution");
       addPathAndBranchPlaceholders();
       boolean result = handlePiecewiseExecutionMethodBased(path); 
@@ -223,6 +231,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
           continue; // keep executing until call stack empty
         }
 
+        /*
         // call stack is now empty
         if (proc.getMethod().isInit()) { 
           // special case for constructors; need to fake returning from call
@@ -250,12 +259,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
             inputPath.declareFakeWitness();
             return true;
           }
-          // else, try executing the class initializer to see if that produces a refutation
-          CGNode classInit = WALACFGUtil.getClassInitializerFor(proc.getMethod().getDeclaringClass(), callGraph);
-          if (classInit != null && !executeToProcedureBoundary(path, classInit, toProduce)) { // refuted
-            path = getNextPath();
-            if (path == null) return false;
-          }
+
           if (path.foundWitness()) {
             // make sure caller knows we found a witness
             inputPath.declareFakeWitness(); 
@@ -264,7 +268,9 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
           // else, executing the class initializer yielded neither witness nor
           // refutation
         }
+        */
         Util.Debug("reached function boundary with empty call stack on path " + path);
+        /*
         // we have reached the function boundary with an empty call stack, but
         // still have constraints left to produce (no witness)
         // IMPORTANT! otherwise we might not match toProduce. toProduce will
@@ -279,7 +285,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
           inputPath.declareFakeWitness(); 
           return true;
         }
-
         if (toProduce != null) {
           // constraint was not produced if path still contains it
           if (path.containsConstraint(toProduce)) { 
@@ -291,21 +296,38 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
             continue;
           }
         }
-
-        if (isAbstractionBoundary(path.getCurrentNode().getMethod())) {
-          Util.Debug("path successfully produced " + toProduce);
-          Util.Debug("starting piecewise exec ANEW from " + path.getCurrentNode() + " " + count++);
-          addPathAndBranchPlaceholders();
-          boolean result;
-          if (toProduce != null) result = handlePiecewiseExecutionMethodBased(path);
-          else result = handlePiecewiseExecutionMethodBased(path);
+        */
+        path.removeAllLocalConstraintsFromQuery();
+        Util.Debug("after removing all local " + path);
+        if (path.foundWitness()) {
+          Util.Debug("found witness after returning locals!");
+          // make sure caller knows we found a witness
+          inputPath.declareFakeWitness(); 
+          return true;
+        }
+        
+        if (path.getCurrentNode().getMethod().isClinit()) {
+          path.setCurrentNode(WALACFGUtil.getFakeWorldClinitNode(callGraph));
+          boolean result = handleFakeWorldClinit(path);
           if (result) {
             inputPath.declareFakeWitness();
-            Util.Debug("result true; returning!");
             return result;
+          } // else, path refuted
+          path = getNextPath();
+          if (path == null) return false;
+          continue;
+        }
+
+        if (isAbstractionBoundary(path.getCurrentNode().getMethod(), path)) {
+          Util.Debug("starting piecewise exec ANEW from " + path.getCurrentNode() + " " + count++);
+          addPathAndBranchPlaceholders();
+          if (handlePiecewiseExecutionMethodBased(path)) {
+            inputPath.declareFakeWitness();
+            Util.Debug("result true; returning!");
+            return true;
           }
-          cleanupPathAndBranchPlaceholders();
           // else, path refuted
+          cleanupPathAndBranchPlaceholders();
           path = getNextPath();
           if (path == null) return false;
           continue;
@@ -331,12 +353,14 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
   private IPathInfo getNextPath() {
     IPathInfo path = null;
     if (!pathsToExplore.peek().isDummy()) { // any paths left to explore?
-      path = selectPath(); // pathsToExplore.pop(); // explore next path
+      //path = selectPath(); // pathsToExplore.pop(); // explore next path
+      path = selectNonDummyPath();
     } else if (!branchPointStack.peek().isDummy()) { // any branch points left to explore?
       path = mergeNextBranchPoint(); // explore next path
-    } else { // no paths to explore or branches to merge; refuted.
+    } else { // both dummies. no paths to explore or branches to merge; refuted.
       Util.Debug("piecewise refuted!");
     }
+    
     Util.Debug("getting next path; got " + path);
     if (path != null && path.isDummy()) {
       // got dummy path; oops! replace it and return null
@@ -344,6 +368,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
       if (branchPointStack.peek().isDummy()) return null;
       return getNextPath();
     }
+    Util.Assert(path == null || (!path.isLoopMergeIndicator() && !path.isDummy()));
     return path;
   }
 

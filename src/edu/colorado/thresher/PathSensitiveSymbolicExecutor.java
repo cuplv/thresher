@@ -2,11 +2,11 @@ package edu.colorado.thresher;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
@@ -340,7 +340,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
   boolean executeAllInstructionsInLoopHeadSequence(IPathInfo info, LinkedList<IPathInfo> splitPaths) {
     if (Options.DEBUG)
       Util.Pre(splitPaths.isEmpty(), "not expecting any split paths here!");
-    Set<IPathInfo> cases = new TreeSet<IPathInfo>(); // list to handle case
+    Set<IPathInfo> cases = new HashSet<IPathInfo>(); // list to handle case
                                                      // splits in straight-line
                                                      // code (i.e. many
                                                      // applicable rules)

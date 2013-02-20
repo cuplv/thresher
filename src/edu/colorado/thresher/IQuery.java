@@ -224,7 +224,7 @@ public interface IQuery { // extends Comparable {
     public List<DependencyRule> getWitnessList() {
       return null;
     }
-
+    
     @Override
     public int hashCode() {
       return 5;

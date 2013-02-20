@@ -2,17 +2,14 @@ package edu.colorado.thresher;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import z3.java.Z3AST;
 import z3.java.Z3Config;
 import z3.java.Z3Context;
-import z3.java.Z3Model;
 
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -298,10 +295,9 @@ public class PathQuery implements IQuery {
   }
 
   boolean visit(SSAPutInstruction instr, CGNode node, SymbolTable tbl) {
-    if (instr.isStatic())
-      return visitStaticPut(instr, node, tbl); // static field
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()); // non-static
-                                                                                                                        // field
+    if (instr.isStatic()) return visitStaticPut(instr, node, tbl); // static field
+    // else, non-static field
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()); 
     if (pathVars.contains(varName)) {
       FieldReference fieldName = instr.getDeclaredField();
       int use = instr.getUse(1);
@@ -313,18 +309,15 @@ public class PathQuery implements IQuery {
         } else if (tbl.isNullConstant(use)) {
           substituteExpForFieldRead(SimplePathTerm.NULL, varName, fieldName);
         } else if (tbl.isLongConstant(use)) {
-          // TODO: can cause overflow. just adding to get easy initializations
-          // of longs to 0. will fix later
+          // TODO: can cause overflow. just adding to get easy initializations of longs to 0. will fix later
           substituteExpForFieldRead(new SimplePathTerm(new Long(tbl.getLongValue(use)).intValue()), varName, fieldName);
-        } else { // don't know how to sub this kind of constant. just drop
-                 // instead.
+        } else { // don't know how to sub this kind of constant. just drop instead
           // TODO: implement other kinds of subbing
           // can't sub...drop constraints c
           dropConstraintsContaining(varName);
         }
       } else { // assigning var to field
-        // TODO: write test where name being substituted is active at multiple
-        // locations
+        // TODO: write test where name being substituted is active at multiple locations
         PointerVariable rhsVarName = new ConcretePointerVariable(node, instr.getUse(1), this.depRuleGenerator.getHeapModel());
         substituteExpForFieldRead(new SimplePathTerm(rhsVarName), varName, fieldName);
       }
@@ -1196,12 +1189,9 @@ public class PathQuery implements IQuery {
   @Override
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {
     CGNode currentMethod = currentPath.getCurrentNode();
-    PointerVariable lhsVar = new ConcretePointerVariable(currentMethod, instr.getDef(), this.depRuleGenerator.getHeapModel()); // the
-                                                                                                                               // x
-                                                                                                                               // in
-                                                                                                                               // x
-                                                                                                                               // =
-                                                                                                                               // phi(y,z)
+    // lhsVar is the x in x = phi(y,z)
+    PointerVariable lhsVar = new ConcretePointerVariable(currentMethod, instr.getDef(), this.depRuleGenerator.getHeapModel()); 
+
     if (pathVars.contains(lhsVar)) {
       Util.Assert(instr.getNumberOfDefs() == 1, "expecting one def");
       int use = instr.getUse(phiIndex);
@@ -1445,7 +1435,7 @@ public class PathQuery implements IQuery {
     // core);
     return null;
   }
-
+  
   @Override
   public List<DependencyRule> getWitnessList() {
     return null;

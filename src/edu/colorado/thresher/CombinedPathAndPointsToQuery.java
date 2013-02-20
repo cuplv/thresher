@@ -38,16 +38,36 @@ import com.ibm.wala.util.intset.OrdinalSet;
  */
 
 public class CombinedPathAndPointsToQuery extends PathQuery {
+  
+  // special class just to allow us to override methods of PointsToQuery
+  private final class PointsToQueryWrapper extends PointsToQuery {
+    private final PointsToQuery delegate;
+    public PointsToQueryWrapper(PointsToQuery qry) {
+      super(qry.constraints, qry.produced, qry.witnessList, qry.depRuleGenerator);
+      this.delegate = qry;
+    }
+    
+    @Override
+    public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
+      return delegate.isRuleRelevant(rule, currentPath, extraVars) || 
+             CombinedPathAndPointsToQuery.this.isRuleRelevantForPathQuery(rule, currentPath, extraVars);
+    }
+    
+    @Override
+    public PointsToQueryWrapper deepCopy() {
+      return new PointsToQueryWrapper(delegate.deepCopy());
+    }
+  }
 
-  final PointsToQuery pointsToQuery;
+  final PointsToQueryWrapper pointsToQuery;
   boolean fakeWitness = false;
 
   public CombinedPathAndPointsToQuery(PointsToQuery pointsToQuery) {
     super(pointsToQuery.depRuleGenerator);
-    this.pointsToQuery = pointsToQuery;
+    this.pointsToQuery = new PointsToQueryWrapper(pointsToQuery);
   }
 
-  CombinedPathAndPointsToQuery(PointsToQuery pointsToQuery, PathQuery pathQuery) {
+  CombinedPathAndPointsToQuery(PointsToQueryWrapper pointsToQuery, PathQuery pathQuery) {
     super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator); // pathQuery.ctx);
     this.pointsToQuery = pointsToQuery;
   }
@@ -222,7 +242,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         for (IQuery pathQuery : pathQueries) {
           ptQuery.deepCopy();
           pathQuery.deepCopy();
-          combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQuery) ptQuery.deepCopy(), (PathQuery) pathQuery.deepCopy()));
+          combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQueryWrapper) ptQuery.deepCopy(), (PathQuery) pathQuery.deepCopy()));
         }
       }
     } else if (!pathEmpty) {
@@ -231,7 +251,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
     } else if (!ptEmpty) {
       for (IQuery ptQuery : pointsToQueries) {
-        combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQuery) ptQuery, super.deepCopy()));
+        combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQueryWrapper) ptQuery, super.deepCopy()));
       }
     }
     return combinedQuery;
@@ -618,6 +638,21 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
     }
+  }
+  
+  public boolean isRuleRelevantForPathQuery(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
+    PointsToEdge edge = rule.getShown();
+    if (this.pathVars.contains(edge.getSource())) return true;
+    if (edge.getSink().isSymbolic()) {
+      SymbolicPointerVariable symb = (SymbolicPointerVariable) edge.getSink();
+      Set<InstanceKey> possibleValues = symb.getPossibleValues();
+      for (PointerVariable var : pathVars) {
+        Object key = var.getInstanceKey();
+        if (key != null && key instanceof InstanceKey && possibleValues.contains((InstanceKey) key)) return true;
+      }
+    } else return this.pathVars.contains(edge.getSink());
+    Util.Assert(!this.toString().contains(edge.getSink().toString()), "problem getting relevance of " + edge + " to " + this);
+    return false;
   }
 
   /**

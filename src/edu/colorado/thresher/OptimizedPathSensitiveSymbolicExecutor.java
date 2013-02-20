@@ -219,28 +219,22 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   public IPathInfo selectPath() {
     if (!pathsToExplore.isEmpty()) {
       IPathInfo path = pathsToExplore.removeFirst();
-      if (path.isLoopMergeIndicator()) { // special case for merging loops; we
-                                         // must do so eagerly or we will drop
-                                         // too many constraints
+      // special case for merging loops; we must do so eagerly or we will drop too many constraints
+      if (path.isLoopMergeIndicator()) { 
         if (Options.DEBUG) Util.Debug("forcing loop merge");
-        if (!branchPointStack.isEmpty())
-          return mergeBranchPointForLoopHead(path.getCurrentBlock()); 
-                                                                      
-        else
-          return this.selectPath(); // else do nothing
-        // else Util.Assert(false, "couldn't find branch point for loop head " +
-        // path.getCurrentBlock());
+        if (!branchPointStack.isEmpty()) return mergeBranchPointForLoopHead(path.getCurrentBlock()); 
+        else return this.selectPath(); // else do nothing
       }
-      if (Options.DEBUG)
-        Util.Assert(path != null, "path should never be null here!");
+      if (Options.DEBUG) Util.Assert(path != null, "path should never be null here!");
       return path; // "normal" case; return path on top of stack
     } else {
-      if (!branchPointStack.isEmpty())
-        return mergeNextBranchPoint(); // no paths left in stack; merge branch
-                                       // points, if there are any
-      else
-        return null; // no paths left in stack and no branch points left to
-                     // merge
+      if (!branchPointStack.isEmpty()) {
+        // no paths left in stack; merge branch points, if there are any
+        return mergeNextBranchPoint(); 
+      } else {
+        // no paths left in stack and no branch points left to merge
+        return null; 
+      }
     }
   }
 
@@ -252,69 +246,40 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    */
   public IPathInfo selectNonDummyPath() {
     IPathInfo path = null;
-    if (pathsToExplore.peek().isDummy() && branchPointStack.peek().isDummy()) { // are
-                                                                                // there
-                                                                                // any
-                                                                                // non-dummy
-                                                                                // paths
-                                                                                // or
-                                                                                // branch
-                                                                                // pts?
-      path = null;
+    // are there any non-dummy paths or branch pts?
+    if (pathsToExplore.peek().isDummy() && branchPointStack.peek().isDummy()) { 
+      path = null; // both dummy; return nulll
     } else if (!pathsToExplore.peek().isDummy()) { // there are non-dummy paths
       path = pathsToExplore.removeFirst();
       while (path.isLoopMergeIndicator()) {
         path = mergeBranchPointForLoopHead(path.getCurrentBlock());
-        if (path == null)
-          return selectNonDummyPath();
+        if (path == null) return selectNonDummyPath();
       }
+      // !path.isLoopMergeIndicator()
       if (path.isDummy()) {
-        if (Options.DEBUG)
-          Util.Assert(this.branchPointStack.peek().isDummy(), "expect null branch point stack here!");
-        this.pathsToExplore.addFirst(path); // replace path and return null;
-                                            // we're done
-        if (Options.DEBUG)
-          Util.Debug("replacing dummy path on stack");
-        path = null;
+        //Util.Assert(this.branchPointStack.peek().isDummy(), "expect null branch point stack here!");
+        this.pathsToExplore.addFirst(path); // replace dummy path and return null; we're done
+        //path = null;
+        return selectNonDummyPath();
       }
-      // else, can simply return path
-    } else if (!branchPointStack.peek().isDummy()) { // no paths left to
-                                                     // explore; need to merge
-                                                     // branch point
+      // else, can simply fall through and return path
+    } else if (!branchPointStack.peek().isDummy()) { 
+      // no paths left to explore; need to merge branch point
       IBranchPoint point = branchPointStack.removeFirst();
       path = mergeBranchPoint(point);
       while (path.isLoopMergeIndicator()) {
         path = mergeBranchPointForLoopHead(path.getCurrentBlock());
-        if (path == null)
-          return selectNonDummyPath();
+        if (path == null) return selectNonDummyPath();
       }
       if (path.isDummy()) {
-        if (Options.DEBUG)
-          Util.Assert(this.branchPointStack.peek().isDummy(), "expect null branch point stack here!");
-        this.pathsToExplore.addFirst(path); // replace path and return null;
-                                            // we're done
-        path = null;
+        //Util.Assert(this.branchPointStack.peek().isDummy(), "expect null branch point stack here!");
+        this.pathsToExplore.addFirst(path); // replace path and return null; we're done
+        //path = null;
+        return selectNonDummyPath();
       }
-
-    } else
-      Util.Assert(false, "impossible");
-    /*
-     * if (!pathsToExplore.isEmpty()) { IPathInfo path =
-     * pathsToExplore.removeFirst(); if (path.isLoopMergeIndicator()) { //
-     * special case for merging loops; we must do so eagerly or we will drop too
-     * many constraints Util.Debug("forcing loop merge"); if
-     * (!branchPointStack.isEmpty()) return
-     * mergeBranchPointForLoopHead(path.getCurrentBlock()); // do merge else
-     * return this.selectPath(); // else do nothing //else Util.Assert(false,
-     * "couldn't find branch point for loop head " + path.getCurrentBlock()); }
-     * Util.Assert(path != null, "path should never be null here!"); return
-     * path; // "normal" case; return path on top of stack } else { if
-     * (!branchPointStack.isEmpty()) return mergeNextBranchPoint(); // no paths
-     * left in stack; merge branch points, if there are any else return null; //
-     * no paths left in stack and no branch points left to merge }
-     */
-    if (Options.DEBUG)
-      Util.Post(path == null || (!path.isDummy() && !path.isLoopMergeIndicator()), "bad path " + path);
+    } else Util.Assert(false, "impossible");
+    Util.Post(path == null || (!path.isDummy() && !path.isLoopMergeIndicator()), "bad path " + path);
+    Util.Post(path != null || (this.pathsToExplore.peek().isDummy() && this.branchPointStack.peek().isDummy()));
     return path;
   }
 
@@ -630,12 +595,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * @return - top path in path stack if there is one, null otherwise
    */
   public IPathInfo mergeNextBranchPoint() {
-    if (Options.DEBUG)
-      Util.Pre(!branchPointStack.isEmpty(), "Trying to merge with no mergeable branch points!");
+    if (Options.DEBUG) Util.Pre(!branchPointStack.isEmpty(), "Trying to merge with no mergeable branch points!");
     IBranchPoint point = branchPointStack.pop();
-    branchPointMap.remove(point.getBranchPointKey()); // delete this branch
-                                                      // point so we don't
-                                                      // double merge
+    Util.Assert(!point.isDummy());
+    // delete this branch point so we don't double merge
+    branchPointMap.remove(point.getBranchPointKey()); 
     return mergeBranchPoint(point);
   }
 
@@ -887,10 +851,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           CGNode classInitializer = targets.iterator().next();
           // ask the current path if this class initializer can produce any part
           // of its query
-          Util.Debug("checking relevance of " + classInitializer);
+          //Util.Debug("checking relevance of " + classInitializer);
           if (path.isCallRelevantToQuery(instruction, classInitializer, callGraph)) {
-            if (Options.DEBUG)
-              Util.Debug("Trying class init " + instr);
+            if (Options.DEBUG) Util.Debug("Trying class init " + instr);
             IPathInfo copy = path.deepCopy();
             // yes; push the class init on the call stack and execute it
             copy.pushCallStack(instruction, classInitializer);
@@ -1072,7 +1035,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         Util.Assert(!point.isDummy(), "should not contain dummy points anymore!");
       }
     }
-
+    // make sure these correspond to the same execution
+    Util.Assert(poppedPath.getPathId() == poppedBranch.getId());
   }
 
   @Override
