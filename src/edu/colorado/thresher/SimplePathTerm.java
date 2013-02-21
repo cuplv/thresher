@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -10,11 +9,10 @@ import java.util.TreeSet;
 import z3.java.Z3AST;
 import z3.java.Z3Context;
 
-import com.ibm.wala.analysis.pointers.HeapGraph;
-import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 // a path variable is one of three things: a constant, an object, or an object and an access path
 public class SimplePathTerm implements PathTerm {
@@ -517,7 +515,7 @@ public class SimplePathTerm implements PathTerm {
 
   @Override
   public Set<PointerKey> getPointerKeys() {
-    Set<PointerKey> keys = new HashSet<PointerKey>();
+    Set<PointerKey> keys = HashSetFactory.make();
     if (pointer != null) keys.add(pointer);
     return keys;
   }
@@ -531,20 +529,6 @@ public class SimplePathTerm implements PathTerm {
     // need to be careful since we can read null from fields; this is why fields
     // must be null
     return this.object != null && !this.object.isLocalVar() && this.fields == null;
-  }
-
-  // return pointer variable that otherField is equal to this PathTerm's field;
-  // null otherwise
-  public PointerVariable containsField(FieldReference otherField) {
-    Util.Unimp("don't call this");
-    // System.err.println("comparing " + this.field + " and " +
-    // otherField.getName().toString());
-    // if (this.field != null &&
-    // this.field.equals(otherField.getName().toString())) {
-    // if (this.field != null && this.field.equals(otherField)) {
-    // return object;
-    // }
-    return null;
   }
 
 }

@@ -5,20 +5,12 @@ import java.util.Set;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 
-public class SymbolicPointerVariable implements PointerVariable { // implements
-                                                                  // Comparable
-                                                                  // {
+public class SymbolicPointerVariable implements PointerVariable { 
   private static int symbCounter = 0;
   // private final String name;
   private final Set<InstanceKey> possibleValues;
   // private int instanceNum = PointerVariable.ANY_INSTANCE_NUM;
   private final int id;
-
-  /*
-   * public SymbolicPointerVariable(int typeId, CGNode node) { this.name =
-   * makeNewSymbolicVariable(); this.id = Util.getIdForVar(name); this.typeId =
-   * typeId; }
-   */
 
   public static PointerVariable makeSymbolicVar(Set<InstanceKey> possibleValues) {
     Util.Pre(!possibleValues.isEmpty(), "possible values empty");
@@ -177,11 +169,5 @@ public class SymbolicPointerVariable implements PointerVariable { // implements
       return 1;
     }
   }
-  /*
-   * public void setInstanceNum(int instanceNum) { this.instanceNum =
-   * instanceNum; }
-   * 
-   * public int getInstanceNum() { return instanceNum; }
-   */
 
 }

@@ -1,8 +1,6 @@
 package edu.colorado.thresher;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -23,6 +21,8 @@ import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Acyclic;
 import com.ibm.wala.util.graph.dominators.Dominators;
@@ -43,13 +43,13 @@ public class WALACFGUtil {
 
   // optimization: map from IR to loop headers for that IR to save us from
   // recomputing loop heads
-  private static final Map<IR, MutableIntSet> loopHeadersCache = new HashMap<IR, MutableIntSet>();
+  private static final Map<IR, MutableIntSet> loopHeadersCache = HashMapFactory.make();
   // optimization: map from IR to dominators for that IR to save us from
   // recomputing dominators
-  private static final Map<IR, Dominators<ISSABasicBlock>> dominatorsCache = new HashMap<IR, Dominators<ISSABasicBlock>>();
+  private static final Map<IR, Dominators<ISSABasicBlock>> dominatorsCache = HashMapFactory.make();
   // optimization: map from (IR, loop head) to blocks contained in that loop
   // head
-  private static final Map<Pair<IR, SSACFG.BasicBlock>, Set<ISSABasicBlock>> loopBodyCache = new HashMap<Pair<IR, SSACFG.BasicBlock>, Set<ISSABasicBlock>>();
+  private static final Map<Pair<IR, SSACFG.BasicBlock>, Set<ISSABasicBlock>> loopBodyCache = HashMapFactory.make();
 
   // CGNode for class initializers
   private static CGNode fakeWorldClinit = null;
@@ -288,11 +288,11 @@ public class WALACFGUtil {
     Set<ISSABasicBlock> loopBody = loopBodyCache.get(key);
     if (loopBody == null) {
       // Util.Debug("getting loop body blocks for ir " + ir);
-      loopBody = new HashSet<ISSABasicBlock>();
+      loopBody = HashSetFactory.make();
       loopBody.add(loopHead);
       // find the forward escape block of the loopHead
       SSACFG cfg = ir.getControlFlowGraph();
-      Set<ISSABasicBlock> seen = new HashSet<ISSABasicBlock>();
+      Set<ISSABasicBlock> seen = HashSetFactory.make();
       Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors((ISSABasicBlock) loopHead);
       while (succs.size() < 2) { // we're in a loop setup block. keep executing
                                  // until we hit the conditional split for the
@@ -308,7 +308,7 @@ public class WALACFGUtil {
       }
       // now we should have > 1 succ
       Util.Assert(succs.size() > 1, "need to be looking a loop escape block! instead have succs of " + loopHead);
-      Set<ISSABasicBlock> toExplore = new HashSet<ISSABasicBlock>();
+      Set<ISSABasicBlock> toExplore = HashSetFactory.make();
       boolean escapeBlock = true;
       for (ISSABasicBlock succ : succs) {
         // if (succ.getLastInstructionIndex() >= 0 && succ.getLastInstruction()
@@ -397,7 +397,7 @@ public class WALACFGUtil {
    * @return - set of all instructions contained in the loop
    */
   public static Set<SSAInstruction> getInstructionsInLoop(SSACFG.BasicBlock loopHead, IR ir) {
-    Set<SSAInstruction> instrs = new HashSet<SSAInstruction>();
+    Set<SSAInstruction> instrs = HashSetFactory.make();
 
     Set<ISSABasicBlock> loopBodyBlocks = getLoopBodyBlocks(loopHead, ir);
     for (ISSABasicBlock blk : loopBodyBlocks) {
@@ -428,7 +428,7 @@ public class WALACFGUtil {
   public static Set<CGNode> getCallTargetsInLoop(SSACFG.BasicBlock loopHead, CGNode loopNode, CallGraph cg) {
     IR ir = loopNode.getIR();
     Set<SSAInstruction> loopInstrs = getInstructionsInLoop(loopHead, ir);
-    Set<CGNode> possibleTargets = new HashSet<CGNode>();
+    Set<CGNode> possibleTargets = HashSetFactory.make();
     for (SSAInstruction instr : loopInstrs) { // drop all vars that can be
                                               // written to in the loop body
       if (instr instanceof SSAInvokeInstruction) {
@@ -454,7 +454,7 @@ public class WALACFGUtil {
     // TODO: make more efficient; LinkedList allows duplicate blocks to be added
     final LinkedList<ISSABasicBlock> toExplore = new LinkedList<ISSABasicBlock>();
     toExplore.addAll(cfg.getNormalSuccessors(srcBlk));
-    final Set<SSACFG.BasicBlock> loopHeadsSeen = new HashSet<SSACFG.BasicBlock>();
+    final Set<SSACFG.BasicBlock> loopHeadsSeen = HashSetFactory.make();
     while (!toExplore.isEmpty()) {
       SSACFG.BasicBlock blk = (SSACFG.BasicBlock) toExplore.remove();
       if (blk.equals(dstBlk))

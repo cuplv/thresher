@@ -3,8 +3,7 @@ package edu.colorado.thresher;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,6 +51,8 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.WalaException;
+import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
@@ -64,11 +65,11 @@ public class Util {
   public static boolean DEBUG = Options.DEBUG;
   public static boolean PRINT = Options.PRINT;
 
-  public static Map<String, Integer> varIds = new HashMap<String, Integer>();
+  public static Map<String, Integer> varIds = HashMapFactory.make();
   private static int varIdCounter = 0;
-  public static Map<String, Integer> fieldIds = new HashMap<String, Integer>();
+  public static Map<String, Integer> fieldIds = HashMapFactory.make();
   private static int fieldIdCounter = 0;
-  public static Map<String, Integer> typeIds = new HashMap<String, Integer>();
+  public static Map<String, Integer> typeIds = HashMapFactory.make();
   private static int typeIdCounter = 0;
 
   private static int tmpCounter = 0;
@@ -260,7 +261,7 @@ public class Util {
   }
 
   public static <T> Set<T> iteratorToSet(Iterator<T> iter) {
-    Set<T> set = new HashSet<T>();
+    Set<T> set = HashSetFactory.make();
     while (iter.hasNext()) {
       set.add(iter.next());
     }
@@ -372,7 +373,7 @@ public class Util {
         // while (callers.hasNext()) srcMethods.add(callers.next());
       }
     } else { // this edge has a heap LHS
-      Set<CGNode> srcMethods = new HashSet<CGNode>(), snkMethods = new HashSet<CGNode>();
+      Set<CGNode> srcMethods = HashSetFactory.make(), snkMethods = HashSetFactory.make();
       // sets to keep track of value nums of local pointers. these are
       // overapproximate because they don't contain any information about
       // methods they belong to, but it doesn't seem worth it to save that
@@ -500,11 +501,11 @@ public class Util {
       AbstractDependencyRuleGenerator depRuleGenerator, CallGraph cg) {
     Util.Unimp("don't call this");
     Util.Debug("getting rules relevant to " + edge);
-    Set<CGNode> srcMethods = new HashSet<CGNode>();
+    Set<CGNode> srcMethods = HashSetFactory.make();
     Object src = edge.getSource().getInstanceKey();
     Object snk = edge.getSink().getInstanceKey();
 
-    Set<CGNode> snkMethods = new HashSet<CGNode>();
+    Set<CGNode> snkMethods = HashSetFactory.make();
     if (edge.getSource().toString().contains("fakeRootMethod"))
       srcMethods.add(cg.getFakeRootNode());
     if (edge.getSink().toString().contains("fakeRootMethod"))
@@ -1197,7 +1198,7 @@ public class Util {
    */
 
   public static Set<String> deepCopyStringSet(Set<String> pathConstraints) {
-    Set<String> newConstraints = new HashSet<String>();
+    Set<String> newConstraints = HashSetFactory.make();
     for (String str : pathConstraints) {
       newConstraints.add(new String(str));
     }
@@ -1216,7 +1217,7 @@ public class Util {
   // public static TreeSet<PointsToEdge>
   // deepCopyPointsToEdgeSet(TreeSet<PointsToEdge> edges) {
   public static Set<PointsToEdge> deepCopyPointsToEdgeSet(Set<PointsToEdge> edges) {
-    Set<PointsToEdge> newEdges = new HashSet<PointsToEdge>();
+    Set<PointsToEdge> newEdges = HashSetFactory.make();
     for (PointsToEdge edge : edges) {
       // this is ok since the contents of the set are immutable
       newEdges.add(edge);
@@ -1225,7 +1226,7 @@ public class Util {
   }
 
   public static <K, V> Map<K, V> copyMap(Map<K, V> map) {
-    Map<K, V> newMap = new HashMap<K, V>();
+    Map<K, V> newMap = HashMapFactory.make();
     for (K key : map.keySet()) {
       newMap.put(key, map.get(key));
     }
@@ -1243,7 +1244,7 @@ public class Util {
   }
 
   public static <T> Set<T> deepCopySet(Set<T> set) {
-    Set<T> copy = new HashSet<T>();
+    Set<T> copy = HashSetFactory.make();
     Iterator<T> iter = set.iterator();
     while (iter.hasNext()) {
       copy.add(iter.next());
@@ -1653,7 +1654,7 @@ public class Util {
   }
 
   public static <T> Set<T> flatten(Collection<Set<T>> sets) {
-    Set<T> flatSet = new HashSet<T>();
+    Set<T> flatSet = HashSetFactory.make();
     for (Set<T> set : sets)
       flatSet.addAll(set);
     return flatSet;
@@ -1678,7 +1679,7 @@ public class Util {
   }
 
   public static Set<String> getAllLinesFromFile(String filename) {
-    Set<String> lines = new HashSet<String>();
+    Set<String> lines = HashSetFactory.make();
     try {
       BufferedReader reader = new BufferedReader(new FileReader(filename));
       String line;
