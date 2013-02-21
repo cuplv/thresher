@@ -100,24 +100,11 @@ public class IBranchPoint {
   public boolean addPathToLoopHead(IPathInfo path) {
     Util.Pre(path.isFeasible(), "shouldn't add infeasible paths to loop head");
     Util.Pre(path.getLastBlock() != null, "need last block to be set here");
-    // Util.Pre(path.getCurrentBlock().equals(this.blk),
-    // "current path is in blk " + path.getCurrentBlock() +
-    // "; branch point blk is " + this.blk);
     // true branch is always the first one
     Util.Debug("adding loop head path " + path + id + ": " + this.instr + "; have " + truePaths.size());
     // boolean add = true;
-    /*
-     * List<IPathInfo> toRemove = new LinkedList<IPathInfo>(); for (IPathInfo
-     * oldPath : truePaths) { //Util.Debug(path.query + " CONTAINS " +
-     * oldPath.query); // if we've seen a weakened version of this path already,
-     * don't bother adding it if (path.containsQuery(oldPath)) {
-     * //seenPaths.add(path); return false; //add = false; //break; } else if
-     * (oldPath.containsQuery(path)) {
-     * Util.Debug("this path simpler than one we've seen; swapping");
-     * toRemove.add(oldPath); } } truePaths.removeAll(toRemove);
-     */
-    if (truePaths.size() > 100)
-      Util.Assert(false, "have seen an unreasonable number of paths at loop head!");
+    //if (truePaths.size() > 100)
+      //Util.Assert(false, "have seen an unreasonable number of paths at loop head!");
     return truePaths.add(path);
     // return seenPaths.add(path);
   }

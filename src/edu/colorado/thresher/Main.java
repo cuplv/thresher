@@ -58,26 +58,22 @@ import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 public class Main {
-  public static final boolean DEBUG = Options.DEBUG; // print debug information
-                                                     // (LOTS of printing)
-
+  
+  // print debug information (LOTS of printing)
+  public static final boolean DEBUG = Options.DEBUG; 
+  
   public static IClassHierarchy DEBUG_cha;
 
   private static IClass WEAK_REFERENCE;
 
-  private static boolean REGRESSIONS = false; // don't set manually;
-                                              // automatically on when
-                                              // regression tests run and off
-                                              // otherwise
+  // don't set manually; is automatically on when regressions tests run and off otherwise
+  private static boolean REGRESSIONS = false; 
 
   public static String REGRESSION = "__regression";
 
-  // field errors we see in almost every app and do not want to repeatedly
-  // re-refute
+  // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
       "CACHED_CHARSETS" };
-
-  static final Set<String> EMPTY_SET = Collections.EMPTY_SET;
 
   public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
       CallGraphBuilderCancelException {
@@ -261,14 +257,14 @@ public class Main {
 
   public static boolean runAnalysisAllStaticFields(String appName) // wrapper
       throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    return runAnalysisAllStaticFields(appName, EMPTY_SET);
+    return runAnalysisAllStaticFields(appName, Collections.EMPTY_SET);
   }
 
   public static boolean runAnalysisActivityAndViewFieldsOnly(String appName) // wrapper
       throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
     String[] srcClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View" };
     String[] snkClasses = new String[] { "Landroid/app/Activity" };
-    return runAnalysis(appName, srcClasses, snkClasses, EMPTY_SET, false);
+    return runAnalysis(appName, srcClasses, snkClasses, Collections.EMPTY_SET, false);
   }
 
   public static boolean runAnalysisActivityFieldsOnly(String appName) // wrapper
@@ -287,21 +283,73 @@ public class Main {
   public static boolean runAnalysis(String appName, String baseClass, boolean fakeMap) // wrapper
       throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     String[] singleton = new String[] { baseClass };
-    return runAnalysis(appName, singleton, singleton, EMPTY_SET, fakeMap);
+    return runAnalysis(appName, singleton, singleton, Collections.EMPTY_SET, fakeMap);
   }
 
+  /*
+  public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    JarFile androidJar = new JarFile(Options.ANDROID_JAR);
+    // add Android code
+    //scope.addToScope(scope.getPrimordialLoader(), androidJar);
+    // add application code
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+
+    IClassHierarchy cha = ClassHierarchy.make(scope);
+    Iterator<IClass> classes = cha.iterator();
+    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
+    while (classes.hasNext()) {
+      IClass c = classes.next();
+      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
+      for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
+        // consider public methods to be entrypoints
+        if (m.isPublic() || m.isProtected()) {
+          entryPoints.add(new DefaultEntrypoint(m, cha));
+        }
+      }
+    }
+    
+    // build callgraph and pointer analysis
+    Collection<? extends Entrypoint> e = entryPoints;
+
+    AnalysisOptions options = new AnalysisOptions(scope, e); 
+    // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
+    AnalysisCache cache = new AnalysisCache();
+    CallGraphBuilder builder = 
+        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,cache, cha, scope);
+    if (DEBUG) Util.Debug("building call graph");
+    CallGraph cg = builder.makeCallGraph(options, null);
+    // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
+    Util.Print(CallGraphStats.getStats(cg));
+    PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
+    HeapGraph hg = pointerAnalysis.getHeapGraph();
+    MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
+    HeapModel hm = pointerAnalysis.getHeapModel();
+    
+    // collect assertions
+    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
+    
+    
+    
+    classes = cha.iterator();
+    while (classes.hasNext()) {
+      IClass c = classes.next();
+      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
+      cg.getn
+    }
+    
+  }
+  */
+  
   /**
    * run Thresher on app
    * 
-   * @param appName
-   *          - path to app to run
-   * @param baseClasses
-   *          - classes whose static fields we should search from, and instances
-   *          of which should be not reachable from a static field
-   * @param fakeMap
-   *          - debug parameter; should be false for all real uses
-   * @return - true if no instance of the base classes is reachable from a
-   *         static field of the base class, false otherwise
+   * @param appName - path to app to run
+   * @param baseClasses - classes whose static fields we should search from and classes whose instances should not be reachable
+   * from a static field
+   * @param fakeMap - debug parameter; should be false for all real uses
+   * @return - true if no instance of the base classes is reachable from a static field of the base class, false otherwise
    */
   public static boolean runAnalysis(String appPath, String[] srcStrings, String[] snkStrings, Set<String> refutedEdges,
       boolean fakeMap) throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
@@ -329,31 +377,25 @@ public class Main {
     Iterator<IClass> classes = cha.iterator();
     while (classes.hasNext()) {
       IClass c = classes.next();
-      if (!scope.isApplicationLoader(c.getClassLoader()))
-        continue;
+      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
       for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
         if (REGRESSIONS) {
           if (m.isPublic() || m.isProtected()) {
             entryPoints.add(new DefaultEntrypoint(m, cha));
           }
         } else {
-          if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { // add
-                                                                                              // "on*"
-                                                                                              // methods;
-                                                                                              // they're
-                                                                                              // the
-                                                                                              // event
-                                                                                              // handlers
+          // add "on*" methods; they're the event handlers
+          if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { 
             entryPoints.add(new DefaultEntrypoint(m, cha));
           }
         }
 
-        if (m.getName().toString().equals("onRetainNonConfigurationInstance"))
+        if (m.getName().toString().equals("onRetainNonConfigurationInstance")) {
           saveMethods.add(m.getReference());
+        }
       }
 
-      if (srcStrings.length == 0) { // no src classes; just use all static
-                                    // fields
+      if (srcStrings.length == 0) { // no src classes; just use all static fields
         for (IField field : c.getAllStaticFields()) {
           staticFields.add(field);
         }
@@ -387,20 +429,10 @@ public class Main {
     Collection<? extends Entrypoint> e = entryPoints;
     Util.Print(e.size() + " entrypoints");
 
-    AnalysisOptions options = new AnalysisOptions(scope, e); // build call graph
-                                                             // and pointer
-                                                             // analysis
-    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); // turn
-                                                                      // off
-                                                                      // handling
-                                                                      // of
-                                                                      // Method.invoke(),
-                                                                      // which
-                                                                      // dramatically
-                                                                      // speeds
-                                                                      // up
-                                                                      // points-to
-                                                                      // analysis
+    // build callgraph and pointer analysis
+    AnalysisOptions options = new AnalysisOptions(scope, e); 
+    // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
     AnalysisCache cache = new AnalysisCache();
     CallGraphBuilder builder;
     // CallGraphBuilder builder =
@@ -409,13 +441,10 @@ public class Main {
     // CallGraphBuilder builder =
     // com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,
     // cache, cha, scope);
-    if (!fakeMap)
-      builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
-    else
-      builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
+    if (!fakeMap) builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    else builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
     DEBUG_cha = cha; // DEBUG ONLY
-    if (DEBUG)
-      Util.Debug("building call graph");
+    if (DEBUG) Util.Debug("building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
