@@ -93,15 +93,16 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 
         // boolean witness = false;
         for (Iterator<CGNode> preds = callGraph.getPredNodes(producer); preds.hasNext();) {
+          IPathInfo newPathCopy = newPath.deepCopy();
           CGNode producerCaller = preds.next();
           // common ancestors non-empty; nodes share common caller. can enter
           // from exit block of producer
           SSAInvokeInstruction callInstr = WALACFGUtil.getCallInstructionFor(producer, producerCaller, callGraph);
           // needed to prevent false refutations based on stale constraints
-          newPath.addContextualConstraints(producer); 
-          newPath.setCurrentNode(producerCaller);
-          newPath.enterCallFromJump(callInstr, callGraph, producer);
-          if (executeToProcedureBoundary(newPath, producer)) {
+          newPathCopy.addContextualConstraints(producer); 
+          newPathCopy.setCurrentNode(producerCaller);
+          newPathCopy.enterCallFromJump(callInstr, callGraph, producer);
+          if (executeToProcedureBoundary(newPathCopy, producer)) {
             Util.Debug("returning true from handlePiecewiseMethodBased");
             path.declareFakeWitness();
             return true;

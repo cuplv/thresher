@@ -111,7 +111,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (!point.addPathToLoopHead(info)) {
         if (Options.DEBUG)
           Util.Debug("already seen this path... stopping execution");
-        // Thread.dumpStack();
         executeAllNonPhiInstructionsInCurrentBlock(info);
         if (Options.CHECK_ASSERTS)
           split = true;
@@ -127,19 +126,10 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     if (Options.DEBUG)
       Util.Debug("haven't seen loop head before");
     if (!seenLoopHead) {
-      if (Options.DEBUG)
-        Util.Debug("adding loop merge indicator for block " + currentBlock);
       addLoopMergePlaceholder(currentBlock);
     }
-    LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>(); // list to
-                                                                    // hold list
-                                                                    // of split
-                                                                    // paths if
-                                                                    // split
-                                                                    // occurs
-                                                                    // before
-                                                                    // end of
-                                                                    // block
+    // list to hold split paths if split occurs before end of block
+    LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
     int pathCount = this.pathsToExplore.size();
     if (!executeAllInstructionsInLoopHeadSequence(info, splitPaths)) {
       if (Options.CHECK_ASSERTS)
@@ -225,7 +215,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         if (!branchPointStack.isEmpty()) return mergeBranchPointForLoopHead(path.getCurrentBlock()); 
         else return this.selectPath(); // else do nothing
       }
-      if (Options.DEBUG) Util.Assert(path != null, "path should never be null here!");
+      Util.Assert(path != null, "path should never be null here!");
+      Util.Assert(path.isFeasible());
       return path; // "normal" case; return path on top of stack
     } else {
       if (!branchPointStack.isEmpty()) {
@@ -299,6 +290,22 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // of the lists will be empty
     // Util.Assert(!truePaths.isEmpty() && !falsePaths.isEmpty(),
     // "both path lists should be non empty!");
+    
+    if (Options.SYNTHESIS) {
+      // add "loop taken" constraint
+      for (IPathInfo info : truePaths) {
+        Util.Debug("false paths");
+        SSAInstruction instr = loopHeadBlock.getLastInstruction();
+        String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
+        IBranchPoint point = branchPointMap.get(key);
+        if (point == null) { // creating new branch point
+          point = IBranchPoint.makeBranchPoint(instr, info.getCurrentLineNum(), info.getCurrentBlock(), info.getCurrentNode(), true);
+        }    
+        info.addConstraintFromBranchPoint(point, false);
+      }
+      // TODO: change stale constraints to retvals of native/unknown functions
+    }
+    
     truePaths.addAll(falsePaths);
 
     // Util.Assert(!truePaths.isEmpty(), "true paths empty!");
@@ -323,19 +330,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
     for (IPathInfo info : truePaths) {
       info.setCurrentBlock(loopHeadBlock);
-      info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); // start
-                                                                             // before
-                                                                             // the
-                                                                             // branch
-                                                                             // instr
+      // start before the branch instr
+      info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); 
+
       List<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info);
-      if (cases == IPathInfo.INFEASIBLE)
-        toRemove.add(info);
-      /*
-       * else { for (IPathInfo path : cases) {
-       * path.removeSeenLoopHead(loopHeadBlock); // forget that we saw this loop
-       * head; needed for nested loops } }
-       */
+      if (cases == IPathInfo.INFEASIBLE) toRemove.add(info);
     }
     truePaths.addAll(toAdd);
     truePaths.removeAll(toRemove);
@@ -348,104 +347,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       }
     }
     // Util.Debug("starting with " + truePaths.size() + " paths");
-    if (Options.DEBUG)
-      Util.Debug("done merging loop; adding " + truePaths.size() + " paths");
-
-    // TODO: if the LHS is a local and the right side is a local allocation site
-    // that's not in this node, it's infeasible...
-
-    // for (IPathInfo info : truePaths) mergedPaths.add(info);
-    // Util.Debug("now " + mergedPaths.size() + " paths");
-    // for (IPathInfo info : truePaths) Util.Debug("PATH " + info);
-    // if (truePaths.size() > 10) Util.Unimp("why are there so many paths????");
-
+    if (Options.DEBUG) Util.Debug("done merging loop; adding " + truePaths.size() + " paths");
     return selectPath();
-    // at this point, base contains the path constraints that are common to all
-    // paths in the loop
-    /*
-     * // for each query, replace constraints that could be produced in the loop
-     * with their preconditions for (IPathInfo info : truePaths) {
-     * info.intersectQuery(base); // drop path constraints by intersecting with
-     * common constraints info.removeLoopProduceableConstraints(loopHeadBlock);
-     * mergedPaths.add(info); // merge paths; removing loop produceable
-     * constraints may have caused previously distinct paths to become the same
-     * }
-     * 
-     * // run each path through the runup to the loop for (IPathInfo info :
-     * mergedPaths) { info.setCurrentBlock(loopHeadBlock);
-     * info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); //
-     * start before the branch instr List<IPathInfo> cases =
-     * executeAllInstructionsInLoopHeadBlock(info); Util.Assert(cases.isEmpty(),
-     * "not expecting case split here!");
-     * info.removeSeenLoopHead(loopHeadBlock); // forget that we saw this loop
-     * head; needed for nested loops Util.Debug("Added loop path " + info);
-     * addPath(info); } Util.Debug("done merging loop; added " +
-     * mergedPaths.size() + " paths.");
-     * 
-     * // TODO: DEBUG only IPathInfo somePath = mergedPaths.iterator().next();
-     * IR ir = somePath.getCurrentNode().getIR(); SSACFG.BasicBlock escapeBlock
-     * = somePath.getCurrentBlock();
-     * 
-     * // loop apex is the block that is the sink of the back edge. I use the
-     * term "loop head block" to refer to blocks in the loop head between the
-     * loop apex // and the conditional branch instruction that actually
-     * controls the loop. the loop apex is a loop head block, but not all loop
-     * head blocks are the apex Collection<ISSABasicBlock> succs =
-     * ir.getControlFlowGraph().getNormalSuccessors(escapeBlock);
-     * Util.Assert(succs.size() == 1, "should be exactly one successor");
-     * SSACFG.BasicBlock loopApex = (SSACFG.BasicBlock) succs.iterator().next();
-     * // escape block should have one successor, and it should be the loop apex
-     * Util.Assert(WALACFGUtil.isLoopEscapeBlock(escapeBlock, loopApex, ir),
-     * "should be in loop escape block here! in block " +
-     * somePath.getCurrentBlock() + " instead."); // TODO: end debug return
-     * selectPath(); // return the path from the top of the path stack
-     */
   }
-
-  /*
-   * public IPathInfo mergeLoop(Set<IPathInfo> truePaths, Set<IPathInfo>
-   * falsePaths, SSACFG.BasicBlock loopHeadBlock) { Util.Log("merging loop"); //
-   * commented out because not necessarily true... if we start in a loop, one of
-   * the lists will be empty //Util.Assert(!truePaths.isEmpty() &&
-   * !falsePaths.isEmpty(), "both path lists should be non empty!");
-   * truePaths.addAll(falsePaths);
-   * 
-   * Util.Assert(!truePaths.isEmpty(), "true paths empty!");
-   * 
-   * boolean first = true; IPathInfo base = null; // take intersection of all
-   * queries; that is, "drop" constraints that may be produced in the loop for
-   * (IPathInfo info : truePaths) { Util.Debug("loop intersect path " + info);
-   * Util.Assert(info.isFeasible(), "infeasible path at loop head!"); if (first)
-   * { base = info.deepCopy(); first = false; } else {
-   * base.intersectQuery(info); } }
-   * 
-   * Util.Debug("continuing on " + base);
-   * 
-   * IR ir = base.getCurrentNode().getIR(); // execute all instructions in loop
-   * head, make sure loop escape block will be taken
-   * base.setCurrentBlock(loopHeadBlock);
-   * base.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); //
-   * start before the branch instr List<IPathInfo> cases =
-   * executeAllInstructionsInLoopHeadBlock(base);
-   * 
-   * SSACFG.BasicBlock escapeBlock = base.getCurrentBlock(); // loop apex is the
-   * block that is the sink of the back edge. I use the term "loop head block"
-   * to refer to blocks in the loop head between the loop apex // and the
-   * conditional branch instruction that actually controls the loop. the loop
-   * apex is a loop head block, but not all loop head blocks are the apex
-   * Collection<ISSABasicBlock> succs =
-   * ir.getControlFlowGraph().getNormalSuccessors(escapeBlock);
-   * Util.Assert(succs.size() == 1, "should be exactly one successor");
-   * SSACFG.BasicBlock loopApex = (SSACFG.BasicBlock) succs.iterator().next();
-   * // escape block should have one successor, and it should be the loop apex
-   * Util.Assert(WALACFGUtil.isLoopEscapeBlock(escapeBlock, loopApex, ir),
-   * "should be in loop escape block here! in block " + base.getCurrentBlock() +
-   * " instead.");
-   * 
-   * for (IPathInfo info : cases) { info.removeSeenLoopHead(loopHeadBlock);
-   * addPath(info); } base.removeSeenLoopHead(loopHeadBlock); // forget that we
-   * saw this loop head; needed for nested loops return base; }
-   */
 
   /**
    * execute all instructions, making the phi choice corresponding to the loop
@@ -642,16 +546,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // true/false branch
     boolean truePathsEmpty = truePaths.isEmpty();
     boolean falsePathsEmpty = falsePaths.isEmpty();
-    if (Options.DEBUG)
-      Util.Debug("merging branch point " + point);
+    if (Options.DEBUG) Util.Debug("merging branch point " + point);
 
     if (point.isLoopHead()) {
       // Util.visualizeIR(Options.DEBUG_cha, point.getIR(), "TEST");
-      return mergeLoop(truePaths, falsePaths, point.getBlock()); // loops are a
-                                                                 // special case
-                                                                 // here...may
-                                                                 // need to drop
-                                                                 // constraints
+      // loops are a special case here...may need to drop constraints
+      return mergeLoop(truePaths, falsePaths, point.getBlock()); 
     }
 
     Set<IPathInfo> toAdd = HashSetFactory.make();

@@ -715,6 +715,12 @@ public class IPathInfo { // implements Comparable {
   public List<DependencyRule> getWitnessList() {
     return query.getWitnessList();
   }
+  
+  boolean startedInLoop = false;
+  public void setStartedInLoop() {
+    startedInLoop = true;
+  }
+  public void clearStartedInLoop() { startedInLoop = false; }
 
   // TODO: possibly use program point information in hash code as well
   @Override

@@ -909,7 +909,7 @@ public class Util {
    * + rule); // preconditions.add(edge); //} } //return preconditions; }
    */
 
-  public static PointerVariable makePointerVariableImpl(Object key) {
+  private static PointerVariable makePointerVariableImpl(Object key) {
     Util.Pre(key != null, "can't make pointer variable from null key!");
     CGNode node = null;
     String pointerString = null;

@@ -3,6 +3,7 @@ package edu.colorado.thresher;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -15,6 +16,7 @@ import java.util.jar.JarFile;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
+import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
@@ -43,7 +45,9 @@ import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
@@ -84,8 +88,8 @@ public class Main {
     } else if (target.equals(REGRESSION))
       runRegressionTests();
     else
-      runAnalysisAllStaticFields(target);
-    // else runAnalysisActivityFieldsOnly(target, true, true);
+      if (Options.SYNTHESIS) runSynthesizer(target);
+      else runAnalysisAllStaticFields(target);
   }
 
   public static void runRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
@@ -286,12 +290,11 @@ public class Main {
     return runAnalysis(appName, singleton, singleton, Collections.EMPTY_SET, fakeMap);
   }
 
-  /*
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     JarFile androidJar = new JarFile(Options.ANDROID_JAR);
     // add Android code
-    //scope.addToScope(scope.getPrimordialLoader(), androidJar);
+    scope.addToScope(scope.getPrimordialLoader(), androidJar);
     // add application code
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 
@@ -308,6 +311,7 @@ public class Main {
         }
       }
     }
+    
     
     // build callgraph and pointer analysis
     Collection<? extends Entrypoint> e = entryPoints;
@@ -327,20 +331,134 @@ public class Main {
     MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
     HeapModel hm = pointerAnalysis.getHeapModel();
     
+    final MethodReference ASSERT_PT_NULL = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
+                                     "Unmodifiable", "(Ljava/lang/Object;Ljava/lang/String;)V");
+    
     // collect assertions
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
+    Iterator<CGNode> clinits = cg.getSuccNodes(fakeWorldClinit);
+    while (clinits.hasNext()) { // for each class initializer
+      CGNode clinit = clinits.next();
+      IR clinitIr = clinit.getIR();
+      SymbolTable tbl = clinitIr.getSymbolTable();
+      Iterator<CallSiteReference> calls = clinit.iterateCallSites();
+      while (calls.hasNext()) { // for each method called in the clinit
+        CallSiteReference call = calls.next();
+        if (call.getDeclaredTarget() == ASSERT_PT_NULL) {
+          SSAAbstractInvokeInstruction[] callInstrs = clinitIr.getCalls(call);
+          for (int i = 0; i < callInstrs.length; i++) {
+            Util.Print(callInstrs[i].toString());
+            // local pointer pointing at the base loc
+            PointerKey baseLoc = hm.getPointerKeyForLocal(clinit, callInstrs[i].getUse(0));
+            Iterator<Object> succs = hg.getSuccNodes(baseLoc);
+            Util.Assert(succs.hasNext());
+            Object succ = succs.next();
+            Util.Assert(!succs.hasNext(), "only expecting on obj to flow here");
+            String fieldName = tbl.getStringValue(callInstrs[i].getUse(1));
+            Util.Print(succ + "." + fieldName);
+            Iterator<Object> fields = hg.getSuccNodes(succ);
+            Set<InstanceKey> possibleVals = HashSetFactory.make();
+            PointerVariable lhs = Util.makePointerVariable(succ);
+            PointsToEdge edge = null;
+            while (fields.hasNext()) {
+              Object field = fields.next();
+              if (field instanceof InstanceFieldKey) {
+                InstanceFieldKey fieldKey = (InstanceFieldKey) field;
+                if (fieldName.equals(fieldKey.getField().getName().toString())) {
+                  Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+                  while (fieldSuccs.hasNext()) {
+                    possibleVals.add((InstanceKey) fieldSuccs.next());
+                  }
+                  PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(possibleVals);
+                  edge = new PointsToEdge(lhs, rhs, fieldKey.getField());
+                  break;
+                }
+              } else if (field instanceof ArrayContentsKey) {
+                if (fieldName.equals("contents")) {
+                  Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+                  while (fieldSuccs.hasNext()) {
+                    possibleVals.add((InstanceKey) fieldSuccs.next());
+                  }
+                  PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(possibleVals);
+                  edge = new PointsToEdge(lhs, rhs, AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+                  Util.Print("edge " + edge);
+                  break;
+                }
+              } else Util.Unimp("bad field!");
+            }
+            Util.Assert(edge != null);
+            
+            ModRef modref = ModRef.make();
+            Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
+            
+            AbstractDependencyRuleGenerator depRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, Collections.EMPTY_SET, modRefMap, false);
+            Set<DependencyRule> producers = Util.getProducersForEdge(edge, depRuleGenerator);
+            for (DependencyRule producer : producers) {
+              Util.Print("producer " + producer);
+              PointerStatement snkStmt = producer.getStmt();
+              int startLine = snkStmt.getLineNum();
+              PointsToQuery ptQuery = new PointsToQuery(producer, depRuleGenerator);
+              
+              final IQuery query = new CombinedPathAndPointsToQuery(ptQuery);
+              IR ir = producer.getNode().getIR();
+              SSACFG cfg = ir.getControlFlowGraph();
+              SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
+              int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
+              Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), "instrs dif! expected "
+                  + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
+              
+              ISymbolicExecutor exec;
+              boolean foundWitness;
+              Logger logger = new Logger("synth");
+              exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, Collections.EMPTY_SET);
+              // start at line BEFORE snkStmt
+              foundWitness = exec.executeBackward(producer.getNode(), startBlk, startLineBlkIndex - 1, query);
+              Util.Print("witness? " + foundWitness);
+            }
+          }
+        }
+      }
+    }
     
-    
-    
+    /*
+    Iterator<CallSiteReference> clinitSites = fakeWorldClinit.iterateCallSites();
+    while (clinitSites.hasNext()) { // for each class initializer
+      CallSiteReference clinit = clinitSites.next();
+      Set<CGNode> clinitCalled = cg.getNodes(clinit.getDeclaredTarget()); // get methods called by clinit
+      
+      for (CGNode clinitCall : clinitCalled) { // for each method called by the class initializer
+        Iterator<CGNode> succs = cg.getSuccNodes(clinitCall);
+        while (succs.hasNext()) {
+          CGNode succ = succs.next();
+          if (succ.getMethod().getReference() == ASSERT_PT_NULL) {
+            // iterate over IR and find the params to the assert
+            Util.Print("found assertion");
+            IR ir = succ.getIR();
+            Iterator<CallSiteReference> calls = ir.iterateCallSites();
+            while (calls.hasNext()) {
+              CallSiteReference ref = calls.next();
+              ref.g
+            }
+            
+            ir.getCalls(succ.getMethod().getr)
+            SSAInstruction[] instrs = ir.getIns();
+            
+          }
+        }
+      }
+    }
+    */
+    /*
     classes = cha.iterator();
     while (classes.hasNext()) {
       IClass c = classes.next();
       if (!scope.isApplicationLoader(c.getClassLoader())) continue;
       cg.getn
     }
+    */
     
   }
-  */
   
   /**
    * run Thresher on app
@@ -804,11 +922,9 @@ public class Main {
           exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
         // start at line BEFORE snkStmt
         foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query);
-        query.dispose(); // have the query free any resources it might be using (theorem prover contexts e.t.c)
+        //query.dispose(); // now done by the symbolic executor
         Util.Print(logger.dumpEdgeStats());
-        if (foundWitness) {
-          return null;
-        } // else, refuted this attempt; try again
+        if (foundWitness) return null; // else, refuted this attempt; try again
       }
     }
     return new LinkedList<Pair<InstanceKey, Object>>(); // refuted all posssible

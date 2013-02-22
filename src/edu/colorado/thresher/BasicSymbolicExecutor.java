@@ -57,7 +57,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public boolean executeBackward(CGNode startNode, IQuery query) {
+  public final boolean executeBackward(CGNode startNode, IQuery query) {
     final SSACFG.BasicBlock exit = startNode.getIR().getControlFlowGraph().exit();
     return executeBackward(startNode, exit, exit.getAllInstructions().size() - 1, query);
   }
@@ -70,13 +70,15 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public boolean executeBackward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
+  public final boolean executeBackward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
     // Util.Print(startNode.getIR().toString());
     final IPathInfo path = makePath(startNode, startBlk, startLine, query);
     this.pathsToExplore.add(path);
     // Util.visualizeIR(Options.DEBUG_cha, startNode.getIR(), "TEST"); // DEBUG
     // only; can get a view of weird IR if it's giving us trouble
-    return executeBackward();
+    boolean result = executeBackward();
+    query.dispose(); // clear theorem prover contexts and other resources used by the query
+    return result;
   }
 
   /**
@@ -85,7 +87,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public boolean executeBackward() {
+  public final boolean executeBackward() {
     int pathCount = 0;
     for (;;) {
       // also timeout if we use too much memory
@@ -130,12 +132,17 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         if (handleInterproceduralExecution(path)) {
           logger.logPathCount(pathCount);
           logger.logWitnessList(path.getWitnessList());
+          this.witnessQuery = path.query;
           return true;
         }
       } // else, path is infeasible, either because it split or because it was
         // refuted. execute next path
     }
   }
+  
+  private IQuery witnessQuery;
+  IQuery witnessQuery() { return witnessQuery; }
+  
 
   void end() {
   } // do nothing
@@ -750,9 +757,9 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
       // TODO: hack! encode that size returns a value >= 0 and less than max
       // collection size
-      if (instr.getCallSite().getDeclaredTarget().toString().contains("size()")) {
-        return info.addSizeConstraint((SSAInvokeInstruction) instr, info.getCurrentNode());
-      }
+      //if (instr.getCallSite().getDeclaredTarget().toString().contains("size()")) {
+//        return info.addSizeConstraint((SSAInvokeInstruction) instr, info.getCurrentNode());
+  //    }
 
       return true;
     }

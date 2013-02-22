@@ -201,17 +201,8 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
       // correctly.
       final SSACFG.BasicBlock currentBlock = path.getCurrentBlock();
       Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
-      LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>(); // list to
-                                                                      // hold
-                                                                      // list of
-                                                                      // split
-                                                                      // paths
-                                                                      // if
-                                                                      // split
-                                                                      // occurs
-                                                                      // before
-                                                                      // end of
-                                                                      // block
+      // list to hold split paths if split occurs before end of block
+      LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
       boolean loopHead = WALACFGUtil.isLoopHead(currentBlock, ir);
       SSACFG.BasicBlock loopHeadBlock = loopHead ? currentBlock : null;
 
@@ -562,8 +553,9 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     // Util.Assert(!pathsToExplore.contains(mergeIndicator),
     // "already have loop merge indicator for " + loopHeadToMerge);
     if (!pathsToExplore.contains(mergeIndicator)) {
-      if (Options.DEBUG)
+      if (Options.DEBUG) {
         Util.Debug("adding loop merge indicator for block " + loopHeadToMerge);
+      }
       this.pathsToExplore.push(mergeIndicator);
     }
   }

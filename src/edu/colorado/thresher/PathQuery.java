@@ -76,7 +76,8 @@ public class PathQuery implements IQuery {
   // lookups
   final Set<PointerVariable> pathVars;
 
-  final Z3Context ctx; // (possibly shared) Z3 context
+  // Z3Context shared among all paths. do not make copies of this unless you dispose of them properly!
+  final Z3Context ctx; 
 
   // a z3 representation of the z3 assumption tied to the current path
   // constraints
@@ -87,17 +88,17 @@ public class PathQuery implements IQuery {
 
   // constructor to be used from the outside
   public PathQuery(AbstractDependencyRuleGenerator depRuleGenerator) {
-    // public PathQuery(AbstractDependencyRuleGenerator depRuleGenerator) {
     this.depRuleGenerator = depRuleGenerator;
     this.heapModel = depRuleGenerator.getHeapModel();
+    // this should be the only place Z3Context's are created unless they are disposed of carefully
     this.ctx = new Z3Context(new Z3Config());
-    // this.constraints = new TreeSet<AtomicPathConstraint>();
-    this.constraints = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
-    this.pathVars = HashSetFactory.make(); //new HashSet<PointerVariable>();
+    this.constraints = HashSetFactory.make(); 
+    this.pathVars = HashSetFactory.make(); 
     this.witnessList = new LinkedList<AtomicPathConstraint>();
     this.currentPathAssumption = null;
   }
   
+  // if the context is not copied, this will clear all memory Z3 is using
   public void dispose() { ctx.delete(); }
 
   // constructor for deep copying only
@@ -110,7 +111,7 @@ public class PathQuery implements IQuery {
     this.witnessList = witnessList;
     this.depRuleGenerator = depRuleGenerator;
     this.heapModel = depRuleGenerator.getHeapModel();
-    this.ctx = ctx; //new Z3Context(new Z3Config());
+    this.ctx = ctx; 
     this.currentPathAssumption = null;
     rebuildZ3Constraints();
   }
@@ -845,8 +846,7 @@ public class PathQuery implements IQuery {
       // if (!deleted) ctx.delete(); //occasionally causes Z3 to die
       return false;
     }
-    if (currentPathAssumption == null)
-      return true;
+    if (currentPathAssumption == null) return true;
     // call Z3 to check for feasibility
     Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };
     boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
@@ -1321,6 +1321,7 @@ public class PathQuery implements IQuery {
   public boolean symbContains(PathQuery other) {
     if (other.constraints.isEmpty()) return true;
     if (this.constraints.isEmpty()) return false;
+    // TODO: refactor to use existing context
     // temporary context for performing implication checking
     final Z3Context tmp = new Z3Context(new Z3Config());
     final Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
