@@ -358,11 +358,6 @@ public class IPathInfo { // implements Comparable {
     }
   }
 
-  public List<IPathInfo> visit(SSAInstruction instr, Set<PointsToEdge> refuted) {
-    List<IQuery> caseSplits = query.visit(instr, this, refuted);
-    return handleQueryCaseSplitReturn(caseSplits);
-  }
-
   public List<IPathInfo> visit(SSAInstruction instr) {
     List<IQuery> caseSplits = query.visit(instr, this);
     return handleQueryCaseSplitReturn(caseSplits);

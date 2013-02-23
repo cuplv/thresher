@@ -1219,11 +1219,6 @@ public class PathQuery implements IQuery {
   }
 
   @Override
-  public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath, Set<PointsToEdge> refuted) {
-    return visit(instr, currentPath);
-  }
-
-  @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
     CGNode node = currentPath.getCurrentNode();
     SymbolTable tbl = currentPath.getCurrentNode().getIR().getSymbolTable();

@@ -3,7 +3,6 @@ package edu.colorado.thresher;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -11,7 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.jar.JarFile;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
@@ -646,7 +644,7 @@ public class Main {
       CallGraph cg, HeapModel hm, IClassHierarchy cha, Map<CGNode, OrdinalSet<PointerKey>> modRef,
       Set<String> refutedEdgeStrings, Logger logger) {
     List<Pair<Object, Object>> trueErrors = new LinkedList<Pair<Object, Object>>(), falseErrors = new LinkedList<Pair<Object, Object>>();
-    TreeSet<PointsToEdge> producedEdges = new TreeSet<PointsToEdge>(), refutedEdges = new TreeSet<PointsToEdge>();
+    Set<PointsToEdge> producedEdges = HashSetFactory.make(), refutedEdges = HashSetFactory.make();
     AbstractDependencyRuleGenerator aDepRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, refutedEdges,
         modRef, DEBUG);
 
@@ -696,7 +694,7 @@ public class Main {
    * @return - true if the error is a refutation, false otherwise
    */
   public static boolean refuteFieldErrorForward(Pair<Object, Object> error, HeapGraphWrapper hg,
-      TreeSet<PointsToEdge> producedEdges, AbstractDependencyRuleGenerator aDepRuleGenerator, TreeSet<PointsToEdge> refutedEdges,
+      Set<PointsToEdge> producedEdges, AbstractDependencyRuleGenerator aDepRuleGenerator, Set<PointsToEdge> refutedEdges,
       Set<String> refutedEdgeStrings, CallGraph cg, HeapModel hm, IClassHierarchy cha,
       BFSPathFinder<Object> finder, Logger logger) {
     Collection<Object> snkCollection = new LinkedList<Object>();

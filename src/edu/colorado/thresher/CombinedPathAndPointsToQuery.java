@@ -53,9 +53,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
     
     @Override
-    public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
-      return delegate.isRuleRelevant(rule, currentPath, extraVars) || 
-             CombinedPathAndPointsToQuery.this.isRuleRelevantForPathQuery(rule, currentPath, extraVars);
+    public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
+      return delegate.isRuleRelevant(rule, currentPath) || 
+             CombinedPathAndPointsToQuery.this.isRuleRelevantForPathQuery(rule, currentPath);
     }
     
     @Override
@@ -142,22 +142,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   @Override
-  public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath, Set<PointsToEdge> refuted) {
-    // visit path constraints first, since they can't cause case-splits
-    List<IQuery> pathResults = super.visit(instr, currentPath, refuted);
-    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    Util.Assert(pathResults.isEmpty(), "should never be case splits on path constraints!");
-
-    List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, refuted);
-    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    if (Options.DEBUG) Util.Debug("CONS " + this.toString());
-    return combinePathAndPointsToQueries(ptResults, pathResults);
-  }
-
-  @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
-    Set<PointsToEdge> edgeSet = HashSetFactory.make();
-    List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath, this.pathVars, edgeSet);
+    List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     if (Options.DEBUG) Util.Debug("CONS " + this.toString());
 
@@ -667,7 +653,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
   }
   
-  public boolean isRuleRelevantForPathQuery(DependencyRule rule, IPathInfo currentPath, Set<PointerVariable> extraVars) {
+  public boolean isRuleRelevantForPathQuery(DependencyRule rule, IPathInfo currentPath) {
     PointsToEdge edge = rule.getShown();
     if (this.pathVars.contains(edge.getSource())) return true;
     if (edge.getSink().isSymbolic()) {

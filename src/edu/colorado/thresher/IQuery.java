@@ -72,11 +72,6 @@ public interface IQuery { // extends Comparable {
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath);
 
   /**
-   * @param - refuted - list of edges that have already been refuted
-   */
-  public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath, Set<PointsToEdge> refuted);
-
-  /**
    * phi's are a special case between we need a variable to tell us which index
    * to pick
    */
