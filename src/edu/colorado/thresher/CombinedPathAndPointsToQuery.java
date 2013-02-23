@@ -1,12 +1,14 @@
 package edu.colorado.thresher;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
@@ -30,6 +32,8 @@ import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
@@ -180,28 +184,49 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * the dependency rules to help us make relevant bindings
    */
   @Override
-  public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    this.pointsToQuery.enterCallFromJump(instr, callee, currentPath);
-    // if params were bound, they will be in the produced set. apply these param
-    // bindings to the path constraints
+  public void enterCallFromJump(CGNode callee) { 
+    int[] params = callee.getIR().getParameterValueNumbers();
+    HeapModel hm = this.depRuleGenerator.getHeapModel();
+    HeapGraph hg = this.depRuleGenerator.getHeapGraph();
+    MutableIntSet bound = new BitVectorIntSet();
+    for (int i = 0; i < params.length; i++) {
+      PointerKey key = hm.getPointerKeyForLocal(callee, params[i]);
+      PointerVariable param = new ConcretePointerVariable(callee, params[i], this.depRuleGenerator.getHeapModel());
+      Iterator<Object> succs = hg.getSuccNodes(key);
+      while (succs.hasNext()) {
+        Object succ = succs.next();
+        PointerVariable paramPointedTo = Util.makePointerVariable(succ);
+        PointsToEdge producedEdge = new PointsToEdge(param, paramPointedTo);
+        for (PointsToEdge edge : pointsToQuery.constraints) {
+          if (edge.getSource().symbEq(paramPointedTo)) {
+            Util.Assert(!edge.getSource().isSymbolic(), "unimp: need to bind symbolic var here");
+            if (pointsToQuery.produced.add(producedEdge)) {
+              boolean added = bound.add(params[i]);
+              Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced));
+            }
+          } 
+        }
+        
+        for (AtomicPathConstraint constraint : this.constraints) {
+          if (constraint.getVars().contains(paramPointedTo)) {
+            if (pointsToQuery.produced.add(producedEdge)) {
+              //substituteExpForVar(new SimplePathTerm(param), paramPointedTo);
+              boolean added = bound.add(params[i]);
+              Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced)); 
+            } // else, substitution will occur later
+          }
+        }
+        
+      }
+    }
+    
+    //this.pointsToQuery.enterCallFromJump(callee);
+    // if params were bound, they will be in the produced set. apply these param bindings to the path constraints
     for (PointsToEdge constraint : pointsToQuery.produced) {
       if (this.pathVars.contains(constraint.getSink())) {
         substituteExpForVar(new SimplePathTerm(constraint.getSource()), constraint.getSink());
-
       }
     }
-    /*
-     * Set<DependencyRule> rulesProducedByCall =
-     * depRuleGenerator.getRulesForInstr(instr, currentPath.getCurrentNode());
-     * Util.Assert(rulesProducedByCall != null, "no rules for call " + instr +
-     * " from " + currentPath.getCurrentNode()); for (DependencyRule rule :
-     * rulesProducedByCall) { Util.Debug("rule produced by call " + rule);
-     * PointsToEdge shown = rule.getShown(); PointerVariable snk =
-     * shown.getSink(); if (this.pathVars.contains(snk)) { // sub heap loc for
-     * its local pointer Util.Debug("enter call: subbing " + shown.getSource() +
-     * " for " + snk); substituteExpForVar(new
-     * SimplePathTerm(shown.getSource()), snk); } }
-     */
   }
 
   @Override
@@ -583,7 +608,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
               } else if (op == ConditionalBranchInstruction.Operator.NE) {
                 // already know this can't be null; constraint is satisfied
                 return true;
-              }
+              }         
             }
           }
         }
@@ -607,7 +632,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make();//new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = new HashSet<CGNode>();
-      addInitsForConstraintFields(constraint, nodes);
+      //addInitsForConstraintFields(constraint, nodes);
       // addClassInitsForConstraintFields(constraint, nodes); // add class init
       // if it may write to the constraint
       for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {

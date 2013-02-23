@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -9,12 +8,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.ContextItem;
 import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
+import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
@@ -24,7 +25,6 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
-import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.debug.Assertions;
@@ -654,11 +654,6 @@ public class PointsToQuery implements IQuery {
     Set<Integer> assignedParams = HashSetFactory.make(); 
 
     for (DependencyRule rule : rulesAtLine) { // create map of rules to parameters
-      // Util.Assert(calleeMethod.getSignature().equals(
-      // rule.getShown().getSource().getNode().getMethod().getSignature()),
-      // "method signatures don't match! " +
-      // instr.getCallSite().getDeclaredTarget().getSignature() + " and " +
-      // rule.getShown().getSource().getNode().getMethod().getSignature());
       Util.Debug("trying rule for call " + rule);
       //if (formalsAlreadyAssigned.contains(rule.getShown().getSource())) {
         //Util.Debug("formal already assigned; continuing");
@@ -717,9 +712,33 @@ public class PointsToQuery implements IQuery {
     return IQuery.FEASIBLE;
   }
 
+  /**
+   * given that we are entering callee from an arbitrary context, perform all possible combinations of var bindings
+   * @param callee
+   */
   @Override
-  public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    this.enterCall(instr, callee, currentPath);
+  public void enterCallFromJump(CGNode callee) {
+    int[] params = callee.getIR().getParameterValueNumbers();
+    HeapModel hm = this.depRuleGenerator.getHeapModel();
+    HeapGraph hg = this.depRuleGenerator.getHeapGraph();
+    MutableIntSet bound = new BitVectorIntSet();
+    for (int i = 0; i < params.length; i++) {
+      PointerKey key = hm.getPointerKeyForLocal(callee, params[i]);
+      PointerVariable param = new ConcretePointerVariable(callee, params[i], this.depRuleGenerator.getHeapModel());
+      Iterator<Object> succs = hg.getSuccNodes(key);
+      while (succs.hasNext()) {
+        Object succ = succs.next();
+        PointerVariable paramPointedTo = Util.makePointerVariable(succ);
+        for (PointsToEdge edge : this.constraints) {
+          if (edge.getSource().symbEq(paramPointedTo)) {
+            Util.Assert(!edge.getSource().isSymbolic(), "unimp: need to bind symbolic var here");
+            this.produced.add(new PointsToEdge(param, paramPointedTo));
+            boolean added = bound.add(params[i]);
+            Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(this.produced)); 
+          }
+        }
+      }
+    }
   }
 
   static void applyRule(DependencyRule rule, PointsToQuery query) {

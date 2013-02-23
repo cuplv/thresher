@@ -112,10 +112,23 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     toPrune.retainAll(reachable);
     return toPrune.iterator();
   }
+  
+  
+  /**
+   * Ask flow-insensitively: can we get from src to snk?
+   * @param snk - node we are trying to reach
+   * @param src - node we are starting from
+   */
+  boolean isReachableFrom(CGNode snk, CGNode src) {
+    OrdinalSet<CGNode> reachable = callGraphTransitiveClosure.get(src);
+    return reachable.contains(snk);
+  }
 
+  /**
+   * Ask flow-sensitively: can we get from src to snk?
+   */
   boolean feasiblePathExists(CGNode src, CGNode snk) {
-    if (!Options.CALLGRAPH_PRUNING)
-      return true;
+    if (!Options.CALLGRAPH_PRUNING) return true;
     if (isCalledByClassInit(src))
       return true; // assume everything is reachable from the class inits
     Set<CGNode> reachable = getReachable(Collections.singleton(src), Collections.singleton(snk));

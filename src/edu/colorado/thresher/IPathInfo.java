@@ -405,11 +405,10 @@ public class IPathInfo { // implements Comparable {
                                                                                                                              // call
                                                                                                                              // is
                                                                                                                              // relevant
-      // TODO: hack! just want to avoid executing equals() / hashCode() because
-      // it's a deathtrap and unlikely to lead to refutation
+      // hack! just want to avoid executing equals(), hashCode() e.t.c because theyr'e
+      // a time sink and are unlikely to lead to refutation
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
-      if (Options.DEBUG)
-        Util.Debug("skipping call " + callee.getMethod().toString());
+      if (Options.DEBUG) Util.Debug("skipping call " + callee.getMethod().toString());
       return IPathInfo.FEASIBLE;
     } else if (callee.equals(this.currentNode)) { // is this a recursive call?
       if (Options.DEBUG)
@@ -419,28 +418,10 @@ public class IPathInfo { // implements Comparable {
       // that it could possibly produce
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
       return IPathInfo.FEASIBLE;
-    } else { // hack-y mutual recursion check
-      /*
-       * // DEBUG - sanity check for possible mutual recursion; is our current
-       * node already on the call stack? for (int i = 0; i < callStack.size();
-       * i++) { //if (callStack.get(i).getCGNode().equals(currentNode)) { // is
-       * this node already on the call stack? if
-       * (callStack.get(i).getCGNode().equals(callee)) { // is this node already
-       * on the call stack? // yes; check for mutual recursion //if
-       * (isMutuallyRecursive(currentNode, i)) { if (isMutuallyRecursive(callee,
-       * i)) { Util.Debug("possible mutual recursion on node " + currentNode +
-       * " call stack depth " + callStack.size() +
-       * " skipping + dropping constraints");
-       * query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(),
-       * callee); return IPathInfo.FEASIBLE; } } }
-       */
-      // END DEBUG
-      if (Options.DEBUG)
-        Util.Debug("call stack size is " + callStack.size());
-      // else, we should enter the call...if our call stack is not already too
-      // deep
-      if (callStack.size() > Options.MAX_CALLSTACK_DEPTH) { // is our call stack
-                                                            // too deep?
+    } else { 
+      if (Options.DEBUG) Util.Debug("call stack size is " + callStack.size());
+      // else, we should enter the call...if our call stack is not already too deep
+      if (callStack.size() > Options.MAX_CALLSTACK_DEPTH) { // is our call stack too deep?
         if (Options.DEBUG)
           Util.Debug("skipping ordinary call " + callee + " due to call stack depth and dropping produced constraints");
         query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
@@ -527,10 +508,9 @@ public class IPathInfo { // implements Comparable {
   /**
    * special case for piecewise execution; need to do indirect parameter binding
    */
-  public void enterCallFromJump(SSAInvokeInstruction instr, CallGraph cg, CGNode callee) {
-    if (Options.DEBUG)
-      Util.Debug("entering call " + callee + " from jump");
-    query.enterCallFromJump(instr, callee, this);
+  public void enterCallFromJump(CGNode callee) {
+    if (Options.DEBUG) Util.Debug("entering call " + callee + " from jump");
+    query.enterCallFromJump(callee);
   }
 
   /**

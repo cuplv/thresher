@@ -124,11 +124,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
 
-    //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "PathValueUpdateNoRefute" };
+    final String[] fakeMapTests0 = new String[] {};
+    //final String[] fakeMapTests0 = new String[] { "PathValueUpdateNoRefute" };
 
-    final String[] realHashMapTests0 = new String[] { };
-    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    //final String[] realHashMapTests0 = new String[] { };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -327,8 +327,8 @@ public class Main {
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
-    HeapGraph hg = pointerAnalysis.getHeapGraph();
-    MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
+    HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);//pointerAnalysis.getHeapGraph();
+    //MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
     HeapModel hm = pointerAnalysis.getHeapModel();
     
     final MethodReference ASSERT_PT_NULL = 
@@ -567,8 +567,9 @@ public class Main {
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
-    HeapGraph hg = pointerAnalysis.getHeapGraph();
-    MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
+    HeapGraphWrapper hg = new HeapGraphWrapper(pointerAnalysis, cg);
+    //HeapGraph hg = pointerAnalysis.getHeapGraph();
+    //MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
     HeapModel hm = pointerAnalysis.getHeapModel();
 
     ModRef modref = ModRef.make();
@@ -606,7 +607,7 @@ public class Main {
         if (type != null && subclasses.contains(type)) {
           // is there a path from the static field to the Activity that does not
           // contain weak references?
-          if (removeWeakReferences(graphView, field, node, hg, cha) != null) {
+          if (removeWeakReferences(hg, field, node, cha) != null) {
             Set<IClass> leaked = leakedActivities.get(field.toString());
             if (leaked == null) {
               leaked = HashSetFactory.make();
@@ -632,7 +633,7 @@ public class Main {
     long refuteStart = System.currentTimeMillis();
     boolean result = false;
     if (!Options.FLOW_INSENSITIVE_ONLY) {
-      result = refuteFieldErrors(fieldErrorList, graphView, cache, hg, cg, hm, cha, modRefMap, refutedEdges, logger);
+      result = refuteFieldErrors(fieldErrorList, hg, cache, cg, hm, cha, modRefMap, refutedEdges, logger);
     }
     long refuteEnd = System.currentTimeMillis();
     Util.Print("Symbolic execution completed in " + ((refuteEnd - refuteStart) / 1000.0) + " seconds");
@@ -641,8 +642,8 @@ public class Main {
     return result;
   }
 
-  public static boolean refuteFieldErrors(Set<Pair<Object, Object>> fieldErrors, MySubGraph<Object> graphView, AnalysisCache cache,
-      HeapGraph hg, CallGraph cg, HeapModel hm, IClassHierarchy cha, Map<CGNode, OrdinalSet<PointerKey>> modRef,
+  public static boolean refuteFieldErrors(Set<Pair<Object, Object>> fieldErrors, HeapGraphWrapper hg, AnalysisCache cache,
+      CallGraph cg, HeapModel hm, IClassHierarchy cha, Map<CGNode, OrdinalSet<PointerKey>> modRef,
       Set<String> refutedEdgeStrings, Logger logger) {
     List<Pair<Object, Object>> trueErrors = new LinkedList<Pair<Object, Object>>(), falseErrors = new LinkedList<Pair<Object, Object>>();
     TreeSet<PointsToEdge> producedEdges = new TreeSet<PointsToEdge>(), refutedEdges = new TreeSet<PointsToEdge>();
@@ -658,12 +659,9 @@ public class Main {
       try {
         Util.Print("starting on error " + count++ + " of " + fieldErrors.size() + ": " + error.fst);
         snkCollection.add(error.snd);
-        MyBFSPathFinder<Object> finder = new MyBFSPathFinder<Object>(graphView, error.fst, new CollectionFilter<Object>(
-            snkCollection));
-        if (relation != null)
-          finder.setIgnoreIfBoth(relation);
+        BFSPathFinder<Object> finder = new BFSPathFinder<Object>(hg, error.fst, new CollectionFilter<Object>(snkCollection));
         // if we can refute error
-        if (refuteFieldErrorForward(error, graphView, producedEdges, aDepRuleGenerator, refutedEdges, refutedEdgeStrings, hg, cg,
+        if (refuteFieldErrorForward(error, hg, producedEdges, aDepRuleGenerator, refutedEdges, refutedEdgeStrings, cg,
             hm, cha, finder, logger)) {
           Util.Print("successfully refuted error path " + error);
           logger.logRefutedError();
@@ -674,7 +672,7 @@ public class Main {
           logger.logWitnessedField(error.fst.toString());
           trueErrors.add(error);
         }
-        relation = finder.getIgnoreIfBoth();
+        //relation = finder.getIgnoreIfBoth();
       } catch (Exception e) {
         Util.Print("problem while examining " + error + ": " + e + " " + Util.printArray(e.getStackTrace()));
         logger.logFailure();
@@ -697,10 +695,10 @@ public class Main {
   /**
    * @return - true if the error is a refutation, false otherwise
    */
-  public static boolean refuteFieldErrorForward(Pair<Object, Object> error, MySubGraph<Object> graphView,
+  public static boolean refuteFieldErrorForward(Pair<Object, Object> error, HeapGraphWrapper hg,
       TreeSet<PointsToEdge> producedEdges, AbstractDependencyRuleGenerator aDepRuleGenerator, TreeSet<PointsToEdge> refutedEdges,
-      Set<String> refutedEdgeStrings, HeapGraph hg, CallGraph cg, HeapModel hm, IClassHierarchy cha,
-      MyBFSPathFinder<Object> finder, Logger logger) {
+      Set<String> refutedEdgeStrings, CallGraph cg, HeapModel hm, IClassHierarchy cha,
+      BFSPathFinder<Object> finder, Logger logger) {
     Collection<Object> snkCollection = new LinkedList<Object>();
     snkCollection.add(error.snd);
     List<Object> errorPath = finder.find();
@@ -778,19 +776,19 @@ public class Main {
               // edge refuted
               witnessedCount = 0;
               refutedEdges.add(witnessMe);
-              IBinaryNaturalRelation ignoreIfBoth = finder.getIgnoreIfBoth();
-              finder = new MyBFSPathFinder<Object>(graphView, error.fst, new CollectionFilter<Object>(snkCollection));
-              finder.setIgnoreIfBoth(ignoreIfBoth);
+              //IBinaryNaturalRelation ignoreIfBoth = finder.getIgnoreIfBoth();
+              finder = new BFSPathFinder<Object>(hg, error.fst, new CollectionFilter<Object>(snkCollection));
+              //finder.setIgnoreIfBoth(ignoreIfBoth);
               if (fieldKey == null) {
                 Util.Assert(false, "how can field key be null?");
-                graphView.addIgnoreEdge(src, snk, hg);
+                hg.addIgnoreEdge(src, snk);
               } else {
-                graphView.addIgnoreEdge(fieldKey, snk, hg);
+                hg.addIgnoreEdge(fieldKey, snk);
 
                 if (fieldKey instanceof ArrayContentsKey) {
                   for (Pair<InstanceKey, Object> pair : srcFieldPairs) {
                     if (pair.snd instanceof ArrayContentsKey) {
-                      graphView.addIgnoreEdge(pair.snd, snk, hg);
+                      hg.addIgnoreEdge(pair.snd, snk);
                     }
                   }
                 } else {
@@ -806,19 +804,18 @@ public class Main {
                     if (pair.snd instanceof InstanceFieldKey) {
                       IField otherFieldName = ((InstanceFieldKey) pair.snd).getField();
                       if (otherFieldName.equals(refutedFieldName)) {
-                        graphView.addIgnoreEdge(pair.snd, snk, hg);
+                        hg.addIgnoreEdge(pair.snd, snk);
                       }
                     }
                   }
                 }
-
               }
               Util.Print("Successfully refuted edge " + witnessMe + "; now trying to find error path  without it");
               logger.logEdgeRefutation();
               // run another DFS to see if error path can still be created
               // without refuted edge
               
-              errorPath = removeWeakReferences(graphView, error.fst, error.snd, hg, cha); 
+              errorPath = removeWeakReferences(hg, error.fst, error.snd, cha); 
               //errorPath = finder.find();
               
               if (errorPath != null) {
@@ -933,12 +930,11 @@ public class Main {
   }
 
   // returns error path without weak refs if one can be found, null otherwise
-  public static List<Object> removeWeakReferences(MySubGraph<Object> graphView, Object srcKey, Object snkKey, HeapGraph hg,
-      IClassHierarchy cha) {
+  public static List<Object> removeWeakReferences(HeapGraphWrapper hg, Object srcKey, Object snkKey, IClassHierarchy cha) {
     boolean foundWeakRef;
     for (;;) {
       foundWeakRef = false;
-      BFSPathFinder<Object> bfs = new BFSPathFinder<Object>(graphView, srcKey, new CollectionFilter<Object>(Collections.singletonList(snkKey)));
+      BFSPathFinder<Object> bfs = new BFSPathFinder<Object>(hg, srcKey, new CollectionFilter<Object>(Collections.singletonList(snkKey)));
       List<Object> path = bfs.find();
       if (path == null) return null;
 
@@ -961,7 +957,7 @@ public class Main {
         } else {
           Object snk = path.get(snkIndex);
           if (isWeakReference(src, snk, cha)) {
-            graphView.addIgnoreEdge(fieldKey, snk, hg);
+            hg.addIgnoreEdge(fieldKey, snk);
             foundWeakRef = true;
             break;
           }

@@ -1181,10 +1181,9 @@ public class PathQuery implements IQuery {
     return IQuery.FEASIBLE;
   }
 
+  // nothing to do here
   @Override
-  public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    this.enterCall(instr, callee, currentPath);
-  }
+  public void enterCallFromJump(CGNode callee) { }
 
   @Override
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {

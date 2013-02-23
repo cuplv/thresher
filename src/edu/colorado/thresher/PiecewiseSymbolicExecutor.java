@@ -10,11 +10,13 @@ import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
-import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
+import com.ibm.wala.util.intset.IntIterator;
 
 public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 
@@ -52,7 +54,9 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     }
     IPathInfo classInitPath = copy.deepCopy();
     // handle class initializer case first
-    classInitPath.setCurrentNode(WALACFGUtil.getFakeWorldClinitNode(this.callGraph));
+    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph);
+    classInitPath.enterCallFromJump(fakeWorldClinit);
+    classInitPath.setCurrentNode(fakeWorldClinit);
     Util.Debug("about to try fakeWorldClinit");
     boolean result = this.handleFakeWorldClinit(classInitPath);
     if (result) return true; // found witness in fakeWorldClinit
@@ -65,7 +69,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     }
 
     for (CGNode producer : producers) {
-      //IPathInfo newPath = copy.deepCopy();
       IPathInfo newPath = copy.deepCopy();
       Util.Debug("start node is " + startNode + " at depth " + depth + " on path " + newPath);
       // do callgraph feasability checks
@@ -89,12 +92,52 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
 
       // is the start node reachable from the producer?
       if (feasiblePathExists(producer, startNode)) {
-        Util.Debug("producer and startNode share common caller; can enter producer as callee");
-
-        // boolean witness = false;
+        newPath.enterCallFromJump(producer);
+        IPathInfo newPathCopy = newPath.deepCopy();
+        // (1) entering producer from caller (i.e., start from from exit point of producer)
+        if (executeToProcedureBoundary(newPathCopy, producer)) {
+          path.declareFakeWitness();
+          return true;
+        } // else, refuted
+        
+        // (2) entering producer from callee (i.e., start from each function call in the producer)
+        Iterator<CallSiteReference> sites = producer.iterateCallSites();
+        while (sites.hasNext()) { 
+          CallSiteReference site = sites.next();
+          Set<CGNode> nodes = callGraph.getNodes(site.getDeclaredTarget());
+          boolean reachable = false;
+          for (CGNode node : nodes) {
+            if (isReachableFrom(startNode, node)) {
+              reachable = true;
+              break;
+            }
+          }
+          if (!reachable) continue; // can't possibly enter producer from this call site
+          IR producerIR = producer.getIR();
+          SSACFG producerCFG = producerIR.getControlFlowGraph();
+          SSAInstruction[] instrs = producerIR.getInstructions();
+          IntIterator iter = producerIR.getCallInstructionIndices(site).intIterator();
+          while (iter.hasNext()) {
+            int callIndex = iter.next();
+            SSAInstruction instr = instrs[callIndex];
+            if (Options.DEBUG) Util.Debug("Trying call instr " + instr);
+            Util.Assert(instr instanceof SSAInvokeInstruction, "Expecting a call instruction, found " + instr);
+            SSACFG.BasicBlock callBlk = producerCFG.getBlockForInstruction(callIndex);
+            int callLine = callBlk.getAllInstructions().size() - 1;
+            IPathInfo enterFromCalleeCopy = newPath.deepCopy();
+            enterFromCalleeCopy.setCurrentBlock(callBlk);
+            enterFromCalleeCopy.setCurrentLineNum(callLine);
+            if (executeToProcedureBoundary(enterFromCalleeCopy, producer)) {
+              path.declareFakeWitness();
+              return true;
+            } // else, refuted
+          }
+        }
+        /*
         for (Iterator<CGNode> preds = callGraph.getPredNodes(producer); preds.hasNext();) {
           IPathInfo newPathCopy = newPath.deepCopy();
           CGNode producerCaller = preds.next();
+          Util.Debug("entering from caller " + producerCaller);
           // common ancestors non-empty; nodes share common caller. can enter
           // from exit block of producer
           SSAInvokeInstruction callInstr = WALACFGUtil.getCallInstructionFor(producer, producerCaller, callGraph);
@@ -114,20 +157,11 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
         // else, no path between producer and startNode in the callgraph
         Util.Debug("no feasible path between " + producer + " and " + startNode);
       }
+      */
+      } // end if feasible path exists
     } // end for each potential producer
     Util.Debug("no producers successful from " + startNode + " at depth " + depth);
     return false;
-  }
-
-  /**
-   * returns true if there is a path from start to end in the callgraph given
-   * 
-   * @param start
-   * @param end
-   */
-  private boolean callGraphPathExists(CGNode start, CGNode end, Graph<CGNode> graph) {
-    BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(graph, start, end);
-    return finder.find() != null;
   }
 
   /**
@@ -206,8 +240,10 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     if (setProc) {
       SSACFG.BasicBlock exit = proc.getIR().getControlFlowGraph().exit();
       path.setCurrentNode(proc);
+      path.addContextualConstraints(proc); 
       path.setCurrentBlock(exit);
-      path.setCurrentLineNum(exit.getAllInstructions().size() - 1);
+      //path.setCurrentLineNum(exit.getAllInstructions().size() - 1);
+      path.setCurrentLineNum(exit.getAllInstructions().size());
     }
     while (true) { // until we're done exploring this call
       Util.Assert(path.isFeasible(), "shouldn't execute infeasible path " + path);
@@ -411,7 +447,7 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
           Util.Debug("call blk1 " + callBlk1);
           if (skip++ == cur) continue;
           Util.Debug("checking for path from " + callBlk0 + " to " + callBlk1);
-          MyBFSPathFinder<ISSABasicBlock> finder = new MyBFSPathFinder<ISSABasicBlock>(cfg, callBlk0, callBlk1);
+          BFSPathFinder<ISSABasicBlock> finder = new BFSPathFinder<ISSABasicBlock>(cfg, callBlk0, callBlk1);
           if (finder.find() != null) { // a path exists
             Util.Assert(false, "a path exists from " + startNode + " to itself in caller " + caller);
           }

@@ -179,7 +179,7 @@ public interface IQuery { // extends Comparable {
    * special case for entering a call without being able to do direct parameter
    * binding
    */
-  public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath);
+  public void enterCallFromJump(CGNode callee);
 
   public List<DependencyRule> getWitnessList();
   
@@ -217,6 +217,9 @@ public interface IQuery { // extends Comparable {
       // Util.Unimp("adding constraint from branch point");
       return true;
     }
+    
+    public void enterCallFromJump(CGNode callee) { }
+
 
     @Override
     public void intersect(IQuery other) {

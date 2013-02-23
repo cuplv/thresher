@@ -58,7 +58,7 @@ public class Options {
   @boolOpt(description = "perform callgraph pruning based on constraint set at function boundaries", _default = false)
   public static boolean CALLGRAPH_PRUNING = false;
 
-  @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported", _default = false)
+  @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported)", _default = false)
   public static boolean SYNTHESIS = false;
   
   @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)

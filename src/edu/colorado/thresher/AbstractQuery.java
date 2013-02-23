@@ -104,7 +104,7 @@ public abstract class AbstractQuery implements IQuery {
   }
 
   @Override
-  public void enterCallFromJump(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+  public void enterCallFromJump(CGNode callee) {
   } // do nothing
 
   @Override
