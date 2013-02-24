@@ -694,7 +694,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   public boolean isRuleRelevantForPathQuery(DependencyRule rule, IPathInfo currentPath) {
-    /*
     List<PointsToEdge> edges = new ArrayList<PointsToEdge>(3);
     edges.add(rule.getShown());
     //edges.addAll(rule.getToShow());
@@ -708,7 +707,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         SymbolicPointerVariable symb = (SymbolicPointerVariable) edge.getSink();
         for (PointerVariable var : pathVars) {
           if (symb.symbContains(var)) {
-            Util.Debug(edge + " relevant");
+            Util.Debug(edge + " relevant; path var " + var);
             return true;
           }
         }
@@ -719,7 +718,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       //Util.Assert(!this.toString().contains(edge.getSink().toString()), "problem getting relevance of " + edge + " to " + this);
     }
     Util.Debug("edge not relevant");
-    */
     return false;
   }
 

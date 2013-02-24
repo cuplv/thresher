@@ -43,11 +43,7 @@ public class PointsToQuery implements IQuery {
   final AbstractDependencyRuleGenerator depRuleGenerator;
   // constraints that have not been produced yet
   final Set<PointsToEdge> constraints; 
-  
-  // constraints with heap LHS's that currently hold (have been produced and not invalidated)
-  //final Set<PointsToEdge> current;
-  
-  // constraints with local LHS's that have already been produced 
+  // constraints with that have already been produced and have not been invalidated 
   final Set<PointsToEdge> produced;
   // the constraints produced, in the order they were produced
   final List<DependencyRule> witnessList;
@@ -65,13 +61,11 @@ public class PointsToQuery implements IQuery {
     // this.constraints = new TreeSet<PointsToEdge>();
     this.constraints = HashSetFactory.make();//new HashSet<PointsToEdge>();
     constraints.addAll(startRule.getToShow());
-    //this.current = HashSetFactory.make();
-    //current.add(startRule.getShown());
     this.depRuleGenerator = depRuleGenerator;
     this.produced = HashSetFactory.make(); //new HashSet<PointsToEdge>();
     PointsToEdge producedEdge = startRule.getShown();
-    if (producedEdge.getSource().isLocalVar())
-      this.produced.add(producedEdge);
+    //if (producedEdge.getSource().isLocalVar())
+    this.produced.add(producedEdge);
     this.witnessList = new LinkedList<DependencyRule>();
     this.witnessList.add(startRule);
   }
@@ -82,6 +76,7 @@ public class PointsToQuery implements IQuery {
     addConstraint(startEdge);
     this.depRuleGenerator = depRuleGenerator;
     this.produced = HashSetFactory.make(); //new HashSet<PointsToEdge>();
+    this.produced.add(startEdge);
     this.witnessList = new LinkedList<DependencyRule>();
   }
 
@@ -303,7 +298,8 @@ public class PointsToQuery implements IQuery {
 
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     for (PointsToEdge edge : produced) {
-      if (edge.getSource().getNode().equals(callee))
+      Util.Debug("edge" + edge);
+      if (edge.getSource().getNode() != null && edge.getSource().getNode().equals(callee))
         toRemove.add(edge);
     }
     for (PointsToEdge edge : toRemove) {
@@ -533,7 +529,7 @@ public class PointsToQuery implements IQuery {
           // DEBUG
           for (PointsToEdge prod : produced) {
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
-              // multipe assignments to formal; let's see if ther consistent
+              // multipe assignments to formal; let's see if they're consistent
               if (prod.getSink().isSymbolic() && !newEdge.getSink().isSymbolic()) {
                 SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
                 if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
@@ -559,7 +555,7 @@ public class PointsToQuery implements IQuery {
                 } else
                   Util.Assert(
                       false,
-                      "incompatible multiple assignments to " + formal + " edge " + newEdge + " produced "
+                      "incompatible multiple assignments to " + formal + " edge " + newEdge + " constraints "
                           + Util.constraintSetToString(constraints));
               }
             }
@@ -708,25 +704,11 @@ public class PointsToQuery implements IQuery {
   }
 
   static void applyRule(DependencyRule rule, PointsToQuery query) {
-    // Util.Debug("applying rule " + rule + "\nto\n" + query);
-    // Util.Pre(query.constraints.contains(rule.getShown()), "produced edge " +
-    // rule.getShown() + " not in query! " + query);
-
-    /*
-     * if (shownLHS.isLocalVar()) { List<PointsToEdge> toRemove = new
-     * LinkedList<PointsToEdge>(); // check for previous occurrences of this
-     * variable and remove - we're doing a strong update for (PointsToEdge edge
-     * : query.constraints) { if (edge.getSource().equals(shownLHS))
-     * toRemove.add(edge); } for (PointsToEdge edge : toRemove)
-     * query.constraints.remove(edge); }
-     */
-
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     // special case for when the constraints contain a symbolic edge that
     // matches a concrete edge in the constraints
     for (PointsToEdge ruleEdge : rule.getToShow()) {
-      if (ruleEdge.isSymbolic())
-        continue;
+      if (ruleEdge.isSymbolic())continue;
       for (PointsToEdge edge : query.constraints) {
         if (edge.getSink().isSymbolic() && edge.getSource().equals(ruleEdge.getSource())) {
           if (edge.getSink().symbContains(ruleEdge.getSink())) {
@@ -737,22 +719,44 @@ public class PointsToQuery implements IQuery {
         }
       }
     }
-    for (PointsToEdge removeMe : toRemove)
+    for (PointsToEdge removeMe : toRemove) {
       query.constraints.remove(removeMe);
+    }
 
-    boolean removed = query.constraints.remove(rule.getShown());
-    // Util.Assert(removed, "couldn't remove edge " + rule.getShown() + " from "
-    // + query);
+    toRemove.clear();
+    for (PointsToEdge edge : query.produced) {
+      if (edge.getSource().isLocalVar()) continue;
+      if (edge.getSource().equals(rule.getShown().getSource()) && !rule.getShown().getSink().equals(edge.getSink())) {
+        toRemove.add(edge);
+      }
+    }
+    for (PointsToEdge removeMe : toRemove) query.produced.remove(removeMe);
+
+    query.constraints.remove(rule.getShown());
+    if (!WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
 
     for (PointsToEdge edge : rule.getToShow()) {
-      // don't want to re-add edges with local LHS's
-      if (!edge.getSource().isLocalVar() || !query.produced.contains(edge))
-        query.addConstraint(edge);
+      if (edge.isSymbolic()) {
+        boolean add = true;
+        // check if some produced edge already subsumes the new edge 
+        for (PointsToEdge prod : query.produced) {
+          if (edge.symbContains(prod)) {
+            add = false;
+            break;
+          }
+        }
+        if (add) query.addConstraint(edge);
+      } else {
+        if (!query.produced.contains(edge)) {
+          query.addConstraint(edge);
+        }
+      }
     }
 
     if (Options.LOG_WITNESSES) {
       query.witnessList.add(rule);
     }
+
 
     // only want to add constraints with local LHS to shown set because we can
     // produced refutations based on shown set...
@@ -775,6 +779,7 @@ public class PointsToQuery implements IQuery {
    * @return
    */
   Set<DependencyRule> bindSymbolicRule(DependencyRule rule, PointsToQuery currentQuery, CGNode currentNode) {
+    Util.Debug("PRODUCED before binding " + Util.constraintSetToString(produced));
     PointsToEdge shown = rule.getShown();
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     List<Map<SymbolicPointerVariable, PointerVariable>> subMaps = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
@@ -797,7 +802,8 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge edge : produced) {
-      Util.Assert(edge.getSource().isLocalVar(), "produced should only contain locals");
+      if (!edge.getSource().isLocalVar()) continue;
+      //Util.Assert(edge.getSource().isLocalVar(), "produced should only contain locals");
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (ruleEdge.getSource().isLocalVar() && !edge.getSink().isSymbolic())
           ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, true);
@@ -813,6 +819,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge edge : produced) {
+      if (!edge.getSource().isLocalVar()) continue;
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (ruleEdge.getSource().isLocalVar() && edge.getSink().isSymbolic())
           ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false);
@@ -1000,12 +1007,17 @@ public class PointsToQuery implements IQuery {
     PointsToEdge shown = rule.getShown();
     checkMe.addAll(rule.getToShow());
     checkMe.add(shown);
+    
+    // HACK
+    boolean producedSet = constraints == this.produced;
 
     // map from (symbolic pointer vars) -> (vars to sub, field)
     // Map<SymbolicPointerVariable,PointerVariable> subMap = new
     // HashMap<SymbolicPointerVariable,PointerVariable>();
 
     for (PointsToEdge constraint : constraints) {
+      // can't refuted based on non-local constraints in produced set
+      if (producedSet && !constraint.getSource().isLocalVar()) continue;
       for (PointsToEdge edge : checkMe) {
         boolean lhsMatch;
         boolean fieldsEqualAndNotArrays;
@@ -1125,7 +1137,7 @@ public class PointsToQuery implements IQuery {
     // also possible that it matches / contradicts a constraint we already have
     // in produced
     for (PointsToEdge edge : produced) {
-      Util.Assert(edge.getSource().isLocalVar(), "only constraints with local LHS should be in produced set!");
+    //  Util.Assert(edge.getSource().isLocalVar(), "only constraints with local LHS should be in produced set!");
       for (PointsToEdge toCheck : checkMe) {
         if (toCheck.getSource().isLocalVar() && // for produced, can only
                                                 // refuted based on locals...
@@ -1153,19 +1165,6 @@ public class PointsToQuery implements IQuery {
     return false;
   }
 
-  /*
-   * boolean isRuleConsistent(DependencyRule rule, PointsToQuery currentQuery,
-   * List<IQuery> caseSplits, Set<DependencyRule> irrelevantRules,
-   * Set<PointsToEdge> refuted, CGNode currentNode) { // must be consistent both
-   * with current constraints and constraints we have already produced //if
-   * (!isRuleConsistent(rule, currentQuery, caseSplits, this.constraints,
-   * irrelevantRules, refuted, currentNode)) return false; //return
-   * isRuleConsistent(rule, currentQuery, caseSplits, this.produced,
-   * irrelevantRules, refuted, currentNode); if (!isSymbolicRuleConsistent(rule,
-   * currentQuery, this.constraints, currentNode)) return false; return
-   * isSymbolicRuleConsistent(rule, currentQuery, this.produced, currentNode); }
-   */
-
   Set<DependencyRule> isRuleConsistent(DependencyRule rule, PointsToQuery currentQuery, 
       List<PointsToEdge> unsatCore, CGNode currentNode) {
     // if (rule.isSymbolic()) {
@@ -1192,20 +1191,14 @@ public class PointsToQuery implements IQuery {
         if (newRules.isEmpty())
           return null;
         return newRules;
-      } else if (rule.getStmt() != null && rule.getStmt().isNewInstr()) { // this
-                                                                          // is
-                                                                          // a
-                                                                          // new
-                                                                          // instruction.
-                                                                          // bind
-                                                                          // it
+        // if this is a new instruction, bind it
+      } else if (rule.getStmt() != null && rule.getStmt().isNewInstr()) {
         PointsToEdge shown = rule.getShown();
         Set<DependencyRule> singleton = new TreeSet<DependencyRule>();
         for (PointsToEdge edge : this.constraints) {
           if (edge.getSource().equals(shown.getSource())) {
             if (edge.getSink().isSymbolic()) {
               DependencyRule newRule = new DependencyRule(edge, rule.getStmt(), rule.getToShow(), rule.getNode(), rule.getBlock());
-              // Util.Debug("replacing with " + newRule);
               singleton.add(newRule);
               return singleton;
             } else {
@@ -1217,8 +1210,6 @@ public class PointsToQuery implements IQuery {
             }
           }
         }
-        // Util.Unimp("shouldn't get here for rule " + rule + " query " +
-        // currentQuery);
         singleton.add(rule);
         return singleton;
       } else
@@ -1230,9 +1221,9 @@ public class PointsToQuery implements IQuery {
 
   private Set<DependencyRule> doConsistencyCheckNonSymbolic(DependencyRule rule, PointsToQuery currentQuery,
           List<PointsToEdge> unsatCore, CGNode currentNode) {
-    if (!isRuleConsistent(rule, currentQuery, this.constraints, unsatCore, currentNode))
+    if (!isRuleConsistent(rule, currentQuery, this.constraints, unsatCore, currentNode, false))
       return null;
-    if (isRuleConsistent(rule, currentQuery, this.produced, unsatCore, currentNode)) {
+    if (isRuleConsistent(rule, currentQuery, this.produced, unsatCore, currentNode, true)) {
       Set<DependencyRule> singleton = new TreeSet<DependencyRule>();
       singleton.add(rule);
       return singleton;
@@ -1241,7 +1232,7 @@ public class PointsToQuery implements IQuery {
   }
 
   static boolean isRuleConsistent(DependencyRule rule, PointsToQuery currentQuery, Set<PointsToEdge> constraints,
-      List<PointsToEdge> unsatCore, CGNode currentNode) {
+      List<PointsToEdge> unsatCore, CGNode currentNode, boolean producedSet) {
     TreeSet<PointsToEdge> checkMe = new TreeSet<PointsToEdge>();
     PointsToEdge shown = rule.getShown();
     checkMe.addAll(rule.getToShow());
@@ -1252,8 +1243,10 @@ public class PointsToQuery implements IQuery {
      * Util.Unimp("refuting based on this"); Util.Debug("edge " + edge +
      * " aready refuted!"); return false; } }
      */
-
+    
     for (PointsToEdge constraint : constraints) {
+      // can't refute based on non-locals in proudced
+      if (producedSet && !constraint.getSource().isLocalVar()) continue;
       for (PointsToEdge edge : checkMe) {
         // to check: lhs's equal and (fieldnames equal and not array's) => rhs's
         // equal
@@ -1444,18 +1437,6 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    /*
-     * // collect all dependency rules produceable by this call
-     * Set<DependencyRule> rulesProducedByCallee =
-     * Util.getRulesProducableByCall(callee, depRuleGenerator.getCallGraph(),
-     * depRuleGenerator); for (PointsToEdge edge : this.constraints) {
-     * PointerVariable src = edge.getSource(); if (retval != null &&
-     * src.equals(retval)) { toRemove.add(edge); continue; } for (DependencyRule
-     * rule : rulesProducedByCallee) { PointerVariable shownLHS =
-     * rule.getShown().getSource(); if (src.equals(shownLHS))
-     * toRemove.add(edge); } }
-     */
-
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (PointsToEdge edge : constraints) {
       PointerKey key = edge.getField();
@@ -1466,6 +1447,16 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : toRemove) {
       Util.Debug("dropping " + edge);
       this.constraints.remove(edge);
+    }
+    
+    for (PointsToEdge edge : produced) {
+      PointerKey key = edge.getField();
+      if (key != null && keys.contains(key))
+        toRemove.add(edge);
+    }
+
+    for (PointsToEdge edge : toRemove) {
+      this.produced.remove(edge);
     }
   }
 
@@ -1508,13 +1499,6 @@ public class PointsToQuery implements IQuery {
           return true;
       }
     }
-    /*
-     * for (PointsToEdge edge : this.constraints) { if
-     * (edge.getSource().isLocalVar() && Util.isEdgeProduceableByLoop(edge,
-     * loopHead, currentNode, depRuleGenerator.getHeapGraph(), depRuleGenerator,
-     * depRuleGenerator.getCallGraph())) { Util.Debug("produceable: " + edge);
-     * return true; } }
-     */
     return false;
   }
 
@@ -1635,8 +1619,9 @@ public class PointsToQuery implements IQuery {
       if (edge.getSource().isLocalVar())
         toRemove.add(edge);
     }
-    for (PointsToEdge edge : toRemove)
-      constraints.remove(edge);
+    for (PointsToEdge edge : toRemove) constraints.remove(edge);
+    // about to do a piecewise jump; we no longer have any reliable produced information
+    if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
   }
 
   @Override
@@ -1743,14 +1728,15 @@ public class PointsToQuery implements IQuery {
   }
 
   private boolean addConstraint(PointsToEdge constraint) {
-    // DEBUG
-    if (constraint.getSource().isLocalVar()) {
-      ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
-      for (PointsToEdge edge : this.constraints) {
-        Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
-            + constraint);
+    if (Options.DEBUG) {
+      if (constraint.getSource().isLocalVar()) {
+        ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
+        for (PointsToEdge edge : this.constraints) {
+          Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
+              + constraint);
+        }
       }
-    }
+    }   
     return constraints.add(constraint);
   }
 
