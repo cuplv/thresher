@@ -1254,6 +1254,7 @@ public class Util {
   }
 
   public static <T> List<T> deepCopyList(List<T> list) {
+    if (list == null) return null;
     List<T> copy = new LinkedList<T>();
     for (int i = 0; i < list.size(); i++) {
       copy.add(list.get(i));

@@ -122,7 +122,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       boolean hitProcBoundary = executeBackwardsPathIntraprocedural(path);
       if (path.foundWitness()) {
         logger.logPathCount(pathCount);
-        logger.logWitnessList(path.getWitnessList());
+        if (Options.LOG_WITNESSES) logger.logWitnessList(path.getWitnessList());
         return true;
       }
       // if (!path.isFeasible()) continue; // refuted. this case shouldn't be
@@ -131,7 +131,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         // path hit procedure boundary, perform interprocedural execution
         if (handleInterproceduralExecution(path)) {
           logger.logPathCount(pathCount);
-          logger.logWitnessList(path.getWitnessList());
+          if (Options.LOG_WITNESSES) logger.logWitnessList(path.getWitnessList());
           this.witnessQuery = path.query;
           return true;
         }

@@ -216,7 +216,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         else return this.selectPath(); // else do nothing
       }
       Util.Assert(path != null, "path should never be null here!");
-      Util.Assert(path.isFeasible());
+      //Util.Assert(path.isFeasible(), "path " + path + " infeasible");
       return path; // "normal" case; return path on top of stack
     } else {
       if (!branchPointStack.isEmpty()) {
@@ -755,6 +755,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           if (path.isCallRelevantToQuery(instruction, classInitializer, callGraph)) {
             if (Options.DEBUG) Util.Debug("Trying class init " + instr);
             IPathInfo copy = path.deepCopy();
+            copy.enterCallFromJump(classInitializer);
             // yes; push the class init on the call stack and execute it
             copy.pushCallStack(instruction, classInitializer);
             addPath(copy);

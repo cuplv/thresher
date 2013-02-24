@@ -126,7 +126,7 @@ public class Main {
     //final String[] fakeMapTests0 = new String[] { "PathValueUpdateNoRefute" };
 
     //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -396,9 +396,10 @@ public class Main {
               Util.Print("producer " + producer);
               PointerStatement snkStmt = producer.getStmt();
               int startLine = snkStmt.getLineNum();
-              PointsToQuery ptQuery = new PointsToQuery(producer, depRuleGenerator);
+              //PointsToQuery ptQuery = new PointsToQuery(producer, depRuleGenerator);
               
-              final IQuery query = new CombinedPathAndPointsToQuery(ptQuery);
+              //final IQuery query = new CombinedPathAndPointsToQuery(ptQuery);
+              final IQuery query = new CombinedPathAndPointsToQuery(producer, depRuleGenerator);
               IR ir = producer.getNode().getIR();
               SSACFG cfg = ir.getControlFlowGraph();
               SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
@@ -898,8 +899,8 @@ public class Main {
       for (CGNode startNode : potentialNodes) {
         Util.Assert(numContexts == potentialNodes.size(), "sizes don't match!");
         Util.Print("starting in method " + startNode);
-        final PointsToQuery startQuery = new PointsToQuery(lastRule, depRuleGenerator);
-        final IQuery query = new CombinedPathAndPointsToQuery(startQuery);
+        //final PointsToQuery startQuery = new PointsToQuery(lastRule, depRuleGenerator);
+        final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
         IR ir = startNode.getIR();
         SSACFG cfg = ir.getControlFlowGraph();
         SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);

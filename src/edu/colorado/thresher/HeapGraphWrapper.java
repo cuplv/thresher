@@ -48,9 +48,9 @@ public class HeapGraphWrapper extends BasicHeapGraph {
     int srcNum = getNumber(N);
     List<Object> result = new LinkedList<Object>();
     while (iter.hasNext()) {
-      Object next = iter.next();
-      if (!ignoreEdges.contains(srcNum, getNumber(next))) {
-        result.add(next);
+      Object snk = iter.next();
+      if (!ignoreEdges.contains(srcNum, getNumber(snk))) {
+        result.add(snk);
       } // else, ignoring edge
     }
     return result.iterator();
@@ -62,9 +62,9 @@ public class HeapGraphWrapper extends BasicHeapGraph {
     int snkNum = getNumber(N);
     List<Object> result = new LinkedList<Object>();
     while (iter.hasNext()) {
-      Object next = iter.next();
-      if (!ignoreEdges.contains(getNumber(next), snkNum)) {
-        result.add(next);
+      Object src = iter.next();
+      if (!ignoreEdges.contains(getNumber(src), snkNum)) {
+        result.add(src);
       } // else, ignoring edge
     }
     return result.iterator();

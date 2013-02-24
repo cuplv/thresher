@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -29,7 +30,6 @@ import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.BitVectorIntSet;
@@ -45,36 +45,59 @@ import com.ibm.wala.util.intset.OrdinalSet;
 public class CombinedPathAndPointsToQuery extends PathQuery {
   
   // special class just to allow us to override methods of PointsToQuery
-  private final class PointsToQueryWrapper extends PointsToQuery {
-    private final PointsToQuery delegate;
-    public PointsToQueryWrapper(PointsToQuery qry) {
-      super(qry.constraints, qry.produced, qry.witnessList, qry.depRuleGenerator);
-      this.delegate = qry;
+  private static final class PointsToQueryWrapper extends PointsToQuery {
+    //private final PointsToQuery delegate;
+    private final CombinedPathAndPointsToQuery parent;
+    public PointsToQueryWrapper(DependencyRule producer, AbstractDependencyRuleGenerator depRuleGenerator, CombinedPathAndPointsToQuery parent) {
+      super(producer, depRuleGenerator);
+      //this.delegate = qry;
+      this.parent = parent;
+    }
+    
+    PointsToQueryWrapper(Set<PointsToEdge> constraints, Set<PointsToEdge> produced, List<DependencyRule> witnessList,
+        AbstractDependencyRuleGenerator depRuleGenerator, CombinedPathAndPointsToQuery parent) {
+      super(constraints, produced, witnessList, depRuleGenerator);
+      this.parent = parent;
+    }
+    
+    PointsToQueryWrapper(PointsToQuery qry, CombinedPathAndPointsToQuery parent) {
+      super(Util.deepCopyPointsToEdgeSet(qry.constraints), Util.deepCopySet(qry.produced), Util.deepCopyList(qry.witnessList), 
+            qry.depRuleGenerator);
+      this.parent = parent;
     }
     
     @Override
     public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
-      return delegate.isRuleRelevant(rule, currentPath) || 
-             CombinedPathAndPointsToQuery.this.isRuleRelevantForPathQuery(rule, currentPath);
+      return super.isRuleRelevant(rule, currentPath) || parent.isRuleRelevantForPathQuery(rule, currentPath); 
     }
     
-    @Override
-    public PointsToQueryWrapper deepCopy() {
-      return new PointsToQueryWrapper(delegate.deepCopy());
+    public PointsToQueryWrapper deepCopy(CombinedPathAndPointsToQuery parent) {
+      return new PointsToQueryWrapper(Util.deepCopyPointsToEdgeSet(constraints), Util.deepCopySet(produced), Util.deepCopyList(witnessList),
+          depRuleGenerator, parent);
     }
   }
 
   final PointsToQueryWrapper pointsToQuery;
   boolean fakeWitness = false;
 
-  public CombinedPathAndPointsToQuery(PointsToQuery pointsToQuery) {
-    super(pointsToQuery.depRuleGenerator);
-    this.pointsToQuery = new PointsToQueryWrapper(pointsToQuery);
+  public CombinedPathAndPointsToQuery(DependencyRule producer, AbstractDependencyRuleGenerator depRuleGenerator) {
+    super(depRuleGenerator);
+    this.pointsToQuery = new PointsToQueryWrapper(producer, depRuleGenerator, this);
   }
 
   CombinedPathAndPointsToQuery(PointsToQueryWrapper pointsToQuery, PathQuery pathQuery) {
     super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx); // pathQuery.ctx);
-    this.pointsToQuery = pointsToQuery;
+    //this.pointsToQuery = pointsToQuery;
+    this.pointsToQuery = pointsToQuery.deepCopy(this);
+  }
+  
+  CombinedPathAndPointsToQuery(PointsToQuery ptQuery, PathQuery pathQuery) {
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx); // pathQuery.ctx);
+    //this.pointsToQuery = pointsToQuery;
+    //this.pointsToQuery = new PointsToQueryWrapper(Util.deepCopyPointsToEdgeSet(ptQuery.constraints), Util.deepCopySet(ptQuery.produced), 
+      //         Util.deepCopyList(witnessList), depRuleGenerator, this);
+    this.pointsToQuery = new PointsToQueryWrapper(ptQuery, this);
+    //new PointsToQueryWrapper(constraints, produced, witnessList, depRuleGenerator, parent)
   }
 
   /**
@@ -86,7 +109,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public CombinedPathAndPointsToQuery deepCopy() {
-    return new CombinedPathAndPointsToQuery(pointsToQuery.deepCopy(), super.deepCopy());
+    //return new CombinedPathAndPointsToQuery(pointsToQuery.deepCopy(), super.deepCopy());
+    return new CombinedPathAndPointsToQuery(pointsToQuery, super.deepCopy());
   }
 
   @Override
@@ -103,6 +127,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {
+    Util.Pre(currentPath.query == this);
     List<IQuery> pathResults = super.visitPhi(instr, phiIndex, currentPath);
     if (pathResults == IQuery.INFEASIBLE)
       return IQuery.INFEASIBLE;
@@ -143,6 +168,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
+    Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     if (Options.DEBUG) Util.Debug("CONS " + this.toString());
@@ -156,7 +182,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath, this.pathVars);
+    Util.Pre(currentPath.query == this);
+    List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(ptResults.isEmpty(), "Unimp: handling case splits at calls!");
     List<IQuery> pathResults = super.enterCall(instr, callee, currentPath);
@@ -193,8 +220,18 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           } 
         }
         
+        if (this.pathVars.contains(paramPointedTo)) {
+          Util.Debug("path vars have " + paramPointedTo);
+          if (pointsToQuery.produced.add(producedEdge)) {
+            //substituteExpForVar(new SimplePathTerm(param), paramPointedTo);
+            boolean added = bound.add(params[i]);
+            Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced)); 
+          } // else, substitution will occur later
+        }
+        /*
         for (AtomicPathConstraint constraint : this.constraints) {
           if (constraint.getVars().contains(paramPointedTo)) {
+            Util.Debug("constraints have " + paramPointedTo);
             if (pointsToQuery.produced.add(producedEdge)) {
               //substituteExpForVar(new SimplePathTerm(param), paramPointedTo);
               boolean added = bound.add(params[i]);
@@ -202,7 +239,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             } // else, substitution will occur later
           }
         }
-        
+        */
       }
     }
     
@@ -210,6 +247,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     // if params were bound, they will be in the produced set. apply these param bindings to the path constraints
     for (PointsToEdge constraint : pointsToQuery.produced) {
       if (this.pathVars.contains(constraint.getSink())) {
+        Util.Debug("doing sub for " + constraint.getSink());
         substituteExpForVar(new SimplePathTerm(constraint.getSource()), constraint.getSink());
       }
     }
@@ -229,9 +267,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+    Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
-    if (ptResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
+    Util.Debug("done with pt return");
     List<IQuery> pathResults = super.returnFromCall(instr, callee, currentPath);
     if (pathResults == IQuery.INFEASIBLE)
       return IQuery.INFEASIBLE;
@@ -260,11 +299,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
     } else if (!pathEmpty) {
       for (IQuery pathQuery : pathQueries) {
-        combinedQuery.add(new CombinedPathAndPointsToQuery(pointsToQuery.deepCopy(), (PathQuery) pathQuery.deepCopy()));
+        combinedQuery.add(new CombinedPathAndPointsToQuery(pointsToQuery, (PathQuery) pathQuery.deepCopy()));
       }
     } else if (!ptEmpty) {
       for (IQuery ptQuery : pointsToQueries) {
-        combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQueryWrapper) ptQuery, super.deepCopy()));
+        combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQuery) ptQuery, super.deepCopy()));
       }
     }
     return combinedQuery;
@@ -272,6 +311,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public boolean addContextualConstraints(CGNode node, IPathInfo currentPath) {
+    Util.Pre(currentPath.query == this);
     return pointsToQuery.addContextualConstraints(node, currentPath) && super.addContextualConstraints(node, currentPath);
   }
 
@@ -654,17 +694,32 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   public boolean isRuleRelevantForPathQuery(DependencyRule rule, IPathInfo currentPath) {
-    PointsToEdge edge = rule.getShown();
-    if (this.pathVars.contains(edge.getSource())) return true;
-    if (edge.getSink().isSymbolic()) {
-      SymbolicPointerVariable symb = (SymbolicPointerVariable) edge.getSink();
-      Set<InstanceKey> possibleValues = symb.getPossibleValues();
-      for (PointerVariable var : pathVars) {
-        Object key = var.getInstanceKey();
-        if (key != null && key instanceof InstanceKey && possibleValues.contains((InstanceKey) key)) return true;
+    /*
+    List<PointsToEdge> edges = new ArrayList<PointsToEdge>(3);
+    edges.add(rule.getShown());
+    //edges.addAll(rule.getToShow());
+    for (PointsToEdge edge : edges) {
+      if (this.pathVars.contains(edge.getSource())) {
+        Util.Debug(edge + " relevant");
+        return true;
       }
-    } else return this.pathVars.contains(edge.getSink());
-    Util.Assert(!this.toString().contains(edge.getSink().toString()), "problem getting relevance of " + edge + " to " + this);
+    
+      if (edge.getSink().isSymbolic()) {
+        SymbolicPointerVariable symb = (SymbolicPointerVariable) edge.getSink();
+        for (PointerVariable var : pathVars) {
+          if (symb.symbContains(var)) {
+            Util.Debug(edge + " relevant");
+            return true;
+          }
+        }
+      } else if (this.pathVars.contains(edge.getSink())) {
+        Util.Debug(edge + " relevant");
+        return true;
+      } 
+      //Util.Assert(!this.toString().contains(edge.getSink().toString()), "problem getting relevance of " + edge + " to " + this);
+    }
+    Util.Debug("edge not relevant");
+    */
     return false;
   }
 
@@ -726,8 +781,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof CombinedPathAndPointsToQuery))
+    if (!(other instanceof CombinedPathAndPointsToQuery)) {
       return false;
+    }
     CombinedPathAndPointsToQuery otherQuery = (CombinedPathAndPointsToQuery) other;
     return this.pointsToQuery.equals(otherQuery.pointsToQuery) && super.equals((PathQuery) otherQuery);
   }

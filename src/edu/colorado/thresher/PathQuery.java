@@ -846,6 +846,7 @@ public class PathQuery implements IQuery {
       // if (!deleted) ctx.delete(); //occasionally causes Z3 to die
       return false;
     }
+        
     if (currentPathAssumption == null) return true;
     // call Z3 to check for feasibility
     Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };

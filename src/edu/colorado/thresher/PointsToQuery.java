@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -42,7 +43,11 @@ public class PointsToQuery implements IQuery {
   final AbstractDependencyRuleGenerator depRuleGenerator;
   // constraints that have not been produced yet
   final Set<PointsToEdge> constraints; 
-  // constraints with local LHS's that have already been produced
+  
+  // constraints with heap LHS's that currently hold (have been produced and not invalidated)
+  //final Set<PointsToEdge> current;
+  
+  // constraints with local LHS's that have already been produced 
   final Set<PointsToEdge> produced;
   // the constraints produced, in the order they were produced
   final List<DependencyRule> witnessList;
@@ -60,6 +65,8 @@ public class PointsToQuery implements IQuery {
     // this.constraints = new TreeSet<PointsToEdge>();
     this.constraints = HashSetFactory.make();//new HashSet<PointsToEdge>();
     constraints.addAll(startRule.getToShow());
+    //this.current = HashSetFactory.make();
+    //current.add(startRule.getShown());
     this.depRuleGenerator = depRuleGenerator;
     this.produced = HashSetFactory.make(); //new HashSet<PointsToEdge>();
     PointsToEdge producedEdge = startRule.getShown();
@@ -586,12 +593,7 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    return enterCall(instr, callee, currentPath, Collections.EMPTY_SET);
-  }
-
-  public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, Set<PointerVariable> extraVars) {
-    if (Options.GEN_DEPENDENCY_RULES_EAGERLY)
-      depRuleGenerator.generateRulesForNode(callee);
+    if (Options.GEN_DEPENDENCY_RULES_EAGERLY) depRuleGenerator.generateRulesForNode(callee);
     // the call instruction occurs in the caller
     CGNode caller = currentPath.getCurrentNode(); 
     // need to do this even if there are no rules at the line because the return
@@ -623,6 +625,7 @@ public class PointsToQuery implements IQuery {
         //Util.Debug("formal already assigned; continuing");
         //continue; // this formal is already spoken for
       //}
+
       if (isRuleRelevant(rule, currentPath)) {
         int paramId = rule.getShown().getSource().hashCode();
         Set<DependencyRule> newRules = isRuleConsistent(rule, this, this.unsatCore, null);
@@ -1102,7 +1105,7 @@ public class PointsToQuery implements IQuery {
 
   public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
     if (rule.isSymbolic()) return isSymbolicRuleRelevant(rule, currentPath);
-    TreeSet<PointsToEdge> checkMe = new TreeSet<PointsToEdge>();
+    List<PointsToEdge> checkMe = new ArrayList<PointsToEdge>(3);
     checkMe.add(rule.getShown());
 
     for (PointsToEdge edge : constraints) {
@@ -1147,7 +1150,6 @@ public class PointsToQuery implements IQuery {
      * if (extraVars.contains(edge.getSource())) { if (Options.DEBUG)
      * Util.Debug("relevant (extra) " + edge); return true; } }
      */
-
     return false;
   }
 
