@@ -122,13 +122,13 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    final String[] leakTests = new String[] { };
+    final String[] leakTests = new String[] { "DeveloperBlogLeak" };
 
     final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
 
     //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -137,7 +137,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
 
-    for (String test : fakeMapTests0) {
+    for (String test : fakeMapTests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -172,7 +172,7 @@ public class Main {
 
     testNum = 0;
 
-    for (String test : realHashMapTests0) {
+    for (String test : realHashMapTests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -199,8 +199,7 @@ public class Main {
       Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds");
       WALACFGUtil.clearCaches();
     }
-    
-    /*
+
     for (String test : leakTests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
@@ -222,9 +221,8 @@ public class Main {
       }
       long testEnd = System.currentTimeMillis();
       Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds");
-      WALACFGUtil.clearCaches()
+      WALACFGUtil.clearCaches();
     }
-    */
 
     long end = System.currentTimeMillis();
     Util.Print("All tests complete in " + ((end - start) / 1000) + " seconds");
