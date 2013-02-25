@@ -267,24 +267,7 @@ public class WALACFGUtil {
   }
 
   private static Set<ISSABasicBlock> getLoopBodyBlocks(SSACFG.BasicBlock loopHead, IR ir) {
-    /*
-     * Pair<IR,SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
-     * Set<ISSABasicBlock> loopBody = loopBodyCache.get(key); if (loopBody ==
-     * null) { // not found in cache; get loop body loopBody = new
-     * HashSet<ISSABasicBlock>(); List<ISSABasicBlock> headList =
-     * Collections.singletonList((ISSABasicBlock) loopHead);
-     * SCCIterator<ISSABasicBlock> sccIter = new
-     * SCCIterator<ISSABasicBlock>(ir.getControlFlowGraph(),
-     * headList.iterator()); boolean multipleSccs = false; while
-     * (sccIter.hasNext()) { Set<ISSABasicBlock> scc = sccIter.next(); for
-     * (ISSABasicBlock blk : scc) Util.Debug("scc blk " + blk);
-     * loopBody.addAll(scc); Util.Debug("done with scc");
-     * Util.Assert(!multipleSccs, "more than one scc for loop head " + loopHead
-     * + " ir\n" + ir); multipleSccs = true; } loopBodyCache.put(key, loopBody);
-     * }
-     */
-
-    Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
+     Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
     Set<ISSABasicBlock> loopBody = loopBodyCache.get(key);
     if (loopBody == null) {
       // Util.Debug("getting loop body blocks for ir " + ir);
@@ -335,20 +318,8 @@ public class WALACFGUtil {
         if (lastInstr instanceof SSAGotoInstruction) { // breaks are goto's that
                                                        // send us outside of the
                                                        // loop
-          if (succs.size() == 1 && !isReachableFrom((SSACFG.BasicBlock) blk, loopHead, ir)) { // if
-                                                                                              // we
-                                                                                              // can't
-                                                                                              // get
-                                                                                              // to
-                                                                                              // the
-                                                                                              // loop
-                                                                                              // head
-                                                                                              // from
-                                                                                              // this
-                                                                                              // goto,
-                                                                                              // it's
-                                                                                              // a
-                                                                                              // break
+          // if we can't get to the loop head from this goto, it's a break
+          if (succs.size() == 1 && !isReachableFrom((SSACFG.BasicBlock) blk, loopHead, ir)) { 
             continue;
           }
         }
@@ -425,11 +396,11 @@ public class WALACFGUtil {
     IR ir = loopNode.getIR();
     Set<SSAInstruction> loopInstrs = getInstructionsInLoop(loopHead, ir);
     Set<CGNode> possibleTargets = HashSetFactory.make();
-    for (SSAInstruction instr : loopInstrs) { // drop all vars that can be
-                                              // written to in the loop body
+    // drop all vars that can be written to in the loop body
+    for (SSAInstruction instr : loopInstrs) {
+      Util.Debug("loop instr " + instr);
       if (instr instanceof SSAInvokeInstruction) {
         SSAInvokeInstruction call = (SSAInvokeInstruction) instr;
-        // Util.Debug("adding call " + call);
         possibleTargets.addAll(cg.getPossibleTargets(loopNode, call.getCallSite()));
       }
     }

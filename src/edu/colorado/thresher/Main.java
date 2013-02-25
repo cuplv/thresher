@@ -492,7 +492,9 @@ public class Main {
           // add "on*" methods; they're the event handlers
           if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { 
             // TODO: use same receiver for all methods of the same type
-            entryPoints.add(new DefaultEntrypoint(m, cha));
+            //entryPoints.add(new DefaultEntrypoint(m, cha));
+            // TODO: what about subtyping?
+            entryPoints.add(new SameReceiverEntrypoint(m, cha));
           }
         }
 
@@ -510,8 +512,7 @@ public class Main {
 
     for (String srcString : srcStrings) {
       IClass srcClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, srcString));
-      if (Options.CHECK_ASSERTS)
-        Util.Assert(srcClass != null, "couldn't find base class " + srcString);
+      if (Options.CHECK_ASSERTS) Util.Assert(srcClass != null, "couldn't find base class " + srcString);
       staticFields.addAll(srcClass.getAllStaticFields());
       // find all subclasses of the src Class
       for (IClass subclass : cha.computeSubClasses(srcClass.getReference())) {
@@ -521,8 +522,7 @@ public class Main {
 
     for (String snkString : snkStrings) {
       IClass snkClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, snkString));
-      if (Options.CHECK_ASSERTS)
-        Util.Assert(snkClass != null, "couldn't find base class " + snkClass);
+      if (Options.CHECK_ASSERTS) Util.Assert(snkClass != null, "couldn't find base class " + snkClass);
       snkClasses.add(snkClass);
     }
 
@@ -552,6 +552,7 @@ public class Main {
     DEBUG_cha = cha; // DEBUG ONLY
     if (DEBUG) Util.Debug("building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
+    Util.Debug(cg.getFakeRootNode().getIR().toString());
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
