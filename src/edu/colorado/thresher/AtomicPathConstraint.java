@@ -77,7 +77,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     this.rhs = new SimplePathTerm(rhs);
     this.op = op;
     this.id = id;
-    this.vars = HashSetFactory.make();//new HashSet<PointerVariable>();
+    this.vars = HashSetFactory.make();
     vars.add(lhs);
     vars.add(rhs);
     this.hash = makeHash();
@@ -97,10 +97,18 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     this.rhs = rhs;
     this.op = op;
     this.id = id;
-    this.vars = HashSetFactory.make();//new HashSet<PointerVariable>();
+    this.vars = HashSetFactory.make();
     vars.addAll(lhs.getVars());
     vars.addAll(rhs.getVars());
     this.hash = makeHash();
+    
+    if (Options.DEBUG) {
+      // sanity check to make sure path conditions aren't growing extremely large
+      if (lhs.size() > 8 || rhs.size() > 8) {
+        Util.Assert(false, "unusually large path constraint " + this + "; possible nontermination");
+      }
+    }
+    
   }
 
   public AtomicPathConstraint heapSubstitute(SimplePathTerm toSub, SimplePathTerm subFor) {
@@ -138,26 +146,20 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
 
   public AtomicPathConstraint substitute(PathTerm toSub, SimplePathTerm subFor) {
     PathTerm newLHS = lhs.substitute(toSub, subFor);
-    boolean lhsSubstituted = newLHS.substituted(); // DO NOT MOVE THIS! if lhs
-                                                   // and rhs are the same,
-                                                   // mutability of PathTerms
-                                                   // can cause unexpected
-                                                   // behavior
+    // DO NOT MOVE THIS! if lhs and rhs of the same, mutability of PathTerms can
+    // cause unexpected behavior
+    boolean lhsSubstituted = newLHS.substituted();
     PathTerm newRHS = rhs.substitute(toSub, subFor);
     boolean rhsSubstituted = newRHS.substituted();
     if (lhsSubstituted || rhsSubstituted) {
-      AtomicPathConstraint newPathConstraint = new AtomicPathConstraint(newLHS, newRHS, op, id); // normal
-                                                                                                 // case;
-                                                                                                 // no
-                                                                                                 // evaluation
+      // normal case; no evaluation
+      AtomicPathConstraint newPathConstraint = new AtomicPathConstraint(newLHS, newRHS, op, id); 
       if (newPathConstraint.isConstant()) {
         Util.Debug("evaluating!");
         if (newPathConstraint.evaluate())
-          newPathConstraint = TRUE;// makeTruePathConstraint(); // constraint
-                                   // evaluated to true
+          newPathConstraint = TRUE; // constraint evaluated to true
         else
-          newPathConstraint = FALSE; // makeFalsePathConstraint(); // constraint
-                                     // evaluated to false
+          newPathConstraint = FALSE; // constraint evaluated to false
       } // normal case; no evaluation
       newPathConstraint.setSubstituted(true);
       return newPathConstraint;
@@ -215,19 +217,6 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
       return this;
     }
   }
-
-  /*
-   * // TODO: eliminate this public AtomicPathConstraint
-   * substituteWithFieldName(PathTerm toSub, PointerVariable subFor,
-   * FieldReference fieldName) {
-   * Util.Unimp("don't call this method; it should be deprecated"); PathTerm
-   * newLHS = lhs.substituteWithFieldName(toSub, subFor, fieldName); PathTerm
-   * newRHS = rhs.substituteWithFieldName(toSub, subFor, fieldName); if
-   * (newLHS.substituted() || newRHS.substituted()) { AtomicPathConstraint
-   * newPathConstraint = new AtomicPathConstraint(newLHS, newRHS, op);
-   * newPathConstraint.setSubstituted(true); return newPathConstraint; } else {
-   * this.setSubstituted(false); return this; } }
-   */
 
   public AtomicPathConstraint deepCopy() {
     return this;
@@ -356,13 +345,6 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     return null;
   }
 
-  /*
-   * public PointerVariable containsField(FieldReference field) {
-   * PointerVariable lhsOwner = lhs.containsField(field); if (lhsOwner != null)
-   * return lhsOwner; PointerVariable rhsOwner = rhs.containsField(field);
-   * return rhsOwner; }
-   */
-
   public Set<SimplePathTerm> getTerms() {
     Set<SimplePathTerm> set = new TreeSet<SimplePathTerm>();
     set.addAll(lhs.getTerms());
@@ -398,7 +380,6 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   /**
    * @return - set of *all* pointer keys associated with constraint
    */
-  //private Set<PointerKey> getPointerKeysForPathConstraint(AtomicPathConstraint constraint) {
   public Set<PointerKey> getPointerKeys(AbstractDependencyRuleGenerator depRuleGenerator) {
     ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     HeapModel hm = depRuleGenerator.getHeapModel();
@@ -451,8 +432,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null)
-      return false;
+    if (other == null) return false;
     AtomicPathConstraint pc = (AtomicPathConstraint) other;
     return pc.getLhs().equals(lhs) && pc.getOp() == op && pc.getRhs().equals(rhs);
   }

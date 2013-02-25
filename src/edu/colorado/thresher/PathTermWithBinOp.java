@@ -96,18 +96,6 @@ public class PathTermWithBinOp implements PathTerm {
     return this;
   }
 
-  /*
-   * // TODO: eliminate public PathTerm substituteWithFieldName(PathTerm toSub,
-   * PointerVariable subFor, FieldReference fieldName) {
-   * Util.Unimp("don't call this method");
-   * //System.err.println("trying to substitute " + toSub + " for " + subFor);
-   * PathTerm newLHS = lhs.substituteWithFieldName(toSub, subFor, fieldName);
-   * PathTerm newRHS = rhs.substituteWithFieldName(toSub, subFor, fieldName);
-   * PathTermWithBinOp newPathTerm = new PathTermWithBinOp(newLHS, newRHS,
-   * binOp); newPathTerm.setSubstituted(newLHS.substituted() ||
-   * newRHS.substituted()); return newPathTerm; }
-   */
-
   @Override
   public boolean isIntegerConstant() {
     return lhs.isIntegerConstant() && rhs.isIntegerConstant();
@@ -126,7 +114,6 @@ public class PathTermWithBinOp implements PathTerm {
   @Override
   public PathTermWithBinOp deepCopy() {
     return this; // ok because PathTermWithBinOp is immutable
-    // return new PathTermWithBinOp(lhs.deepCopy(), rhs.deepCopy(), binOp);
   }
 
   public String toHumanReadableString() {
@@ -265,6 +252,11 @@ public class PathTermWithBinOp implements PathTerm {
   public Set<PointerVariable> getVars() {
     return vars;
   }
+  
+  @Override
+  public int size() {
+    return lhs.size() + rhs.size();
+  }
 
   @Override
   public boolean isHeapLocation() {
@@ -278,12 +270,6 @@ public class PathTermWithBinOp implements PathTerm {
     set.addAll(this.rhs.getTerms());
     return set;
   }
-
-  /*
-   * public PointerVariable containsField(FieldReference field) {
-   * PointerVariable lhsOwner = lhs.containsField(field); if (lhsOwner != null)
-   * return lhsOwner; return rhs.containsField(field); }
-   */
 
   @Override
   public String toString() {

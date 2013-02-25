@@ -44,6 +44,8 @@ public interface PathTerm extends Comparable {
   public boolean symbContains(PathTerm other);
 
   public boolean isHeapLocation();
+  
+  public int size();
 
   // public PointerVariable containsField(FieldReference field);
   @Override

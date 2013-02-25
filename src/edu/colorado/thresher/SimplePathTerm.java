@@ -523,6 +523,9 @@ public class SimplePathTerm implements PathTerm {
   public PointerKey getPointer() {
     return pointer;
   }
+  
+  @Override
+  public int size() { return 1; }
 
   @Override
   public boolean isHeapLocation() {
