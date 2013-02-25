@@ -319,14 +319,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   public void removeLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
     if (!Options.LOOP_INVARIANT_INFERENCE) pointsToQuery.removeLoopProduceableConstraints(loopHead, currentNode);
-    // else, only need to drop path constraints; we're computing a fixed point
-    // over pt-constraints
-    // super.removeLoopProduceableConstraints(loopHead, currentNode);
-    // we only need to remove path constraints produceable in the loop... we
-    // don't want to remove pts-to constraints; we are computing a fixed point
-    // over those
-    // dropConstraintsProuceableByRuleSet(Util.getRulesForLoop(loopHead,
-    // currentNode, depRuleGenerator, depRuleGenerator.getCallGraph()));
+    // we only need to remove path constraints produceable in the loop... we don't want to remove
+    // pts-to constraints; we are computing a fixed point over those
     dropPathConstraintsWrittenInLoop(loopHead, currentNode);
   }
 
@@ -386,7 +380,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           }
         }
       }
-
     }
     for (AtomicPathConstraint dropMe : toDrop) {
       if (Options.DEBUG) Util.Debug("dropping loop constraint " + dropMe);

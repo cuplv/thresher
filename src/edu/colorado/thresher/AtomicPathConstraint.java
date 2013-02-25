@@ -9,10 +9,13 @@ import z3.java.Z3Context;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
+import com.ibm.wala.demandpa.util.ArrayContents;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.types.FieldReference;
@@ -383,7 +386,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   public Set<PointerKey> getPointerKeys(AbstractDependencyRuleGenerator depRuleGenerator) {
     ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     HeapModel hm = depRuleGenerator.getHeapModel();
-    Set<PointerKey> keysForConstraint = HashSetFactory.make();//new HashSet<PointerKey>();
+    Set<PointerKey> keysForConstraint = HashSetFactory.make();
     // add pointer keys already known to be associated with this constraint
     keysForConstraint.addAll(this.getPointerKeys());
 
@@ -416,7 +419,15 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
                 PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) next, fld);
                 if (fieldKey == null) continue;
                 keysForConstraint.add(fieldKey);
-              }
+              } else if (next instanceof InstanceFieldKey) {
+                InstanceFieldKey fieldKey = (InstanceFieldKey) next;
+                // only add if the field matches the field of the path term
+                if (fieldKey.getField().equals(fld)) keysForConstraint.add((InstanceFieldKey) next);
+              } else if (next instanceof StaticFieldKey) {
+                StaticFieldKey fieldKey = (StaticFieldKey) next;
+                // only add if the field matches the field of the path term
+                if (fieldKey.getField().equals(fld)) keysForConstraint.add((StaticFieldKey) next);
+              } 
             }
           }
         }

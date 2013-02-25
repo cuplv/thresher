@@ -503,6 +503,7 @@ public class IPathInfo { // implements Comparable {
   }
 
   public void removeLoopProduceableConstraints(SSACFG.BasicBlock loopHead) {
+    Util.Debug("dropping loop produceable constraints");
     query.removeLoopProduceableConstraints(loopHead, this.currentNode);
   }
 

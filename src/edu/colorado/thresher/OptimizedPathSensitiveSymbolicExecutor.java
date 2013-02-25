@@ -57,7 +57,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     final CGNode node = info.getCurrentNode();
     final IR ir = node.getIR();
 
-    // normalize query w.r.t to loop produceable constraints in order to get
+    // normalize query w.r.t to loop produceable constraints in order to get more mileage out of summaries
     // more mileage out of summaries
     info.removeLoopProduceableConstraints(currentBlock);
     if (info.foundWitness()) return true;

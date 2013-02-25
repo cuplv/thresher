@@ -479,6 +479,7 @@ public class Main {
 
     List<IClass> snkClasses = new LinkedList<IClass>();
     Iterator<IClass> classes = cha.iterator();
+   
     while (classes.hasNext()) {
       IClass c = classes.next();
       if (!scope.isApplicationLoader(c.getClassLoader())) continue;
@@ -490,6 +491,7 @@ public class Main {
         } else {
           // add "on*" methods; they're the event handlers
           if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { 
+            // TODO: use same receiver for all methods of the same type
             entryPoints.add(new DefaultEntrypoint(m, cha));
           }
         }
