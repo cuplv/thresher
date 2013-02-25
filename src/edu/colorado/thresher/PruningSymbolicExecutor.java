@@ -32,7 +32,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 
   // private final Map<Constraint,Set<CGNode>> reachableCache;
   // transitive closure of the "calls" relation
-  private final Map<CGNode, OrdinalSet<CGNode>> callGraphTransitiveClosure;
+  final Map<CGNode, OrdinalSet<CGNode>> callGraphTransitiveClosure;
   private final Logger logger;
 
   public PruningSymbolicExecutor(CallGraph callGraph, Logger logger) {
@@ -144,13 +144,13 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
    * @return
    */
   public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks) {
+    Util.Debug("checking if " + Util.printCollection(snks) + " reachable from " + Util.printCollection(srcs));
     // all nodes that are completely reachable
     Set<CGNode> reachable = HashSetFactory.make();
     // nodes whose entrypoints are reachable, but some callees may not be reachable
     Set<CGNode> partiallyReachable = HashSetFactory.make();
 
     for (CGNode src : srcs) {
-      // reachable.addAll(DFS.getReachableNodes(callGraph, srcs));
       reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
     }
     if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
@@ -159,32 +159,28 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
 
     for (;;) {
       boolean progress = false;
+      // callers of a node in srcs that we have yet to explore
       Set<CGNode> frontier = HashSetFactory.make();
       // not all elements of snks are directly reachable
       for (CGNode src : srcs) {
         // for each caller
         for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) {
           CGNode caller = callerNodes.next();
+          Util.Debug("caller " + caller);
           // class inits should be handled separately...
           Util.Assert(!caller.getMethod().isClinit());
 
           // avoid redundant exploration
-          if (reachable.contains(caller))
-            continue;
-
+          if (reachable.contains(caller)) continue;
           progress = true;
-          // TODO: is this sound? I'm concerned about the case where do
-          // flow-sensitive intraprocedural exploration of the caller...
-          // TODO: it might lead us to skip where we should not
-          // reachable.add(caller);
           frontier.add(caller);
-          // Manu's optimization; do FI check (using callgraph) on nodes
-          // reachable from caller first.
+          // Manu's optimization; do FI check (using callgraph) on nodes reachable from caller first.
           // if no nodes in toPrune are reachable according to the callgraph, we
           // needn't do the expensive intraprocedural search
           Collection<CGNode> reachableFromCaller = OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller));
 
           if (Util.intersectionNonEmpty(reachableFromCaller, snks)) {
+            Util.Debug("some important node reachable from " + caller);
             partiallyReachable.add(caller);
             Set<ISSABasicBlock> possibleStartBlocks = HashSetFactory.make();
             IR ir = caller.getIR();
@@ -194,17 +190,22 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
               CallSiteReference site = sites.next();
               ISSABasicBlock[] blks = ir.getBasicBlocksForCall(site);
               for (int i = 0; i < blks.length; i++) {
-                possibleStartBlocks.add(blks[i]);
+                // get succs because we want to exclude the block containing the 
+                // call we came from
+                Iterator<ISSABasicBlock> succBlks = cfg.getSuccNodes(blks[i]);
+                while (succBlks.hasNext()) {
+                  possibleStartBlocks.add(succBlks.next());
+                }
               }
             }
             Set<CGNode> callees = HashSetFactory.make();
             Set<ISSABasicBlock> localReachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
             for (ISSABasicBlock blk : localReachable) {
-              if (blk.getLastInstructionIndex() < 0)
-                continue;
+              if (blk.getLastInstructionIndex() < 0) continue;
               SSAInstruction instr = blk.getLastInstruction();
               if (instr != null && instr instanceof SSAInvokeInstruction) {
                 SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
+                Util.Debug("invoke " + invoke);
                 callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
               }
             }
@@ -213,16 +214,14 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
                 reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
               }
             }
-            if (reachable.containsAll(snks))
-              return reachable; // early return if we cover everything
+            if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
           } else {
             reachable.add(caller);
             reachable.addAll(reachableFromCaller);
           }
         }
       }
-      if (!progress)
-        break;
+      if (!progress) break;
       srcs = frontier;
     }
     // add partially reachable to the reachable set; we only kept this set to prevent unsound skipping during the search

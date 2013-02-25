@@ -1,8 +1,8 @@
 package edu.colorado.thresher;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -444,7 +444,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     for (PointerVariable var : toDrop) dropConstraintsContaining(var);
     relevantVars.removeAll(toDrop);
 
-    Set<AtomicPathConstraint> toRemove = new HashSet<AtomicPathConstraint>();
+    Set<AtomicPathConstraint> toRemove = HashSetFactory.make();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<PointerVariable> vars = constraint.getVars();
       Set<FieldReference> fields = constraint.getFields();
@@ -654,10 +654,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   private Map<Constraint, Set<CGNode>> getModifiersForQueryHelper() {
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
     Map<PointerKey, Set<CGNode>> reversedModRef = this.depRuleGenerator.getReversedModRef();
     Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make();//new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
-      Set<CGNode> nodes = new HashSet<CGNode>();
+      Set<CGNode> nodes = HashSetFactory.make();
       //addInitsForConstraintFields(constraint, nodes);
       // addClassInitsForConstraintFields(constraint, nodes); // add class init
       // if it may write to the constraint
@@ -671,7 +673,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           // the node that might modify our key of interest
           if (Util.writesKeyLocally(node, key, this.depRuleGenerator.getHeapModel(), 
               this.depRuleGenerator.getHeapGraph(), this.depRuleGenerator.getClassHierarchy())) {
-            nodes.add(node);
+            // if producer is only called by fakeWorldClinit, count it as fakeWorldClinit
+            if (Util.isOnlyCalledBy(fakeWorldClinit, node, cg)) nodes.add(fakeWorldClinit);
+            else nodes.add(node);
           }
         }
       }

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -15,7 +16,9 @@ import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.util.graph.impl.GraphInverter;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
+import com.ibm.wala.util.graph.traverse.DFS;
 import com.ibm.wala.util.intset.IntIterator;
 
 public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
@@ -45,23 +48,56 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
       Util.Debug("refuted by summary");
       return false;
     }
+    
+    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph);
 
+    
+    Map<Constraint,Set<CGNode>> constraintModMap = copy.getModifiersForQuery();
+    boolean tryFakeWorldClinit = true;
+    
+    // no sense in trying fakeWorldClinit if we still need to produce some constraint
+    // that can't be produced there 
+    for (Constraint constraint : constraintModMap.keySet()) {
+      if (!constraintModMap.get(constraint).contains(fakeWorldClinit)) {
+        tryFakeWorldClinit = false;
+        break;
+      }
+    }
+        
     // get potential producers for constraints
-    Set<CGNode> producers = Util.flatten(copy.getModifiersForQuery().values());
+    Set<CGNode> producers = Util.flatten(constraintModMap.values());
     if (Options.DEBUG) {
+      Util.Debug("MAP: ");
+      for (Constraint constraint : constraintModMap.keySet()) {
+        Util.Debug(constraint + " ===>\n" + Util.printCollection(constraintModMap.get(constraint)));
+      }
+      
       for (CGNode producer : producers)
         Util.Debug("producer: " + producer);
     }
-    IPathInfo classInitPath = copy.deepCopy();
-    // handle class initializer case first
-    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph);
-    classInitPath.enterCallFromJump(fakeWorldClinit);
-    classInitPath.setCurrentNode(fakeWorldClinit);
-    Util.Debug("about to try fakeWorldClinit");
-    boolean result = this.handleFakeWorldClinit(classInitPath);
-    if (result) return true; // found witness in fakeWorldClinit
-    // else, refuted; try other producers
-
+    
+    /**
+     * strategy -
+     * (1) make count of producers, explore highest count first
+     * (2) if one of the constraints can't be produced by <clinit>, don' try it 
+     * (3) if there's something only produced by one method and the method doesn't produce it,
+     *    we have a wholesale refutation
+     * 
+     * TODO: if producer is only called from class init, count it as class init
+     */
+    
+        
+    if (tryFakeWorldClinit) {
+      IPathInfo classInitPath = copy.deepCopy();
+      // handle class initializer case first
+      classInitPath.enterCallFromJump(fakeWorldClinit);
+      classInitPath.setCurrentNode(fakeWorldClinit);
+      Util.Debug("about to try fakeWorldClinit");
+      boolean result = this.handleFakeWorldClinit(classInitPath);
+      if (result) return true; // found witness in fakeWorldClinit
+      // else, refuted; try other producers
+    }
+    
     // have we been at the function boundary for this node before?
     if (!path.addSeen(path.getCurrentNode())) {
       Util.Debug("have seen producer " + path.getCurrentNode() + " before, refuting");
@@ -82,10 +118,10 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
         Util.Debug("have seen producer " + producer + " before, continuing");
         continue;
       }
-      Util.Debug("trying node " + producer);
+      Util.Debug("trying producer " + producer);
 
       // is the producer in the class initializers?
-      if (producer.getMethod().isClinit()) { 
+      if (producer.getMethod().isClinit() || producer.equals(fakeWorldClinit)) { 
         // producer is class initializer; we already handled this case
         continue;
       }
@@ -133,37 +169,12 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
             } // else, refuted
           }
         }
-        /*
-        for (Iterator<CGNode> preds = callGraph.getPredNodes(producer); preds.hasNext();) {
-          IPathInfo newPathCopy = newPath.deepCopy();
-          CGNode producerCaller = preds.next();
-          Util.Debug("entering from caller " + producerCaller);
-          // common ancestors non-empty; nodes share common caller. can enter
-          // from exit block of producer
-          SSAInvokeInstruction callInstr = WALACFGUtil.getCallInstructionFor(producer, producerCaller, callGraph);
-          // needed to prevent false refutations based on stale constraints
-          newPathCopy.addContextualConstraints(producer); 
-          newPathCopy.setCurrentNode(producerCaller);
-          newPathCopy.enterCallFromJump(callInstr, callGraph, producer);
-          if (executeToProcedureBoundary(newPathCopy, producer)) {
-            Util.Debug("returning true from handlePiecewiseMethodBased");
-            path.declareFakeWitness();
-            return true;
-          } else { // TODO: disruptor check!
-            Util.Debug("refuted! " + producer + " from " + startNode + " at depth " + depth + " trying next producer"); 
-          }                                                                                                     
-        }
-      } else {
-        // else, no path between producer and startNode in the callgraph
-        Util.Debug("no feasible path between " + producer + " and " + startNode);
-      }
-      */
-      } // end if feasible path exists
+      } else Util.Debug("no feasible path between " + producer + " and " + startNode); // end if feasible path exists
     } // end for each potential producer
     Util.Debug("no producers successful from " + startNode + " at depth " + depth);
     return false;
   }
-
+  
   /**
    * change to add new heuristics for what an abstraction boundary is
    */
@@ -405,17 +416,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     }
     Util.Assert(path == null || (!path.isLoopMergeIndicator() && !path.isDummy()));
     return path;
-  }
-
-  private boolean onlyCalledBy(CGNode callee, CGNode caller) {
-    Collection<CGNode> preds = Util.iteratorToCollection(this.callGraph.getPredNodes(callee));
-    while (preds.size() == 1) {
-      CGNode next = preds.iterator().next();
-      if (next.equals(caller))
-        return true;
-      preds = Util.iteratorToCollection(this.callGraph.getPredNodes(next));
-    }
-    return false;
   }
 
   private void handleCallCase(CGNode startNode) {

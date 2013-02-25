@@ -1691,4 +1691,14 @@ public class Util {
     }
     return lines;
   }
+  
+  public static boolean isOnlyCalledBy(CGNode caller, CGNode callee, CallGraph callGraph) {
+    Collection<CGNode> preds = Util.iteratorToCollection(callGraph.getPredNodes(callee));
+    while (preds.size() == 1) {
+      CGNode next = preds.iterator().next();
+      if (next.equals(caller)) return true;
+      preds = Util.iteratorToCollection(callGraph.getPredNodes(next));
+    }
+    return false;
+  }
 }

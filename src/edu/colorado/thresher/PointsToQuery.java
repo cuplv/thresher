@@ -779,7 +779,6 @@ public class PointsToQuery implements IQuery {
    * @return
    */
   Set<DependencyRule> bindSymbolicRule(DependencyRule rule, PointsToQuery currentQuery, CGNode currentNode) {
-    Util.Debug("PRODUCED before binding " + Util.constraintSetToString(produced));
     PointsToEdge shown = rule.getShown();
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     List<Map<SymbolicPointerVariable, PointerVariable>> subMaps = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
@@ -1626,6 +1625,8 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
     // public Set<CGNode> getMethodsRelevantToQuery() {
     Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make();
     for (PointsToEdge edge : constraints) {
@@ -1657,18 +1658,17 @@ public class PointsToQuery implements IQuery {
             PointsToEdge concreteEdge = new PointsToEdge(edge.getSource(), conc, edge.getFieldRef());
             producingRules.addAll(Util.getProducersForEdge(concreteEdge, depRuleGenerator));
           }
-        } else
+        } else {
           Assertions.UNREACHABLE();
-      } else
+        }
+      } else {
         producingRules.addAll(Util.getProducersForEdge(edge, depRuleGenerator));
-      // Set<DependencyRule> producingRules = Util.getProducersForEdge(edge,
-      // depRuleGenerator);
-      // TODO: this means edge is definitely infeasible, and thus so are
-      // constraints... should do something about this
-      // Util.Assert(!producingRules.isEmpty(),
-      // "couldn't find producer for edge " + edge);
+      }
       for (DependencyRule rule : producingRules) {
-        producers.add(rule.getNode());
+        CGNode producingNode = rule.getNode();
+        // if producer is only called by fakeWorldClinit, count it as fakeWorldClinit
+        if (Util.isOnlyCalledBy(fakeWorldClinit, producingNode, cg)) producers.add(fakeWorldClinit);
+        else producers.add(producingNode);
       }
       constraintModMap.put(edge, producers);
     }

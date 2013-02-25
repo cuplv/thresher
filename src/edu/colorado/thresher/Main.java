@@ -122,13 +122,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    final String[] leakTests = new String[] { "DeveloperBlogLeak" };
-
     final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
 
     //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -187,30 +185,6 @@ public class Main {
         expectedResult = true; // HACK: tests that we aren't meant to refute
                                // have NoRefute in name
       if (result == expectedResult) {
-        Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
-        successes++;
-      } else {
-        Util.Print("Test " + test + " (#" + (testNum++) + ") failed :(");
-        failures++;
-        if (Options.EXIT_ON_FAIL)
-          System.exit(1);
-      }
-      long testEnd = System.currentTimeMillis();
-      Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds");
-      WALACFGUtil.clearCaches();
-    }
-
-    for (String test : leakTests) {
-      Util.Print("Running test " + testNum + ": " + test);
-      long testStart = System.currentTimeMillis();
-      try {
-        result = runAnalysisActivityFieldsOnly(regressionDir + test, true, false);
-      } catch (Exception e) {
-        System.err.println("Test " + test + " (#" + (testNum++) + ") failed :(");
-        throw e;
-      }
-      Util.clear();
-      if (result) {
         Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
         successes++;
       } else {
