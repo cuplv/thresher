@@ -391,25 +391,22 @@ public class IPathInfo { // implements Comparable {
    *         split occurs during visit
    */
   private List<IPathInfo> enterCall(SSAInvokeInstruction instr, CallGraph cg, CGNode callee, boolean skip) {
-    String calleeName = callee.getMethod().toString();
-    // if (skip || !loopHeadSet.isEmpty() || callee.getIR() == null ||
-    // calleeName.contains("equals") || calleeName.contains("hashCode") ||
+    String calleeName = null;
+    if (callee != null) {
+      calleeName = callee.getMethod().toString();
+    } else Util.Assert(skip);
+    // if this call is relevant
     if (skip || callee.getIR() == null || calleeName.contains("equals") || calleeName.contains("hashCode")
-        || calleeName.contains("indexOf") || calleeName.contains("Iterator") || !isCallRelevantToQuery(instr, callee, cg)) { // if
-                                                                                                                             // this
-                                                                                                                             // call
-                                                                                                                             // is
-                                                                                                                             // relevant
-      // hack! just want to avoid executing equals(), hashCode() e.t.c because theyr'e
-      // a time sink and are unlikely to lead to refutation
+        || calleeName.contains("indexOf") || calleeName.contains("Iterator") || !isCallRelevantToQuery(instr, callee, cg)) { 
+      // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
-      if (Options.DEBUG) Util.Debug("skipping call " + callee.getMethod().toString());
+      if (Options.DEBUG) Util.Debug("skipping call " + instr);
       return IPathInfo.FEASIBLE;
     } else if (callee.equals(this.currentNode)) { // is this a recursive call?
-      if (Options.DEBUG)
+      if (Options.DEBUG) {
         Util.Debug("skipping recursive call " + callee.getMethod().toString() + " and dropping produced constraints");
-      // this is both a recursive call and relevant. overapproximate its effects
-      // by dropping constraints
+      }
+      // this is both a recursive call and relevant. overapproximate its effects by dropping constraints 
       // that it could possibly produce
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
       return IPathInfo.FEASIBLE;
@@ -445,32 +442,6 @@ public class IPathInfo { // implements Comparable {
    * @return true if callee is part of mutually recursive sequence, false
    *         otherwise
    */
-  /*
-   * boolean isMutuallyRecursive(CGNode node, int offendingIndex) {
-   * Util.Pre(callStack.get(offendingIndex).getCGNode().equals(node),
-   * "callstack should contain callee at the specified index!");
-   * //Util.Assert(offendingIndex != 0,
-   * "non-mutual recursion should have been caught by the regular recursion case!"
-   * );// return false; // no sequence leading up to the first call...not
-   * confirmed mutual recursion // let the callee be X. say that we suspect X is
-   * part of a mutually recursive sequence X C1 C2 ... X // we first record the
-   * sequence C1 C2 ... (top of call stack), then check backwards from the first
-   * occurence of X in the call stack to see if the sequence is matched
-   * LinkedList<CGNode> sequence = new LinkedList<CGNode>(); // the sequence of
-   * calls from the first occurrence of X to the top of the call stack for (int
-   * i = offendingIndex + 1; i < callStack.size(); i++) {
-   * sequence.push(callStack.get(i).getCGNode()); }
-   * Util.Assert(!sequence.isEmpty(),
-   * "non-mutual recursion should have been caught by the regular recursion case! "
-   * + Util.printCollection(callStack));
-   * 
-   * // see if the sequence of calls leading up to this occurrence of X matches
-   * the previous sequence int i = offendingIndex - 1; while
-   * (!sequence.isEmpty()) { if (i == -1) break; if
-   * (!sequence.pop().equals(callStack.get(i).getCGNode())) return false; i--; }
-   * // entire sequence compared equal; we have mutual recursion return true; }
-   */
-
   boolean isMutuallyRecursive(CGNode callee, int offendingIndex) {
     Util.Pre(callStack.get(offendingIndex).getCGNode().equals(callee), "callstack should contain callee at the specified index!");
     // let the callee be X. say that we suspect X is part of a mutually

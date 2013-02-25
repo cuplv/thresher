@@ -298,7 +298,6 @@ public class PointsToQuery implements IQuery {
 
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     for (PointsToEdge edge : produced) {
-      Util.Debug("edge" + edge);
       if (edge.getSource().getNode() != null && edge.getSource().getNode().equals(callee))
         toRemove.add(edge);
     }
@@ -315,13 +314,9 @@ public class PointsToQuery implements IQuery {
         removeAllLocalConstraints();
         return IQuery.FEASIBLE;
       }
-      // Util.Unimp("refuting on stale constraints!");
-      if (Options.DEBUG)
-        Util.Debug("refuted by stale constraints!");
+      if (Options.DEBUG) Util.Debug("refuted by stale constraints!");
       return IQuery.INFEASIBLE;
     }
-    // Util.Post(!this.con tainsStaleConstraints(callee),
-    // "should not contain stale constraints after substitution!");
     return IQuery.FEASIBLE;
   }
 
@@ -1435,6 +1430,8 @@ public class PointsToQuery implements IQuery {
           toRemove.add(edge);
       }
     }
+    // a null callee means we're dropping constraints for a call that resolves to 0 call sites (so only need to drop retval)
+    if (callee == null) return;
 
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (PointsToEdge edge : constraints) {

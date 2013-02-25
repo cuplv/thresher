@@ -357,10 +357,6 @@ public class WALACFGUtil {
             toExplore.add(succ);
         }
       }
-
-      Util.Debug("loop body blocks for " + loopHead);
-      for (ISSABasicBlock blk : loopBody)
-        Util.Debug(blk.toString());
       loopBodyCache.put(key, loopBody);
     }
     return loopBody;

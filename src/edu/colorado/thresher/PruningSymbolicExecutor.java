@@ -143,7 +143,6 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
    *          containing all nodes in snks)
    */
   public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks, final boolean includeCallers) {
-    Util.Debug("checking if " + Util.printCollection(snks) + " reachable from " + Util.printCollection(srcs));
     // all nodes that are completely reachable
     Set<CGNode> reachable = HashSetFactory.make();
     // nodes whose entrypoints are reachable, but some callees may not be reachable
@@ -165,7 +164,6 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
         // for each caller
         for (Iterator<CGNode> callerNodes = callGraph.getPredNodes(src); callerNodes.hasNext();) {
           CGNode caller = callerNodes.next();
-          Util.Debug("caller " + caller);
           // class inits should be handled separately...
           Util.Assert(!caller.getMethod().isClinit());
 
@@ -179,7 +177,6 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
           Collection<CGNode> reachableFromCaller = OrdinalSet.toCollection(callGraphTransitiveClosure.get(caller));
 
           if (Util.intersectionNonEmpty(reachableFromCaller, snks)) {
-            Util.Debug("some important node reachable from " + caller);
             partiallyReachable.add(caller);
             Set<ISSABasicBlock> possibleStartBlocks = HashSetFactory.make();
             IR ir = caller.getIR();
@@ -204,7 +201,6 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
               SSAInstruction instr = blk.getLastInstruction();
               if (instr != null && instr instanceof SSAInvokeInstruction) {
                 SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
-                Util.Debug("invoke " + invoke);
                 callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
               }
             }

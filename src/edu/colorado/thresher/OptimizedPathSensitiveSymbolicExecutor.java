@@ -284,13 +284,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    */
 
   public IPathInfo mergeLoop(Set<IPathInfo> truePaths, Set<IPathInfo> falsePaths, SSACFG.BasicBlock loopHeadBlock) {
-    if (Options.DEBUG)
-      Util.Debug("merging loop");
-    // commented out because not necessarily true... if we start in a loop, one
-    // of the lists will be empty
-    // Util.Assert(!truePaths.isEmpty() && !falsePaths.isEmpty(),
-    // "both path lists should be non empty!");
-    
+    if (Options.DEBUG) Util.Debug("merging loop");
+   
     if (Options.SYNTHESIS) {
       // add "loop taken" constraint
       for (IPathInfo info : truePaths) {
@@ -366,14 +361,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
     // make sure this isn't an explicitly infinite loop (no branching).
     // otherwise, we would spin around the loop below forever
-    if (WALACFGUtil.isExplicitlyInfiniteLoop(currentBlock, ir)) { // is this
-                                                                  // loop
-                                                                  // explicitly
-                                                                  // infinite?
-      if (Options.DEBUG)
-        Util.Debug("explicitly infinite loop!");
-      // yes; find the block that precedes the loop, and execute backwards from
-      // there
+    if (WALACFGUtil.isExplicitlyInfiniteLoop(currentBlock, ir)) { 
+      if (Options.DEBUG) Util.Debug("explicitly infinite loop!");
+      // yes; find the block that precedes the loop, and execute backwards from there
       SSACFG.BasicBlock escapeBlk = WALACFGUtil.getEscapeBlockForLoop(currentBlock, ir);
       if (escapeBlk == null)
         return IPathInfo.INFEASIBLE; // no way out, refute
@@ -390,13 +380,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       for (int i = instrs.size() - 1; i > -1; i--) {
         SSAInstruction instr = instrs.get(i);
         if (i <= startLine) {
-          if (Options.DEBUG)
-            Util.Debug("INSTR " + instr);
+          if (Options.DEBUG) Util.Debug("INSTR " + instr);
           if (instr instanceof SSAPhiInstruction) {
-            int phiIndex = preds.size() - 1; // the loop escape block is always
-                                             // the last choice in the phi
-            // we are leaving the loop, so choose the last item on the list of
-            // possible phi's (always corresponds to the escape block)
+            // the loop escape block is always the last choice in the phi
+            int phiIndex = preds.size() - 1; 
+            // we are leaving the loop, so choose the escape block last item on the list of
             List<IPathInfo> toAdd = new LinkedList<IPathInfo>(), toRemove = new LinkedList<IPathInfo>();
             for (IPathInfo path : caseSplits) {
               path.setCurrentLineNum(i - 1);

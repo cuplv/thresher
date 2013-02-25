@@ -749,62 +749,45 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   boolean visitInvokeAsCallee(SSAAbstractInvokeInstruction instr, IPathInfo info) {
     Set<CGNode> callees = callGraph.getPossibleTargets(info.getCurrentNode(), instr.getCallSite());
     // we get empty call sites when we don't have stubs for something
-    // Util.Assert(!callees.isEmpty(), "Invoke instr " + instr +
-    // " doesn't resolve to any call sites from caller " +
-    // info.getCurrentNode());
     if (callees.isEmpty()) {
       Util.Debug("callees empty...skipping call");
-
+      info.skipCall((SSAInvokeInstruction) instr, callGraph, null); 
+      if (Options.SYNTHESIS) {
+        // replace with <base obj>.<call>
+      }
+      
+      /*
       // TODO: hack! encode that size returns a value >= 0 and less than max
       // collection size
-      //if (instr.getCallSite().getDeclaredTarget().toString().contains("size()")) {
-//        return info.addSizeConstraint((SSAInvokeInstruction) instr, info.getCurrentNode());
-  //    }
-
+      if (instr.getCallSite().getDeclaredTarget().toString().contains("size()")) {
+        return info.addSizeConstraint((SSAInvokeInstruction) instr, info.getCurrentNode());
+      }
+      */
       return true;
     }
     if (callees.size() == 1) { // normal case
       CGNode callee = callees.iterator().next();
-      if (WALACFGUtil.isFakeWorldClinit(instr.getDeclaredTarget(), this.callGraph)) { // special
-                                                                                      // handling
-                                                                                      // for
-                                                                                      // fakeWorldClinit
+      if (WALACFGUtil.isFakeWorldClinit(instr.getDeclaredTarget(), this.callGraph)) { 
         info.pushCallStack((SSAInvokeInstruction) instr, callee);
         if (handleFakeWorldClinit(info)) {
-          info.declareFakeWitness(); // TODO: this isn't actually a fake
-                                     // witness. the problem is that info can
-                                     // split and we can find a witness on a
-                                     // different path
+          // TODO: this isn't actually a fake witness. the problem is that info can
+          // split and we can find a witness on a different path
+          info.declareFakeWitness(); 
           return true; // found witness in fakeWorldClinit
         }
         return false; // path refuted
       }
-      if (!visitCalleeWrapper(instr, callee, info))
-        return false; // refuted by parameter binding
+      if (!visitCalleeWrapper(instr, callee, info)) return false; // refuted by parameter binding
       // else, ordinary call
       addPath(info);
-      if (Options.CHECK_ASSERTS)
-        split = true;
-      return false; // don't want to continue executing instructions that occur
-                    // before call in caller, so return false
+      if (Options.CHECK_ASSERTS) split = true;
+      // don't want to continue executing instructions that occur before call in caller, so return false
+      return false; 
     } else { // dynamic dispatch case
       Util.Debug("dynamic dispatch!");
       for (CGNode callee : callees) { // consider case for each potential callee
-        // Util.Debug("skipping callee " + callee " due to dynamic dispatch");
-        info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee); // hack:
-                                                                             // don't
-                                                                             // consider
-                                                                             // dynamic
-                                                                             // dispatch
-        /*
-         * IPathInfo copy = info.deepCopy(); if
-         * (info.isCallRelevantToQuery(instr, callee, this.callGraph)) continue;
-         * if (visitCalleeWrapper(instr, callee, copy)) { added = true;
-         * addPath(copy); // don't want to continue executing instructions that
-         * occur before call in caller, so return false } // else, refuted by
-         * parameter binding } if (!added) return true; // no callees relevant;
-         * continue executing on current path
-         */
+        // heuristic: skip any dynamic dispatch. exploration cost is not worth it
+        info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee); 
       }
       return true;
     }

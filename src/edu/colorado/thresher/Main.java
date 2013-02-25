@@ -126,7 +126,7 @@ public class Main {
     //final String[] fakeMapTests0 = new String[] { "CallPruningNoRefute" };
 
     //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -147,12 +147,15 @@ public class Main {
       Util.clear();
 
       boolean expectedResult = false;
-      if (test.contains("NoRefute"))
-        expectedResult = true; // HACK: tests that we aren't meant to refute
-                               // have NoRefute in name
+      // HACK: tests that we aren't meant to refute have NoRefute in name 
+      if (test.contains("NoRefute")) {
+        expectedResult = true; 
+      }
+       
       // some tests are expected not to pass with piecewise execution
-      if (Options.PIECEWISE_EXECUTION && piecewiseExceptions.contains(test))
+      if (Options.PIECEWISE_EXECUTION && piecewiseExceptions.contains(test)) {
         result = !result;
+      }
 
       if (result == expectedResult) {
         Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
@@ -221,21 +224,6 @@ public class Main {
       }
 
       for (IClass c : subclasses) { // for each subclass
-        /*
-         * for (IMethod m : c.getDeclaredMethods()) { // for each method in the
-         * class // make all of the class's public and protected methods
-         * entrypoints // the reason for this is to model the arbitrary
-         * execution order of event handler methods in Activity/View; // user/OS
-         * actions can cause the event handlers to be invoked in any order and
-         * any number of times //if (m.isPublic() || m.isProtected())
-         * entryPoints.add(new DefaultEntrypoint(m, cha)); //if ((m.isPublic()
-         * || m.isProtected()) && m.getName().toString().startsWith("on"))
-         * entryPoints.add(new DefaultEntrypoint(m, cha)); // save references to
-         * methods that can keep a reference to Activity data //if
-         * (m.getName().toString().equals("onRetainNonConfigurationInstance"))
-         * saveMethods.add(m.getReference()); }
-         */
-
         Collection<IField> fields = c.getAllStaticFields();
         for (IField f : fields) { // for each static field in the class
           if (isInteresting(f)) {
@@ -309,7 +297,6 @@ public class Main {
         }
       }
     }
-    
     
     // build callgraph and pointer analysis
     Collection<? extends Entrypoint> e = entryPoints;
@@ -899,7 +886,6 @@ public class Main {
       for (CGNode startNode : potentialNodes) {
         Util.Assert(numContexts == potentialNodes.size(), "sizes don't match!");
         Util.Print("starting in method " + startNode);
-        //final PointsToQuery startQuery = new PointsToQuery(lastRule, depRuleGenerator);
         final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
         IR ir = startNode.getIR();
         SSACFG cfg = ir.getControlFlowGraph();

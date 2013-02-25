@@ -313,15 +313,20 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
   }
 
   void visitCallInLoopHead(SSAInvokeInstruction instr, IPathInfo path) {
-    // ignore call and drop constraints it may produce. this is to avoid getting
-    // lost in the call if it is complicated; we can afford to explore an
-    // expensive call once,
-    // but a call in a loop head is likely to be explored a lot of times
+    // ignore call and drop constraints it may produce. this is to avoid getting lost
+    // in the call if it is complicated; we can afford to explore an expensive call
+    // once, but a call in a loop head is likely to be explored a lot of times
     Set<CGNode> callees = callGraph.getPossibleTargets(path.getCurrentNode(), instr.getCallSite());
-    for (CGNode callee : callees) {
-      path.skipCall(instr, callGraph, callee); // skipCall drops constraints the
-                                               // call might produce
+    if (callees.isEmpty()) {
+      // still need to drop retval
+      path.skipCall(instr, callGraph, null); 
     }
+    
+    for (CGNode callee : callees) {
+      // skipCall drops constraints the call might produce
+      path.skipCall(instr, callGraph, callee); 
+    }
+    // TODO: drop retval constraints as well
   }
 
   /**
@@ -331,10 +336,8 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
   boolean executeAllInstructionsInLoopHeadSequence(IPathInfo info, LinkedList<IPathInfo> splitPaths) {
     if (Options.DEBUG)
       Util.Pre(splitPaths.isEmpty(), "not expecting any split paths here!");
-    Set<IPathInfo> cases = HashSetFactory.make();//new HashSet<IPathInfo>(); // list to handle case
-                                                     // splits in straight-line
-                                                     // code (i.e. many
-                                                     // applicable rules)
+    // list to handle case splits in straight-line code (i.e. many applicable rules)
+    Set<IPathInfo> cases = HashSetFactory.make();
     cases.add(info);
     // run path through all of the instructions in the loop head sequence,
     // storing any case splits in splitPaths
@@ -343,8 +346,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
     int startLine = info.getCurrentLineNum();
-    if (Options.DEBUG)
-      Util.Debug("executing loop head sequence");
+    if (Options.DEBUG) Util.Debug("executing loop head sequence");
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
 
     // map from phi index to paths corresponding to that phi index

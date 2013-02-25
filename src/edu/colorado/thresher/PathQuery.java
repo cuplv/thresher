@@ -127,8 +127,6 @@ public class PathQuery implements IQuery {
 
   @Override
   public boolean containsStaleConstraints(CGNode currentNode) {
-    if (Options.DEBUG)
-      Util.Debug("checking for stale constraints before leaving " + currentNode);
     List<PointerVariable> toDrop = new LinkedList<PointerVariable>();
     for (PointerVariable var : pathVars) {
       if (var.isLocalVar() && currentNode.equals(var.getNode())) {
@@ -136,16 +134,11 @@ public class PathQuery implements IQuery {
         // appear in rare cases, such as
         // when a path constraint involves the return value of a call that does
         // not resolve to any call sites.
-        if (Options.DEBUG)
-          Util.Debug("found stale constraint on var " + var + " in path constraints " + this + " ; refuting");
+        if (Options.DEBUG) Util.Debug("found stale constraint on var " + var + " in path constraints " + this + " ; refuting");
         toDrop.add(var);
-        // dropConstraintsContaining(var);
-        // Util.Unimp("refuting on stale path constraints should't happen!");
-        // return true;
       }
     }
-    for (PointerVariable var : toDrop)
-      dropConstraintsContaining(var);
+    for (PointerVariable var : toDrop) dropConstraintsContaining(var);
     return false;
   }
 

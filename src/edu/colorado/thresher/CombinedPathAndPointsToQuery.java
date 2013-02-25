@@ -2,7 +2,6 @@ package edu.colorado.thresher;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,9 @@ import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ipa.callgraph.Context;
+import com.ibm.wala.ipa.callgraph.ContextItem;
+import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -86,18 +88,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   CombinedPathAndPointsToQuery(PointsToQueryWrapper pointsToQuery, PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx); // pathQuery.ctx);
-    //this.pointsToQuery = pointsToQuery;
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
     this.pointsToQuery = pointsToQuery.deepCopy(this);
   }
   
   CombinedPathAndPointsToQuery(PointsToQuery ptQuery, PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx); // pathQuery.ctx);
-    //this.pointsToQuery = pointsToQuery;
-    //this.pointsToQuery = new PointsToQueryWrapper(Util.deepCopyPointsToEdgeSet(ptQuery.constraints), Util.deepCopySet(ptQuery.produced), 
-      //         Util.deepCopyList(witnessList), depRuleGenerator, this);
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
     this.pointsToQuery = new PointsToQueryWrapper(ptQuery, this);
-    //new PointsToQueryWrapper(constraints, produced, witnessList, depRuleGenerator, parent)
   }
 
   /**
@@ -109,7 +106,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public CombinedPathAndPointsToQuery deepCopy() {
-    //return new CombinedPathAndPointsToQuery(pointsToQuery.deepCopy(), super.deepCopy());
     return new CombinedPathAndPointsToQuery(pointsToQuery, super.deepCopy());
   }
 
@@ -270,7 +266,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    Util.Debug("done with pt return");
     List<IQuery> pathResults = super.returnFromCall(instr, callee, currentPath);
     if (pathResults == IQuery.INFEASIBLE)
       return IQuery.INFEASIBLE;
@@ -419,10 +414,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
     this.pointsToQuery.dropConstraintsProduceableInCall(instr, caller, callee);
     this.dropPathConstraintsProduceableByCall(instr, caller, callee);
-    if (this.foundWitness())
-      Util.Debug("dropping constraints led to FAKE witness!");
-    // Util.Assert(!this.foundWitness(),
-    // "dropping constraints led to fake witness!");
+    if (this.foundWitness()) Util.Debug("dropping constraints led to FAKE witness!");
   }
 
   void dropConstraintsProuceableByRuleSet(Set<DependencyRule> rules) {
@@ -470,6 +462,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
       dropConstraintsContaining(retval);
     }
+    // a null callee means we're dropping constraints for a call that resolves to 0 call sites (so only need
+    // to drop retval)
+    if (callee == null) return;
    
     List<AtomicPathConstraint> toDrop = new LinkedList<AtomicPathConstraint>();
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
@@ -577,9 +572,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     CGNode method = point.getMethod();
     SymbolTable tbl = point.getSymbolTable();
     // is this a comparison of constants?
-    // if (instruction.isIntegerComparison() &&
-    // tbl.isConstant(instruction.getUse(0)) &&
-    // tbl.isConstant(instruction.getUse(1))) {
     if (tbl.isConstant(instruction.getUse(0)) && tbl.isConstant(instruction.getUse(1))) {
       // yes, so we can determine immediately whether this branch can be taken
       // (no need to add path constraints).
@@ -686,11 +678,22 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   
   private void addInitsForConstraintFields(AtomicPathConstraint constraint, Set<CGNode> nodes) {
     for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
+      Set<PointerVariable> constraintVars = constraint.getVars();
       if (key instanceof InstanceFieldKey) {
         IField fieldKey = ((InstanceFieldKey) key).getField(); 
         for (IMethod method : fieldKey.getDeclaringClass().getDeclaredMethods()) {
           if (method.isInit()) {
-            nodes.addAll(this.depRuleGenerator.getCallGraph().getNodes(method.getReference()));
+            Set<CGNode> initNodes = this.depRuleGenerator.getCallGraph().getNodes(method.getReference());
+            for (CGNode initNode : initNodes) {
+              // use context information to prevent adding nodes from different contexts
+              Context context = initNode.getContext();
+              ContextItem receiver = context.get(ContextKey.RECEIVER);
+              if (receiver instanceof InstanceKey) {
+                InstanceKey receiverKey = (InstanceKey) receiver;
+                PointerVariable var = Util.makePointerVariable(receiverKey);
+                if (constraintVars.contains(var)) nodes.add(initNode);
+              }
+            }
           }
         }
       }
