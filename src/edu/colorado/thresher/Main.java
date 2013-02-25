@@ -123,10 +123,10 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
+    //final String[] fakeMapTests0 = new String[] { "CallPruningNoRefute" };
 
     //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;

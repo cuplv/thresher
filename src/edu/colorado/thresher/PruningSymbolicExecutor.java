@@ -97,7 +97,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     for (CGNode node : modifiers) {
       if (isCalledByClassInit(node)) return toPrune.iterator();
     }
-    Set<CGNode> reachable = getReachable(modifiers, toPrune);
+    Set<CGNode> reachable = getReachable(modifiers, toPrune, true);
 
     // TODO: this is unecessary (could just modify caller list in method call),
     // but want to be explicit about what's pruned
@@ -129,21 +129,20 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
    */
   boolean feasiblePathExists(CGNode src, CGNode snk) {
     if (!Options.CALLGRAPH_PRUNING) return true;
-    if (isCalledByClassInit(src))
-      return true; // assume everything is reachable from the class inits
-    Set<CGNode> reachable = getReachable(Collections.singleton(src), Collections.singleton(snk));
+    if (isCalledByClassInit(src)) return true; // assume everything is reachable from the class inits
+    Set<CGNode> reachable = getReachable(Collections.singleton(src), Collections.singleton(snk), false);
     return reachable.contains(snk);
   }
 
   /**
-   * @param srcs
-   *          - seeds for the search
+   * @param srcs - seeds for the search
    * @param snks
    *          - nodes we are trying to reach from the search (needed for
    *          optimization)
-   * @return
+   * @return - the set of nodes whose entrypoints are reachable from srcs (or a subset 
+   *          containing all nodes in snks)
    */
-  public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks) {
+  public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks, final boolean includeCallers) {
     Util.Debug("checking if " + Util.printCollection(snks) + " reachable from " + Util.printCollection(srcs));
     // all nodes that are completely reachable
     Set<CGNode> reachable = HashSetFactory.make();
@@ -216,7 +215,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
             }
             if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
           } else {
-            reachable.add(caller);
+             if (includeCallers) reachable.add(caller);
             reachable.addAll(reachableFromCaller);
           }
         }
@@ -225,7 +224,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
       srcs = frontier;
     }
     // add partially reachable to the reachable set; we only kept this set to prevent unsound skipping during the search
-    reachable.addAll(partiallyReachable);
+    if (includeCallers) reachable.addAll(partiallyReachable);
     return reachable;
   }
 
