@@ -1,5 +1,8 @@
 import java.util.List;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Collection;
+
 
 public class FakeMap {
 
@@ -14,10 +17,9 @@ public class FakeMap {
     }
 
     public Object put(String i, Object value, List<Object> objs) {
-
 	table = new Object[5];
-
-	String[] strs1 = new String[3];
+	//String[] strs1 = new String[3];
+	/*
 	String[] strs2 = new String[3];
 
 	try {
@@ -37,8 +39,27 @@ public class FakeMap {
 	} catch (Exception e) {
 	    
 	}
-	foo(value);
+	*/
+
+	String[] strs1 = getStringArr();
+
+	Collection<String> retval =  new ArrayList<String>(strs1.length);
+  
+	for (String str1 : strs1) {
+	    if (str1.equals("6")) {
+		retval.add(str1);
+	    }
+	}
+
+	
+	if (retval.size() > 2) foo(value);
+
+
 	return null;
+    }
+
+    private String[] getStringArr() {
+	return new String[5];
     }
 
     public static List<Object> getObjs(Class c) {

@@ -267,19 +267,17 @@ public class WALACFGUtil {
   }
 
   private static Set<ISSABasicBlock> getLoopBodyBlocks(SSACFG.BasicBlock loopHead, IR ir) {
-     Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
+    Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
     Set<ISSABasicBlock> loopBody = loopBodyCache.get(key);
     if (loopBody == null) {
-      // Util.Debug("getting loop body blocks for ir " + ir);
       loopBody = HashSetFactory.make();
       loopBody.add(loopHead);
       // find the forward escape block of the loopHead
       SSACFG cfg = ir.getControlFlowGraph();
       Set<ISSABasicBlock> seen = HashSetFactory.make();
       Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors((ISSABasicBlock) loopHead);
-      while (succs.size() < 2) { // we're in a loop setup block. keep executing
-                                 // until we hit the conditional split for the
-                                 // loop or we wrap around
+      // we're in a loop setup block. keep executing until we hit the conditional split for the loop or we wrap around
+      while (succs.size() < 2) { 
         ISSABasicBlock next = succs.iterator().next();
         loopHead = (SSACFG.BasicBlock) next;
         if (!seen.add(next)) {
@@ -294,38 +292,32 @@ public class WALACFGUtil {
       Set<ISSABasicBlock> toExplore = HashSetFactory.make();
       boolean escapeBlock = true;
       for (ISSABasicBlock succ : succs) {
-        // if (succ.getLastInstructionIndex() >= 0 && succ.getLastInstruction()
-        // instanceof SSAGotoInstruction) toExplore.add(succ);
-        if (escapeBlock)
-          escapeBlock = false; // throw away escape block... we only want to
-                               // explore blocks in the loop
-        else
-          toExplore.add(succ);
+        // throw away escape block... we only want to explore blocks in the loop
+        if (escapeBlock) escapeBlock = false; 
+        else toExplore.add(succ);
       }
 
-      // Set<ISSABasicBlock> seen = new HashSet<ISSABasicBlock>(); // protection
-      // against explicitly infinite loops
       while (!toExplore.isEmpty()) {
         ISSABasicBlock blk = toExplore.iterator().next();
         toExplore.remove(blk);
+        if (!loopBody.add(blk)) continue;
         SSAInstruction lastInstr = blk.getLastInstruction();
         // if this block ends in a return, don't execute its successors
-        if (lastInstr instanceof SSAReturnInstruction)
-          continue;
+        if (lastInstr instanceof SSAReturnInstruction) continue;
         succs = cfg.getNormalSuccessors(blk);
-        // check for break statements; don't want to execute successors if this
+        // check for break statements; don't want to execute successors if this 
         // block ends in a break
-        if (lastInstr instanceof SSAGotoInstruction) { // breaks are goto's that
-                                                       // send us outside of the
-                                                       // loop
+        if (lastInstr instanceof SSAGotoInstruction) { 
+          // breaks are goto's that send us outside of the loop                                                       
           // if we can't get to the loop head from this goto, it's a break
-          if (succs.size() == 1 && !isReachableFrom((SSACFG.BasicBlock) blk, loopHead, ir)) { 
+          if (succs.size() == 1 && !isReachableFrom((SSACFG.BasicBlock) blk, loopHead, ir)) {
+            Util.Debug("skipping break blk " + blk);
             continue;
           }
         }
         for (ISSABasicBlock succ : succs) {
-          if (loopBody.add(blk))
-            toExplore.add(succ);
+          //if (loopBody.add(succ)) toExplore.add(succ);
+          toExplore.add(succ);
         }
       }
       loopBodyCache.put(key, loopBody);

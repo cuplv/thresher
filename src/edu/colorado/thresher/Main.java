@@ -109,7 +109,7 @@ public class Main {
         "SimpleConjunctiveRefute", "SimpleConjunctiveNoRefute", "MultiLevelParamPassRefute", "MultiLevelParamPassNoRefute",
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
-        "CallPruningNoRefute", "SingletonNoRefute" };
+        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute" };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -122,11 +122,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "CallPruningNoRefute" };
+    //final String[] fakeMapTests0 = new String[] {};
+    final String[] fakeMapTests0 = new String[] { "ForEachLoopArrRefute" };
 
-    //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { };
+    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -552,7 +552,6 @@ public class Main {
     DEBUG_cha = cha; // DEBUG ONLY
     if (DEBUG) Util.Debug("building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
-    Util.Debug(cg.getFakeRootNode().getIR().toString());
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
