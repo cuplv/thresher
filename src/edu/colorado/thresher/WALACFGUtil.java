@@ -280,9 +280,12 @@ public class WALACFGUtil {
     return true;
   }
   
-  // problem: if loopHead belongs to nested loop, we want to avoid exploring conditionals that take us to another loop head that dominates this one
-  
-  // look for conditional that takes us either to another loop
+  /**
+   * @return - loop body blocks in the loop *owned* by loopHead
+   * that is, for the program while (e0) { s0; while (e1) { s1; } s2; }, getting the loop body
+   * blocks for the loop head corresponding to e0 will yield the entire program; getting the 
+   * loop body blocks for the loop head corresponding to e1 will yield while (e) { s1; }.
+   */ 
 
   private static Set<ISSABasicBlock> getLoopBodyBlocks(SSACFG.BasicBlock loopHead, IR ir) {
     Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
