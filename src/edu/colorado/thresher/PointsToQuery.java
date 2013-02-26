@@ -200,10 +200,9 @@ public class PointsToQuery implements IQuery {
         Util.Debug("rule " + ++ruleCounter + " of " + rulesAtLine.size() + ": " + rule);
       // see if this rule is relevant w.r.t our points-to constraints
       if (isRuleRelevant(rule, currentPath)) {
-        Set<DependencyRule> newRules = isRuleConsistent(rule, this, unsatCore, currentPath.getCurrentNode());
+        Set<DependencyRule> newRules = isRuleConsistent(rule, unsatCore, currentPath.getCurrentNode());
         if (newRules != null) {
-          if (Options.DEBUG)
-            Util.Debug("consistent: " + newRules.size());
+          if (Options.DEBUG) Util.Debug("consistent: " + newRules.size());
           applicableRules.addAll(newRules);
           unsatCore.clear();
         } else
@@ -619,7 +618,7 @@ public class PointsToQuery implements IQuery {
 
       if (isRuleRelevant(rule, currentPath)) {
         int paramId = rule.getShown().getSource().hashCode();
-        Set<DependencyRule> newRules = isRuleConsistent(rule, this, this.unsatCore, null);
+        Set<DependencyRule> newRules = isRuleConsistent(rule, this.unsatCore, null);
         if (newRules != null) {
           // if (isRuleConsistent(rule, this, caseSplits, new
           // TreeSet<DependencyRule>(), EMPTY_PT_EDGE_SET, null)) {
@@ -995,8 +994,8 @@ public class PointsToQuery implements IQuery {
     return false;
   }
 
-  DependencyRule isSymbolicRuleConsistent(DependencyRule rule, PointsToQuery currentQuery, Set<PointsToEdge> constraints,
-      List<PointsToEdge> unsatCore, CGNode currentNode) {
+  DependencyRule isSymbolicRuleConsistent(DependencyRule rule, Set<PointsToEdge> constraints,
+                                          List<PointsToEdge> unsatCore, CGNode currentNode) {
     TreeSet<PointsToEdge> checkMe = new TreeSet<PointsToEdge>();
     PointsToEdge shown = rule.getShown();
     checkMe.addAll(rule.getToShow());
@@ -1159,16 +1158,15 @@ public class PointsToQuery implements IQuery {
     return false;
   }
 
-  Set<DependencyRule> isRuleConsistent(DependencyRule rule, PointsToQuery currentQuery, 
-      List<PointsToEdge> unsatCore, CGNode currentNode) {
+  Set<DependencyRule> isRuleConsistent(DependencyRule rule, List<PointsToEdge> unsatCore, CGNode currentNode) {
     // if (rule.isSymbolic()) {
     if (Options.ABSTRACT_DEPENDENCY_RULES) {
       if (rule.isSymbolic()) {
-        Set<DependencyRule> newRules = bindSymbolicRule(rule, currentQuery, currentNode);
+        Set<DependencyRule> newRules = bindSymbolicRule(rule, this, currentNode);
         Util.Assert(!newRules.isEmpty(), "should not be empty here!");
         List<DependencyRule> toRemove = new LinkedList<DependencyRule>();
         for (DependencyRule newRule : newRules) {
-          if (isSymbolicRuleConsistent(newRule, currentQuery, this.constraints, unsatCore, currentNode) == null) {
+          if (isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode) == null) {
             // DependencyRule newRule = isSymbolicRuleConsistent(rule,
             // currentQuery, this.constraints, currentNode);
             toRemove.add(newRule);
@@ -1176,7 +1174,7 @@ public class PointsToQuery implements IQuery {
           }
           // if (isSymbolicRuleConsistent(rule, currentQuery, this.produced,
           // currentNode) == null) return null;
-          if (isSymbolicRuleConsistent(newRule, currentQuery, this.produced, unsatCore, currentNode) == null) {
+          if (isSymbolicRuleConsistent(newRule, this.produced, unsatCore, currentNode) == null) {
             toRemove.add(newRule);
             continue;
           }
@@ -1207,17 +1205,16 @@ public class PointsToQuery implements IQuery {
         singleton.add(rule);
         return singleton;
       } else
-        return doConsistencyCheckNonSymbolic(rule, currentQuery, unsatCore, currentNode);
+        return doConsistencyCheckNonSymbolic(rule, unsatCore, currentNode);
     } else {
-      return doConsistencyCheckNonSymbolic(rule, currentQuery, unsatCore, currentNode);
+      return doConsistencyCheckNonSymbolic(rule, unsatCore, currentNode);
     }
   }
 
-  private Set<DependencyRule> doConsistencyCheckNonSymbolic(DependencyRule rule, PointsToQuery currentQuery,
-          List<PointsToEdge> unsatCore, CGNode currentNode) {
-    if (!isRuleConsistent(rule, currentQuery, this.constraints, unsatCore, currentNode, false))
+  private Set<DependencyRule> doConsistencyCheckNonSymbolic(DependencyRule rule, List<PointsToEdge> unsatCore, CGNode currentNode) {
+    if (!isRuleConsistent(rule, this, this.constraints, unsatCore, currentNode, false))
       return null;
-    if (isRuleConsistent(rule, currentQuery, this.produced, unsatCore, currentNode, true)) {
+    if (isRuleConsistent(rule, this, this.produced, unsatCore, currentNode, true)) {
       Set<DependencyRule> singleton = new TreeSet<DependencyRule>();
       singleton.add(rule);
       return singleton;
@@ -1253,8 +1250,7 @@ public class PointsToQuery implements IQuery {
         if (lhsNameMatch && fieldsEqualAndNotArrays && !rhsesEqual) {
           PointerVariable constraintSrc = constraint.getSource();
           // is LHS a local or heap loc?
-          if (constraintSrc.isLocalVar()) { // can't split a local into multiple
-                                            // instances...
+          if (constraintSrc.isLocalVar()) { // can't split a local into multiple instances...
             if (WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) { // ...unless
                                                                                      // it
                                                                                      // occurs
@@ -1703,7 +1699,7 @@ public class PointsToQuery implements IQuery {
       // create trivial dependency rule
       DependencyRule rule = new DependencyRule(receiverConstraint, null, new TreeSet<PointsToEdge>(), node, node.getIR()
           .getControlFlowGraph().entry());
-      Set<DependencyRule> newRules = isRuleConsistent(rule, this, unsatCore,
+      Set<DependencyRule> newRules = isRuleConsistent(rule, unsatCore,
                                                       currentPath.getCurrentNode());
       if (newRules != null) { // && !produced.contains(receiverConstraint)) {
         if (!produced.contains(receiverConstraint))

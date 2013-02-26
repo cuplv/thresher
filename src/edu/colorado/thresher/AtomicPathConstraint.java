@@ -362,6 +362,22 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   public static AtomicPathConstraint makeTruePathConstraint() {
     return new AtomicPathConstraint(new SimplePathTerm(0), new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ);
   }
+  
+  /**
+   * is this a constraint of the form var == 0?
+   */
+  public boolean isNullConstraintFor(PointerVariable var) {
+    if (this.vars.contains(var)) {
+      if (this.op == ConditionalBranchInstruction.Operator.EQ) {
+        if (this.lhs == SimplePathTerm.NULL) {
+          return this.rhs instanceof SimplePathTerm;
+        } else if (this.rhs == SimplePathTerm.NULL) {
+          return this.lhs instanceof SimplePathTerm;
+        }
+      }
+    }
+    return false;
+  }
 
   public Set<FieldReference> getFields() {
     Set<FieldReference> fields = HashSetFactory.make(); //new HashSet<FieldReference>();
@@ -393,10 +409,8 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     // resolve fields to get additional keys
     Set<SimplePathTerm> terms = this.getTerms();
     for (SimplePathTerm term : terms) {
-      Util.Debug("term " + term);
       if (term.getObject() != null && term.getFields() != null) {
         PointerVariable pointedTo = term.getObject();
-        Util.Debug("pointedTo " + pointedTo);
         if (pointedTo != null) {
           if (pointedTo.getInstanceKey() instanceof InstanceKey) {
             FieldReference fieldRef = term.getFirstField();
@@ -408,9 +422,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
             keysForConstraint.add(fieldKey);
           } else if (pointedTo != null && pointedTo.getInstanceKey() instanceof LocalPointerKey) {
             LocalPointerKey lpk = (LocalPointerKey) pointedTo.getInstanceKey();
-            Util.Debug("local pointer key " + lpk);
             FieldReference fieldRef = term.getFirstField();
-            Util.Debug("fieldRef" + fieldRef);
             if (fieldRef == null) continue;
             IField fld = cha.resolveField(fieldRef);
             if (fld == null) continue;
@@ -419,13 +431,10 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
             Iterator<Object> succs = hg.getSuccNodes(lpk);
             while (succs.hasNext()) {
               Object next = succs.next();
-              Util.Debug("succ " + next);
               if (next instanceof InstanceKey) {
                 PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) next, fld);
-                Util.Debug("fieldKey " + fieldKey);
                 if (fieldKey == null) continue;
                 keysForConstraint.add(fieldKey);
-                Util.Debug("adding");
               }
                 /*
               } else if (next instanceof InstanceFieldKey) {

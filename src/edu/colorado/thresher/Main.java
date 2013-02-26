@@ -109,7 +109,7 @@ public class Main {
         "SimpleConjunctiveRefute", "SimpleConjunctiveNoRefute", "MultiLevelParamPassRefute", "MultiLevelParamPassNoRefute",
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
-        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute" };
+        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute" };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -123,7 +123,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "ForEachLoopArrRefute" };
+    final String[] fakeMapTests0 = new String[] { "ArrayLengthNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -491,9 +491,7 @@ public class Main {
         } else {
           // add "on*" methods; they're the event handlers
           if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) { 
-            // TODO: use same receiver for all methods of the same type
-            //entryPoints.add(new DefaultEntrypoint(m, cha));
-            // TODO: what about subtyping?
+            // use same receiver for all method calls
             entryPoints.add(new SameReceiverEntrypoint(m, cha));
           }
         }

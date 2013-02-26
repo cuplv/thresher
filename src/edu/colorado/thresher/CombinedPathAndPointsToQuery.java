@@ -1,12 +1,12 @@
 package edu.colorado.thresher;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IClass;
@@ -71,6 +71,19 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     @Override
     public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
       return super.isRuleRelevant(rule, currentPath) || parent.isRuleRelevantForPathQuery(rule, currentPath); 
+    }
+    
+    @Override 
+    Set<DependencyRule> isRuleConsistent(DependencyRule rule, List<PointsToEdge> unsatCore, CGNode currentNode) {
+      // isRuleConsistent only refutes based on null constraints, and so we can't always get an absolute refutation
+      // here due to the possibility that we read null from a field or produced null via a check cast. thus, we can't 
+      // declare an absolute refutation here; instead, say that the feasible case is the one where no rule is applied,
+      // which we signify by returning an empty set
+      if (!parent.isRuleConsistentWithPathQuery(rule)) {
+        Util.Debug("rule not consistent with path query");
+        return Collections.EMPTY_SET;
+      }
+      return super.isRuleConsistent(rule, unsatCore, currentNode);
     }
     
     public PointsToQueryWrapper deepCopy(CombinedPathAndPointsToQuery parent) {
@@ -198,23 +211,37 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     HeapModel hm = this.depRuleGenerator.getHeapModel();
     HeapGraph hg = this.depRuleGenerator.getHeapGraph();
     MutableIntSet bound = new BitVectorIntSet();
-    for (int i = 0; i < params.length; i++) {
+    for (int i = 0; i < params.length; i++) { // for each parameter
       PointerKey key = hm.getPointerKeyForLocal(callee, params[i]);
       PointerVariable param = new ConcretePointerVariable(callee, params[i], this.depRuleGenerator.getHeapModel());
       Iterator<Object> succs = hg.getSuccNodes(key);
-      while (succs.hasNext()) {
+      while (succs.hasNext()) { // for each object this parameter might point to
         Object succ = succs.next();
         PointerVariable paramPointedTo = Util.makePointerVariable(succ);
         PointsToEdge producedEdge = new PointsToEdge(param, paramPointedTo);
+        
+        List<PointsToEdge> ptConstraintsToRemove = new ArrayList(1);
+        List<PointsToEdge> ptConstraintsToAdd = new ArrayList(1);
+        
         for (PointsToEdge edge : pointsToQuery.constraints) {
           if (edge.getSource().symbEq(paramPointedTo)) {
-            Util.Assert(!edge.getSource().isSymbolic(), "unimp: need to bind symbolic var here");
+            
+            if (edge.getSource().isSymbolic()) {
+              // instantiate source with concrete value of paramPointedTo   
+              ptConstraintsToRemove.add(edge);
+              ptConstraintsToAdd.add(new PointsToEdge(paramPointedTo, edge.getSink(), edge.getField()));
+            }
+
             if (pointsToQuery.produced.add(producedEdge)) {
               boolean added = bound.add(params[i]);
               Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced));
             }
           } 
         }
+        
+        for (PointsToEdge edge : ptConstraintsToRemove) pointsToQuery.constraints.remove(edge);
+        for (PointsToEdge edge : ptConstraintsToAdd) pointsToQuery.constraints.add(edge);
+        
         
         if (this.pathVars.contains(paramPointedTo)) {
           Util.Debug("path vars have " + paramPointedTo);
@@ -224,22 +251,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced)); 
           } // else, substitution will occur later
         }
-        /*
-        for (AtomicPathConstraint constraint : this.constraints) {
-          if (constraint.getVars().contains(paramPointedTo)) {
-            Util.Debug("constraints have " + paramPointedTo);
-            if (pointsToQuery.produced.add(producedEdge)) {
-              //substituteExpForVar(new SimplePathTerm(param), paramPointedTo);
-              boolean added = bound.add(params[i]);
-              Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(pointsToQuery.produced)); 
-            } // else, substitution will occur later
-          }
-        }
-        */
       }
     }
     
-    //this.pointsToQuery.enterCallFromJump(callee);
     // if params were bound, they will be in the produced set. apply these param bindings to the path constraints
     for (PointsToEdge constraint : pointsToQuery.produced) {
       if (this.pathVars.contains(constraint.getSink())) {
@@ -701,7 +715,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     //edges.addAll(rule.getToShow());
     for (PointsToEdge edge : edges) {
       if (this.pathVars.contains(edge.getSource())) {
-        Util.Debug(edge + " relevant");
         return true;
       }
     
@@ -709,18 +722,26 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         SymbolicPointerVariable symb = (SymbolicPointerVariable) edge.getSink();
         for (PointerVariable var : pathVars) {
           if (symb.symbContains(var)) {
-            Util.Debug(edge + " relevant; path var " + var);
             return true;
           }
         }
       } else if (this.pathVars.contains(edge.getSink())) {
-        Util.Debug(edge + " relevant");
         return true;
       } 
       //Util.Assert(!this.toString().contains(edge.getSink().toString()), "problem getting relevance of " + edge + " to " + this);
     }
-    Util.Debug("edge not relevant");
     return false;
+  }
+  
+  public boolean isRuleConsistentWithPathQuery(DependencyRule rule) {
+    PointerVariable src = rule.getShown().getSource();
+    if (pathVars.contains(src)) {
+      // check for a constraint of the form src == null
+      for (AtomicPathConstraint constraint : this.constraints) {
+        if (constraint.isNullConstraintFor(src)) return false;
+      }
+    }
+    return true;
   }
 
   /**
