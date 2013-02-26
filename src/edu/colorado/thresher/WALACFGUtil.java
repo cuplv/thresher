@@ -1,6 +1,9 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -87,9 +90,7 @@ public class WALACFGUtil {
   public static boolean isLoopHead(SSACFG.BasicBlock suspectedHead, IR ir) {
     MutableIntSet loopHeaders = getLoopHeaders(ir);
     SSACFG cfg = ir.getControlFlowGraph();
-    if (loopHeaders.contains(cfg.getNumber(suspectedHead)))
-      return true;
-    return false;
+    return loopHeaders.contains(cfg.getNumber(suspectedHead));
   }
 
   /**
@@ -109,18 +110,15 @@ public class WALACFGUtil {
         if (domInfo.isDominatedBy(src, dst)) {
           // Util.Debug("loop header " + dst);
           loopHeaders.add(p.getY());
-
-          // also add blocks that loop header transitions to directly (i.e. no
-          // splits)
+          // also add blocks that loop header transitions to directly (i.e. no splits)
           // this is to handle loop structures where the loop leader consists of
-          // multiple blocks (i.e. one with phi nodes and arithmetic, and
-          // another
+          // multiple blocks (i.e. one with phi nodes and arithmetic, and another
           // with the actual conditional branch instr)
           Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors(dst);
           while (succs.size() == 1) {
             ISSABasicBlock succ = succs.iterator().next();
-            if (succ.equals(src))
-              break; // avoid (explicitly) infinite loops
+            // avoid (explicitly) infinite loops
+            if (succ.equals(src)) break;
             loopHeaders.add(cfg.getNumber(succ));
             succs = cfg.getNormalSuccessors(succ);
           }
@@ -186,45 +184,55 @@ public class WALACFGUtil {
   }
 
   /**
-   * @return - head of loop containing suspectedLoopBodyBlock if there is one,
-   *         null otherwise
+   * @return - head of closest loop containing suspectedLoopBodyBlock if there is one, null otherwise
+   * that is, if the block is in a nested loop while (e0) { while (e1) { } }, this will return the loop
+   * head associated with e1 
    */
+  //public static SSACFG.BasicBlock getLoopHeadForBlock(SSACFG.BasicBlock suspectedLoopBodyBlock, IR ir) {
   public static SSACFG.BasicBlock getLoopHeadForBlock(SSACFG.BasicBlock suspectedLoopBodyBlock, IR ir) {
     // Util.Debug("is " + suspectedLoopBodyBlock + " in loop body?");
     final Dominators<ISSABasicBlock> domInfo = getDominators(ir);
     final MutableIntSet loopHeaders = getLoopHeaders(ir);
     final SSACFG cfg = ir.getControlFlowGraph();
     final IntIterator iter = loopHeaders.intIterator();
+    List<SSACFG.BasicBlock> loopHeadBlocks = new ArrayList(2);
     while (iter.hasNext()) {
       SSACFG.BasicBlock loopHeadBlock = cfg.getBasicBlock(iter.next());
-      if (domInfo.isDominatedBy(suspectedLoopBodyBlock, loopHeadBlock) && // a
-                                                                          // block
-                                                                          // B
-                                                                          // is
-                                                                          // in
-                                                                          // a
-                                                                          // loop
-                                                                          // body
-                                                                          // if
-                                                                          // it
-                                                                          // is
-                                                                          // dominated
-                                                                          // by
-                                                                          // the
-                                                                          // loop
-                                                                          // head...
-          isReachableFrom(suspectedLoopBodyBlock, loopHeadBlock, ir)) { // ...and
-                                                                        // the
-                                                                        // loop
-                                                                        // head
-                                                                        // is
-                                                                        // reachable
-                                                                        // from
-                                                                        // B
-        return loopHeadBlock;
+      // a block B is in a loop by if it is dominated by the loop head...
+      if (domInfo.isDominatedBy(suspectedLoopBodyBlock, loopHeadBlock) && 
+          // ...and the loop head is reachable from B
+          isReachableFrom(suspectedLoopBodyBlock, loopHeadBlock, ir)) {
+        loopHeadBlocks.add(loopHeadBlock);
+        //return loopHeadBlock;
       }
     }
-    return null;
+    if (loopHeadBlocks.size() == 0) return null;
+    else if (loopHeadBlocks.size() == 1) return loopHeadBlocks.get(0);
+    // get the loop head lowest in the dominator hierarchy; this is the closest one enclosing our block
+    Collections.sort(loopHeadBlocks, new DomComparator(domInfo));
+
+      for (int i = 0; i < loopHeadBlocks.size() -1 ; i++) {
+        Util.Assert(!domInfo.isDominatedBy(loopHeadBlocks.get(i+1), loopHeadBlocks.get(i)), 
+            "loop head " + loopHeadBlocks.get(i+1) + " dominated by " + loopHeadBlocks.get(i));
+      //}
+    }
+    return loopHeadBlocks.get(0);
+  }
+  
+  private static class DomComparator implements Comparator<SSACFG.BasicBlock> {
+    private final Dominators<ISSABasicBlock> domInfo;
+    private DomComparator(Dominators<ISSABasicBlock> domInfo) {
+      this.domInfo = domInfo;
+    }
+    
+    @Override
+    public int compare(SSACFG.BasicBlock loopHead0, SSACFG.BasicBlock loopHead1) {
+      // loopHead0 < loopHead1 if loopHead1 dominates loopHead0
+      if (domInfo.isDominatedBy(loopHead0, loopHead1)) return -1;
+      else if (domInfo.isDominatedBy(loopHead1, loopHead0)) return 1;
+      // otherwise, they're equal
+      return 0;
+    }
   }
 
   /**
@@ -234,6 +242,7 @@ public class WALACFGUtil {
    * @param ir
    * @return
    */
+  // TODO: doesn't work for nested loops
   public static SSACFG.BasicBlock getEscapeBlockForLoop(SSACFG.BasicBlock loopHead, IR ir) {
     Util.Pre(isLoopHead(loopHead, ir), "must be loop head!");
     Set<ISSABasicBlock> body = getLoopBodyBlocks(loopHead, ir);
@@ -242,10 +251,15 @@ public class WALACFGUtil {
       Iterator<ISSABasicBlock> preds = cfg.getPredNodes(blk);
       while (preds.hasNext()) {
         ISSABasicBlock next = preds.next();
-        if (!body.contains(next))
+        if (!body.contains(next)) {
+          Util.Debug("got escape block for " + loopHead + " " + next);
           return (SSACFG.BasicBlock) next;
+        }
       }
     }
+    
+    // else, possibly nested loop. find the loop head that dominates this one 
+    
     Util.Unimp("couldn't find escape block for loopHead " + loopHead);
     return null;
   }
@@ -265,6 +279,10 @@ public class WALACFGUtil {
     // return false;
     return true;
   }
+  
+  // problem: if loopHead belongs to nested loop, we want to avoid exploring conditionals that take us to another loop head that dominates this one
+  
+  // look for conditional that takes us either to another loop
 
   private static Set<ISSABasicBlock> getLoopBodyBlocks(SSACFG.BasicBlock loopHead, IR ir) {
     Pair<IR, SSACFG.BasicBlock> key = Pair.make(ir, loopHead);
@@ -297,9 +315,21 @@ public class WALACFGUtil {
         else toExplore.add(succ);
       }
 
+      Dominators<ISSABasicBlock> domInfo = getDominators(ir);
+            
       while (!toExplore.isEmpty()) {
         ISSABasicBlock blk = toExplore.iterator().next();
         toExplore.remove(blk);
+        
+        // do nested loop check
+        SSACFG.BasicBlock loopHeadForBlock = getLoopHeadForBlock((SSACFG.BasicBlock) blk, ir);
+        if (loopHeadForBlock != loopHead && // if this block has a different loop head... 
+            domInfo.isDominatedBy(loopHead, loopHeadForBlock)) { // ...and this block's loop head dominates ours
+          // our loop is the inner of the two loops; we only want to compute i's loop body blocks, not those of its parent
+          //Util.Debug("skipping " + blk + " because " + loopHeadForBlock + " dominates " + loopHead);
+          continue;
+        }
+       
         if (!loopBody.add(blk)) continue;
         SSAInstruction lastInstr = blk.getLastInstruction();
         // if this block ends in a return, don't execute its successors
@@ -316,12 +346,13 @@ public class WALACFGUtil {
           }
         }
         for (ISSABasicBlock succ : succs) {
-          //if (loopBody.add(succ)) toExplore.add(succ);
           toExplore.add(succ);
         }
       }
       loopBodyCache.put(key, loopBody);
     }
+    
+    //Util.Debug("loop body blocks for " + loopHead + "\n" + Util.printCollection(loopBody));
     return loopBody;
   }
 
@@ -390,7 +421,6 @@ public class WALACFGUtil {
     Set<CGNode> possibleTargets = HashSetFactory.make();
     // drop all vars that can be written to in the loop body
     for (SSAInstruction instr : loopInstrs) {
-      Util.Debug("loop instr " + instr);
       if (instr instanceof SSAInvokeInstruction) {
         SSAInvokeInstruction call = (SSAInvokeInstruction) instr;
         possibleTargets.addAll(cg.getPossibleTargets(loopNode, call.getCallSite()));

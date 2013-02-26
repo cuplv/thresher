@@ -123,7 +123,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "ArrayLengthNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "DoubleLoopNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };

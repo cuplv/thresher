@@ -313,13 +313,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     // for (CGNode caller : callerList) {
     while (callers.hasNext()) {
       CGNode caller = callers.next();
-      if (Options.DEBUG)
-        Util.Debug("trying caller " + caller + " " + (callCount++));// + " of "
-                                                                    // +
-                                                                    // callerList.size()
-                                                                    // + ";\n" +
-                                                                    // path);
-
+      if (Options.DEBUG) Util.Debug("trying caller " + caller + " " + (callCount++));
       IR callerIR = caller.getIR();
       SSACFG callerCFG = callerIR.getControlFlowGraph();
       SSAInstruction[] instrs = callerIR.getInstructions();

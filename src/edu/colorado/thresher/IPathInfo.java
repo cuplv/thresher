@@ -421,8 +421,9 @@ public class IPathInfo { // implements Comparable {
       }
     }
 
-    if (Options.DEBUG)
+    if (Options.DEBUG) {
       Util.Debug("entering call " + callee.getMethod().toString() + " from " + currentNode.getMethod().toString());
+    }
     // push caller onto call stack and set current node to callee for the
     // current path
     List<IQuery> caseSplits = query.enterCall(instr, callee, this);

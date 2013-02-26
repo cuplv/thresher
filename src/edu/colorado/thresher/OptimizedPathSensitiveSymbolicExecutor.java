@@ -365,8 +365,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (Options.DEBUG) Util.Debug("explicitly infinite loop!");
       // yes; find the block that precedes the loop, and execute backwards from there
       SSACFG.BasicBlock escapeBlk = WALACFGUtil.getEscapeBlockForLoop(currentBlock, ir);
-      if (escapeBlk == null)
-        return IPathInfo.INFEASIBLE; // no way out, refute
+      if (escapeBlk == null) return IPathInfo.INFEASIBLE; // no way out, refute
       info.setCurrentBlock(escapeBlk);
       info.setCurrentLineNum(escapeBlk.getAllInstructions().size() - 1);
       caseSplits.add(info);
