@@ -54,52 +54,7 @@ public class PointsToEdge implements Constraint, Comparable {
     }
     this.hash = makeHash();
   }
-
-  /*
-   * public PointsToEdge(ConcretePointerVariable source, ConcretePointerVariable
-   * sink, IField fieldRef) { this.source = source; this.sink = sink;
-   * this.fieldRef = fieldRef; if (fieldRef != null) { this.fieldId =
-   * fieldRef.hashCode(); if (source.getInstanceKey() instanceof StaticFieldKey)
-   * this.field = (StaticFieldKey) source.getInstanceKey(); else if (fieldRef ==
-   * AbstractDependencyRuleGenerator.ARRAY_CONTENTS) this.field = new
-   * ArrayContentsKey((InstanceKey) source.getInstanceKey()); else this.field =
-   * new InstanceFieldKey((InstanceKey) source.getInstanceKey(), fieldRef); }
-   * else { this.field = null; this.fieldId = NONE; } }
-   * 
-   * public PointsToEdge(SymbolicPointerVariable source, PointerVariable sink,
-   * IField fieldRef) { this.source = source; this.sink = sink; this.field =
-   * null; this.fieldRef = fieldRef; this.fieldId = fieldRef.hashCode();
-   * //String fieldStr = fieldRef == null ? " " : fieldRef.hashCode() + "";
-   * //this.uniqueId = "_" + source.hashCode() + "_" + fieldStr + "_" +
-   * sink.hashCode(); }
-   * 
-   * public PointsToEdge(PointerVariable source, ConcretePointerVariable sink,
-   * IField fieldRef) { this.source = source; this.sink = sink; this.fieldRef =
-   * fieldRef; if (fieldRef != null) { this.fieldId = fieldRef.hashCode(); if
-   * (source.getInstanceKey() instanceof StaticFieldKey) this.field =
-   * (StaticFieldKey) source.getInstanceKey(); else if (fieldRef ==
-   * AbstractDependencyRuleGenerator.ARRAY_CONTENTS) this.field = new
-   * ArrayContentsKey((InstanceKey) source.getInstanceKey()); else this.field =
-   * new InstanceFieldKey((InstanceKey) source.getInstanceKey(), fieldRef); }
-   * else { this.field = null; this.fieldId = NONE; } //String fieldStr =
-   * fieldRef == null ? " " : fieldRef.hashCode() + ""; //this.uniqueId = "_" +
-   * source.hashCode() + "_" + fieldStr + "_" + sink.hashCode(); }
-   * 
-   * public PointsToEdge(ConcretePointerVariable source, PointerVariable sink,
-   * IField fieldRef) { this.source = source; this.sink = sink; this.fieldRef =
-   * fieldRef; if (fieldRef != null) { this.fieldId = fieldRef.hashCode(); if
-   * (source.getInstanceKey() instanceof StaticFieldKey) this.field =
-   * (StaticFieldKey) source.getInstanceKey(); else if (fieldRef ==
-   * AbstractDependencyRuleGenerator.ARRAY_CONTENTS) this.field = new
-   * ArrayContentsKey((InstanceKey) source.getInstanceKey()); else this.field =
-   * new InstanceFieldKey((InstanceKey) source.getInstanceKey(), fieldRef); }
-   * else { this.field = null; this.fieldId = NONE; }
-   * 
-   * //String fieldStr = fieldRef == null ? " " : fieldRef.hashCode() + "";
-   * //this.uniqueId = "_" + source.hashCode() + "_" + fieldStr + "_" +
-   * sink.hashCode(); }
-   */
-
+  
   public PointsToEdge(PointerVariable source, PointerVariable sink, PointerKey field) {
     this.source = source;
     this.sink = sink;
@@ -126,33 +81,6 @@ public class PointsToEdge implements Constraint, Comparable {
       this.fieldId = NONE;
     }
     this.hash = makeHash();
-    // this.fieldName = fieldName;
-    // if (fieldName != null) {
-    // this.fieldId = Util.getIdForField(fieldName);
-    // }
-    // else {
-    // this.fieldId = -1;
-    // }
-
-    // TODO: DEBUG
-    /*
-     * if (field != null) { if (field instanceof ArrayContentsKey) {
-     * ArrayContentsKey ack = (ArrayContentsKey) field;
-     * Util.Assert(ack.getInstanceKey().equals(source.getInstanceKey()),
-     * "bad edge " + this + ". " + source.getInstanceKey() + " and " +
-     * ack.getInstanceKey()); } else if (field instanceof InstanceFieldKey) {
-     * InstanceFieldKey ifk = (InstanceFieldKey) field;
-     * Util.Assert(ifk.getInstanceKey().equals(source.getInstanceKey()),
-     * "bad edge " + this + ". " + source.getInstanceKey() + " and " +
-     * ifk.getInstanceKey()); } //} else Util.Assert(source.isLocalVar() ||
-     * source.getInstanceKey() instanceof StaticFieldKey, "bad edge " + this); }
-     * else Util.Assert(source.isLocalVar(), "bad edge " + this);
-     */
-    // END DEBUG
-
-    // String fieldStr = field == null ? " " : field.hashCode() + "";
-    // this.uniqueId = "_" + source.hashCode() + "_" + fieldStr + "_" +
-    // sink.hashCode();
   }
 
   public static PointsToEdge make(PointerVariable source, PointerVariable sink, PointerKey field) {
@@ -171,20 +99,6 @@ public class PointsToEdge implements Constraint, Comparable {
   public boolean isSymbolic() {
     return source.isSymbolic() || sink.isSymbolic();
   }
-
-  /*
-   * // substitute toSub for subFor in LHS of this edge public PointsToEdge
-   * substituteMethod(MethodReference toSub, MethodReference subFor) { if
-   * (this.source instanceof ConcretePointerVariable) { ConcretePointerVariable
-   * src = (ConcretePointerVariable) this.source; if (src.isLocalVar() &&
-   * subFor.equals(src.getMethod())) { String newName =
-   * Util.makeLocalVarName(toSub, src.getUseNum()); int newType =
-   * Util.getIdForType(newName); ConcretePointerVariable newSrc = new
-   * ConcretePointerVariable(toSub, src.getUseNum(), newName, newType); return
-   * new PointsToEdge(newSrc, this.sink, this.fieldName); } }
-   * //Util.Assert(false, "couldn't sub for " + toSub + " in " + this); return
-   * this; }
-   */
 
   @Override
   public String toString() {
@@ -235,17 +149,10 @@ public class PointsToEdge implements Constraint, Comparable {
       if (this.source.isSymbolic()) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
           PointerVariable sub = subMap.get(this.source);
-
-          if (sub != null && !sub.equals(other.getSource())) { // more than one
-                                                               // instantiation
-                                                               // choice. must
-                                                               // do a case
-                                                               // split
+          // more than one instantiation choice. must do a case split
+          if (sub != null && !sub.equals(other.getSource())) { 
             Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
-            // Util.Debug("adding case split sub relationship " + this.source +
-            // " " + other.getSource());
-            // the original map already has a value here; make a different
-            // choice
+            // the original map already has a value here; make a different choice
             copy.put((SymbolicPointerVariable) this.source, other.getSource());
             toAdd.add(copy);
             // Util.Unimp("did case split!");

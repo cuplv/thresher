@@ -595,6 +595,7 @@ public class IPathInfo { // implements Comparable {
   }
 
   public boolean isCallRelevantToQuery(SSAInvokeInstruction instr, CGNode callee, CallGraph cg) {
+    Util.Debug("checking call relevance");
     return query.isCallRelevant(instr, this.currentNode, callee, cg);
   }
 

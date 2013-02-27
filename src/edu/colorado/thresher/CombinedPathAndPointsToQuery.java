@@ -361,12 +361,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
     // the loop may also contain callees. drop any constraint containing vars
     // that these callees can write to
-    Util.Debug("getting call targets");
     Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
     Set<AtomicPathConstraint> toDrop = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
     // drop all vars that can be written by a call in the loop body
     for (CGNode callNode : targets) { 
-      Util.Debug("call target " + callNode);
       OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
 
       for (AtomicPathConstraint constraint : constraints) {

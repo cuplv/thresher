@@ -385,11 +385,8 @@ public class PointsToQuery implements IQuery {
       if (Options.DEBUG)
         Util.Debug("potential aliasing!");
       for (PointerVariable var : possiblyAliased) {
-        Set<PointsToEdge> aliasedEdges = new TreeSet<PointsToEdge>(); // set of
-                                                                      // edges
-                                                                      // with
-                                                                      // var as
-                                                                      // LHS
+        // set of edges with var as LHS
+        Set<PointsToEdge> aliasedEdges = new TreeSet<PointsToEdge>(); 
         for (PointsToEdge edge1 : this.constraints) {
           if (edge1.getSource().isLocalVar() && edge1.getSource().equals(var))
             aliasedEdges.add(edge1);
@@ -1373,174 +1370,114 @@ public class PointsToQuery implements IQuery {
 
   // do nothing
   @Override
-  public void declareFakeWitness() {
+  public void declareFakeWitness() {}
+  
+  
+  public Set<PointsToEdge> getConstraintsRelevantToCall(CGNode callee, boolean earlyRet) {
+    return getConstraintsRelevantToCall(null, null, callee, earlyRet);
   }
-
-  @Override
-  public boolean isCallRelevant(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg) {
-    if (instr.hasDef()) {
+  
+  public Set<PointsToEdge> getConstraintsRelevantToCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean earlyRet) {
+    Set<PointsToEdge> toRemove = HashSetFactory.make();
+    if (instr != null && instr.hasDef()) {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
       for (PointsToEdge edge : this.constraints) {
         if (edge.getSource().equals(retval)) {
-          if (Options.DEBUG)
-            Util.Debug("retval relevant: " + edge + "\nand\n" + retval);
-          return true; // relevant due to the return value
+          // relevant due to the return value
+          toRemove.add(edge);
+          if (earlyRet) return toRemove; 
         }
       }
     }
-
-    // boolean relevant = false;
-
-    /*
-     * // collect all dependency rules produceable by this call
-     * Set<DependencyRule> rulesProducedByCallee =
-     * Util.getRulesProducableByCall(callee, cg, depRuleGenerator); for
-     * (DependencyRule rule : rulesProducedByCallee) { PointerVariable shownLHS
-     * = rule.getShown().getSource(); for (PointsToEdge edge : this.constraints)
-     * { if (edge.getSource().equals(shownLHS)) { Util.Debug("relevant: " + edge
-     * + "\nand\n" + rule.getShown()); return true; //relevant = true; //break;
-     * } } }
-     */
-
+    // a null callee means we're dropping constraints for a call that resolves to 0 call sites (so only need to drop retval)
+    if (callee == null) return toRemove;
+    
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
-    for (PointsToEdge edge : constraints) {
-      PointerKey key = edge.getField();
+    for (PointsToEdge edge : constraints) {     
+      PointerKey key = edge.getField();    
       if (key != null && keys.contains(key)) {
-        // Util.Assert(relevant,
-        // "mod/ref and dep rules disagree on relevance of " + edge);
-        return true;
+        // relevant due to the return value
+        toRemove.add(edge);
+        if (earlyRet) return toRemove; 
+      }
+      
+      // if the source is symbolic, there may be many fields that are modified -- check 'em all
+      if (edge.getSource().isSymbolic()) {
+        Util.Assert(edge.getFieldRef() != null);
+        SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();
+        for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
+          if (keys.contains(fieldKey)) {
+            toRemove.add(edge);
+            if (earlyRet) return toRemove; 
+          }
+        }
       }
     }
-
-    return false;
+    return toRemove;
+  }
+  
+  @Override
+  public boolean isCallRelevant(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg) {
+    if (this.constraints.isEmpty()) return false;
+    return !getConstraintsRelevantToCall(instr, caller, callee, true).isEmpty();
   }
 
   @Override
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
-    Set<PointsToEdge> toRemove = new TreeSet<PointsToEdge>();
-
-    if (instr.hasDef()) {
-      ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
-      for (PointsToEdge edge : this.constraints) {
-        if (edge.getSource().equals(retval))
-          toRemove.add(edge);
-      }
-    }
-    // a null callee means we're dropping constraints for a call that resolves to 0 call sites (so only need to drop retval)
-    if (callee == null) return;
-
-    OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
-    for (PointsToEdge edge : constraints) {
-      PointerKey key = edge.getField();
-      if (key != null && keys.contains(key))
-        toRemove.add(edge);
-    }
-
+    if (this.constraints.isEmpty()) return;
+    Set<PointsToEdge> toRemove = getConstraintsRelevantToCall(instr, caller, callee, false); 
     for (PointsToEdge edge : toRemove) {
-      Util.Debug("dropping " + edge);
+      if (Options.DEBUG) Util.Debug("dropping " + edge);
       this.constraints.remove(edge);
-    }
-    
-    for (PointsToEdge edge : produced) {
-      PointerKey key = edge.getField();
-      if (key != null && keys.contains(key))
-        toRemove.add(edge);
-    }
-
-    for (PointsToEdge edge : toRemove) {
       this.produced.remove(edge);
     }
   }
 
-  @Override
-  public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
+  public Set<PointsToEdge> getLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode, boolean earlyRet) {
+    Set<PointsToEdge> relevant = HashSetFactory.make();
     Set<DependencyRule> loopRules = new TreeSet<DependencyRule>();
-    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(currentNode); // get
-                                                                               // all
-                                                                               // rules
-                                                                               // for
-                                                                               // node
+    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(currentNode); 
     for (DependencyRule rule : rules) { // keep only rules produced in loop
       Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
       if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, currentNode.getIR())) {
         loopRules.add(rule);
       }
     }
-    for (DependencyRule rule : loopRules) { // see if any of the rules produces
-                                            // one of our edges
-      if (this.constraints.contains(rule.getShown()))
-        return true;
-
-      else {
-        for (PointsToEdge constraint : constraints) {
-          if (constraint.symbEq(rule.getShown()))
-            return true;
+    // see if any of the rules produces one of our edges
+    for (DependencyRule rule : loopRules) { 
+      for (PointsToEdge edge : this.constraints) {
+        if (rule.getShown().equals(edge) || rule.getShown().symbEq(edge)) {
+          relevant.add(edge);
+          if (earlyRet) return relevant;
         }
       }
     }
 
-    // the loop may also contain callees. see if those callees can write to vars
-    // in our constraints
+    // the loop may also contain callees. see if those callees can write to vars in our constraints
     Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, currentNode, depRuleGenerator.getCallGraph());
-    for (CGNode callNode : targets) { // drop all vars that can be written by a
-                                      // call in the loop body
-      OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
-      for (PointsToEdge edge : constraints) {
-        PointerKey key = edge.getField();
-        if (key != null && callKeys.contains(key))
-          return true;
-      }
+    for (CGNode callNode : targets) { 
+      // drop all vars that can be written by a call in the loop body
+      Set<PointsToEdge> callRelevant = getConstraintsRelevantToCall(callNode, earlyRet);
+      if (earlyRet && !callRelevant.isEmpty()) return callRelevant;
+      relevant.addAll(callRelevant);
     }
-    return false;
+    return relevant;
+  }
+  
+  @Override
+  public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
+    if (this.constraints.isEmpty()) return false;
+    return !getLoopProduceableConstraints(loopHead, currentNode, true).isEmpty();
   }
 
   @Override
   public void removeLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
-    if (this.constraints.isEmpty())
-      return;
-    Set<DependencyRule> loopRules = new TreeSet<DependencyRule>();
-    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(currentNode); // get
-                                                                               // all
-                                                                               // rules
-                                                                               // for
-                                                                               // node
-    if (rules != null) {
-      for (DependencyRule rule : rules) { // keep only rules produced in loop
-        // Util.Debug("rule shown " + rule.getShown());
-        Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
-        if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, currentNode.getIR())) {
-          loopRules.add(rule);
-        }
-      }
-    }
-
-    List<PointsToEdge> toDrop = new LinkedList<PointsToEdge>();
-    for (DependencyRule rule : loopRules) {
-      for (PointsToEdge edge : this.constraints) {
-        if (rule.getShown().equals(edge) || rule.getShown().symbEq(edge)) {
-          toDrop.add(edge);
-        }
-      }
-    }
-
-    for (PointsToEdge edge : toDrop)
+    if (this.constraints.isEmpty()) return;
+    Set<PointsToEdge> toRemove = getLoopProduceableConstraints(loopHead, currentNode, false);
+    for (PointsToEdge edge : toRemove) {
+      if (Options.DEBUG) Util.Debug("dropping " + edge);
       this.constraints.remove(edge);
-    toDrop.clear();
-
-    // the loop may also contain callees. drop any constraint containing vars
-    // that these callees can write to
-    Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, currentNode, depRuleGenerator.getCallGraph());
-
-    for (CGNode callNode : targets) { // drop all edges that can be written by a
-                                      // call in the loop body
-      OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
-      for (PointsToEdge edge : this.constraints) {
-        if (edge.getField() != null && callKeys.contains(edge.getField()))
-          toDrop.add(edge);
-      }
-      for (PointsToEdge edge : toDrop)
-        this.constraints.remove(edge);
-      toDrop.clear();
+      this.produced.remove(edge);
     }
   }
 
@@ -1694,8 +1631,7 @@ public class PointsToQuery implements IQuery {
       final int RECEIVER_VALUE_NUM = 1; // receiver is always v1
       PointerVariable receiverLocal = new ConcretePointerVariable(node, RECEIVER_VALUE_NUM, this.depRuleGenerator.getHeapModel());
       PointsToEdge receiverConstraint = new PointsToEdge(receiverLocal, site);
-      if (Options.DEBUG)
-        Util.Debug("adding receiver constraint " + receiverConstraint);
+      if (Options.DEBUG) Util.Debug("adding receiver constraint " + receiverConstraint);
       // create trivial dependency rule
       DependencyRule rule = new DependencyRule(receiverConstraint, null, new TreeSet<PointsToEdge>(), node, node.getIR()
           .getControlFlowGraph().entry());

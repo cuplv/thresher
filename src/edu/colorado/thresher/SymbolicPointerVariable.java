@@ -1,9 +1,14 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Set;
 
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 
 public class SymbolicPointerVariable implements PointerVariable { 
   private static int symbCounter = 0;
@@ -55,6 +60,17 @@ public class SymbolicPointerVariable implements PointerVariable {
   @Override
   public Set<InstanceKey> getPossibleValues() {
     return possibleValues;
+  }
+  
+  /**
+   * @return - list of PointerKey's corresponding to fld for each possibleValue
+   */
+  public Collection<PointerKey> getPossibleFields(IField fld, HeapModel hm) {
+    Collection<PointerKey> possibleFields = new ArrayList<PointerKey>(possibleValues.size());
+    for (InstanceKey key : possibleValues) {
+      possibleFields.add(hm.getPointerKeyForInstanceField(key, fld));  
+    }
+    return possibleFields;
   }
 
   public String getName() {
