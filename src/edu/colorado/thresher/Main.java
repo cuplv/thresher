@@ -45,6 +45,8 @@ import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSAInstruction;
+import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
@@ -57,13 +59,13 @@ import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
+import com.ibm.wala.util.intset.IntIterator;
+import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 public class Main {
   
-  // print debug information (LOTS of printing)
-  public static final boolean DEBUG = Options.DEBUG; 
-  
+  // print debug information (LOTS of printing)  
   public static IClassHierarchy DEBUG_cha;
 
   private static IClass WEAK_REFERENCE;
@@ -218,7 +220,7 @@ public class Main {
       for (IClass subclass : cha.computeSubClasses(baseClass.getReference())) {
         // if (scope.isApplicationLoader(subclass.getClassLoader())) {
         subclasses.add(subclass);
-        if (DEBUG)
+        if (Options.DEBUG)
           Util.Debug("Found subclass class " + subclass);
         // }
       }
@@ -227,7 +229,7 @@ public class Main {
         Collection<IField> fields = c.getAllStaticFields();
         for (IField f : fields) { // for each static field in the class
           if (isInteresting(f)) {
-            if (DEBUG)
+            if (Options.DEBUG)
               Util.Debug("Found static field " + f.toString());
             staticFields.add(f);
           }
@@ -275,6 +277,7 @@ public class Main {
     String[] singleton = new String[] { baseClass };
     return runAnalysis(appName, singleton, singleton, Collections.EMPTY_SET, fakeMap);
   }
+ 
 
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
@@ -284,6 +287,33 @@ public class Main {
     // add application code
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 
+    final MethodReference UNMODIFIABLE_COLLECTION = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableCollection", "(Ljava/util/Collection;)Ljava/util/Collection;");
+    
+    final MethodReference UNMODIFIABLE_LIST = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableList", "(Ljava/util/List;)Ljava/util/List;");
+    
+    final MethodReference UNMODIFIABLE_MAP = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableMap", "(Ljava/util/Map;)Ljava/util/Map;");
+    
+    final MethodReference UNMODIFIABLE_SET = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableSet", "(Ljava/util/Set;)Ljava/util/Set;");
+    
+    final MethodReference UNMODIFIABLE_SORTED_MAP = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableSortedMap", "(Ljava/util/SortedMap;)Ljava/util/SortedMap;");
+    
+    final MethodReference UNMODIFIABLE_SORTED_SET = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
+                                     "unmodifiableSortedSet", "(Ljava/util/SortedSet;)Ljava/util/SortedSet;");
+    
+    MethodReference[] unmodifiableContainers = new MethodReference[] { UNMODIFIABLE_COLLECTION, UNMODIFIABLE_LIST, UNMODIFIABLE_MAP,
+                                                                       UNMODIFIABLE_SET, UNMODIFIABLE_SORTED_MAP, 
+                                                                       UNMODIFIABLE_SORTED_SET };
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Iterator<IClass> classes = cha.iterator();
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
@@ -294,10 +324,10 @@ public class Main {
         // consider public methods to be entrypoints
         if (m.isPublic() || m.isProtected()) {
           entryPoints.add(new DefaultEntrypoint(m, cha));
+          //entryPoints.add(new SameReceiverEntrypoint(m, cha));
         }
       }
-    }
-    
+    }    
     // build callgraph and pointer analysis
     Collection<? extends Entrypoint> e = entryPoints;
 
@@ -307,18 +337,87 @@ public class Main {
     AnalysisCache cache = new AnalysisCache();
     CallGraphBuilder builder = 
         com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,cache, cha, scope);
-    if (DEBUG) Util.Debug("building call graph");
+    if (Options.DEBUG) Util.Debug("building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
-    HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);//pointerAnalysis.getHeapGraph();
-    //MySubGraph<Object> graphView = new MySubGraph<Object>(hg);
+    HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
     HeapModel hm = pointerAnalysis.getHeapModel();
+    ModRef modref = ModRef.make();
+    Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
     
     final MethodReference ASSERT_PT_NULL = 
         MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
                                      "Unmodifiable", "(Ljava/lang/Object;Ljava/lang/String;)V");
+
+    Logger logger = new Logger(appPath);
+    AbstractDependencyRuleGenerator depRuleGenerator = 
+        new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
+    
+    // list of instance keys corresponding to unmodifiable containers
+    Set<InstanceKey> unmodifiableContainerKeys = HashSetFactory.make();
+    for (int i = 0; i < unmodifiableContainers.length; i++) {
+      Util.Print("container " + unmodifiableContainers[i]);
+      Set<CGNode> nodes = cg.getNodes(unmodifiableContainers[i]);
+      for (CGNode node : nodes) {
+        Iterator<CGNode> preds = cg.getPredNodes(node);
+        while (preds.hasNext()) { // for each caller
+          CGNode pred = preds.next();
+          IR ir = pred.getIR();
+          SSAInstruction[] instrs = ir.getInstructions();
+          Iterator<CallSiteReference> sites = cg.getPossibleSites(pred, node);
+          while (sites.hasNext()) {
+            CallSiteReference site = sites.next();
+            IntSet indices = ir.getCallInstructionIndices(site);
+            IntIterator indexIter = indices.intIterator();
+            while (indexIter.hasNext()) { 
+              int callIndex = indexIter.next();
+              Util.Assert(instrs[callIndex] instanceof SSAInvokeInstruction);
+              SSAInvokeInstruction instr = (SSAInvokeInstruction) instrs[callIndex];
+              Util.Assert(instr.getNumberOfParameters() == 1, "bad invoke " + instr);
+              Util.Print(instr.toString());
+              // get param that points to unmodifiable conainer
+              PointerKey lpk = hm.getPointerKeyForLocal(pred, instr.getUse(0));
+              // get the possible heap locations that the param might point to
+              Iterator<Object> succs = hg.getSuccNodes(lpk);
+              while (succs.hasNext()) {
+                Object succ = succs.next();
+                PointerVariable lhs = Util.makePointerVariable(succ);
+                Util.Assert(succ instanceof InstanceKey);
+                //Util.Assert(unmodifiableContainerKeys.add((InstanceKey) succ), "already have " + succ);
+                // get all the fields of this heap location
+                Iterator<Object> fields = hg.getSuccNodes(succ);
+                while (fields.hasNext()) {
+                  Object fld = fields.next();
+                  Util.Assert(fld instanceof InstanceFieldKey);
+                  InstanceFieldKey field = (InstanceFieldKey) fld;
+                  Util.Print("FIELD is " + field);
+                  Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
+                  Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+                  Util.Assert(fieldSuccs.hasNext());
+                  while (fieldSuccs.hasNext()) {
+                    Object fieldSucc = fieldSuccs.next();
+                    Util.Print("field succ " + fieldSucc);
+                    Util.Assert(fieldSucc instanceof InstanceKey);
+                    fieldSuccsSet.add((InstanceKey) fieldSucc);
+                  }
+                  // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
+                  // for each write that might occur *after* the construction of the immutable
+                  // container, we must refute this edge
+                  PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
+                                                           field.getField());
+                  Util.Print("to refute " + toRefute);
+                  boolean witnessed = generateWitness(toRefute, depRuleGenerator, cha, hg, cg, logger);
+                  
+                  System.exit(1);
+                }
+              }
+            }         
+          }
+        }
+      }
+    }
     
     // collect assertions
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
@@ -330,7 +429,7 @@ public class Main {
       Iterator<CallSiteReference> calls = clinit.iterateCallSites();
       while (calls.hasNext()) { // for each method called in the clinit
         CallSiteReference call = calls.next();
-        if (call.getDeclaredTarget() == ASSERT_PT_NULL) {
+        if (call.getDeclaredTarget() == ASSERT_PT_NULL) {    
           SSAAbstractInvokeInstruction[] callInstrs = clinitIr.getCalls(call);
           for (int i = 0; i < callInstrs.length; i++) {
             Util.Print(callInstrs[i].toString());
@@ -374,10 +473,6 @@ public class Main {
             }
             Util.Assert(edge != null);
             
-            ModRef modref = ModRef.make();
-            Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
-            
-            AbstractDependencyRuleGenerator depRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, Collections.EMPTY_SET, modRefMap, false);
             Set<DependencyRule> producers = Util.getProducersForEdge(edge, depRuleGenerator);
             for (DependencyRule producer : producers) {
               Util.Print("producer " + producer);
@@ -396,8 +491,7 @@ public class Main {
               
               ISymbolicExecutor exec;
               boolean foundWitness;
-              Logger logger = new Logger("synth");
-              exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, Collections.EMPTY_SET);
+              exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
               // start at line BEFORE snkStmt
               foundWitness = exec.executeBackward(producer.getNode(), startBlk, startLineBlkIndex - 1, query);
               Util.Print("witness? " + foundWitness);
@@ -406,44 +500,6 @@ public class Main {
         }
       }
     }
-    
-    /*
-    Iterator<CallSiteReference> clinitSites = fakeWorldClinit.iterateCallSites();
-    while (clinitSites.hasNext()) { // for each class initializer
-      CallSiteReference clinit = clinitSites.next();
-      Set<CGNode> clinitCalled = cg.getNodes(clinit.getDeclaredTarget()); // get methods called by clinit
-      
-      for (CGNode clinitCall : clinitCalled) { // for each method called by the class initializer
-        Iterator<CGNode> succs = cg.getSuccNodes(clinitCall);
-        while (succs.hasNext()) {
-          CGNode succ = succs.next();
-          if (succ.getMethod().getReference() == ASSERT_PT_NULL) {
-            // iterate over IR and find the params to the assert
-            Util.Print("found assertion");
-            IR ir = succ.getIR();
-            Iterator<CallSiteReference> calls = ir.iterateCallSites();
-            while (calls.hasNext()) {
-              CallSiteReference ref = calls.next();
-              ref.g
-            }
-            
-            ir.getCalls(succ.getMethod().getr)
-            SSAInstruction[] instrs = ir.getIns();
-            
-          }
-        }
-      }
-    }
-    */
-    /*
-    classes = cha.iterator();
-    while (classes.hasNext()) {
-      IClass c = classes.next();
-      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
-      cg.getn
-    }
-    */
-    
   }
   
   /**
@@ -548,7 +604,7 @@ public class Main {
     if (!fakeMap) builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
     else builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
     DEBUG_cha = cha; // DEBUG ONLY
-    if (DEBUG) Util.Debug("building call graph");
+    if (Options.DEBUG) Util.Debug("building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
     // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
     Util.Print(CallGraphStats.getStats(cg));
@@ -591,9 +647,8 @@ public class Main {
         }
         // allow arbitrary number of errors per field
         if (type != null && subclasses.contains(type)) {
-          // is there a path from the static field to the Activity that does not
-          // contain weak references?
-          if (removeWeakReferences(hg, field, node, cha) != null) {
+          // is there a path from the static field to the Activity?
+          if (findNewErrorPath(hg, field, node, cha) != null) {
             Set<IClass> leaked = leakedActivities.get(field.toString());
             if (leaked == null) {
               leaked = HashSetFactory.make();
@@ -633,22 +688,19 @@ public class Main {
       Set<String> refutedEdgeStrings, Logger logger) {
     List<Pair<Object, Object>> trueErrors = new LinkedList<Pair<Object, Object>>(), falseErrors = new LinkedList<Pair<Object, Object>>();
     Set<PointsToEdge> producedEdges = HashSetFactory.make(), refutedEdges = HashSetFactory.make();
-    AbstractDependencyRuleGenerator aDepRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, refutedEdges,
-        modRef, DEBUG);
+    AbstractDependencyRuleGenerator aDepRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRef);
 
     int count = 1;
     Collection<Object> snkCollection = new LinkedList<Object>();
 
-    IBinaryNaturalRelation relation = null;
     // for each error
     for (Pair<Object, Object> error : fieldErrors) {
       try {
         Util.Print("starting on error " + count++ + " of " + fieldErrors.size() + ": " + error.fst);
         snkCollection.add(error.snd);
-        BFSPathFinder<Object> finder = new BFSPathFinder<Object>(hg, error.fst, new CollectionFilter<Object>(snkCollection));
         // if we can refute error
         if (refuteFieldErrorForward(error, hg, producedEdges, aDepRuleGenerator, refutedEdges, refutedEdgeStrings, cg,
-            hm, cha, finder, logger)) {
+            hm, cha, logger)) {
           Util.Print("successfully refuted error path " + error);
           logger.logRefutedError();
           falseErrors.add(error);
@@ -683,11 +735,9 @@ public class Main {
    */
   public static boolean refuteFieldErrorForward(Pair<Object, Object> error, HeapGraphWrapper hg,
       Set<PointsToEdge> producedEdges, AbstractDependencyRuleGenerator aDepRuleGenerator, Set<PointsToEdge> refutedEdges,
-      Set<String> refutedEdgeStrings, CallGraph cg, HeapModel hm, IClassHierarchy cha,
-      BFSPathFinder<Object> finder, Logger logger) {
-    Collection<Object> snkCollection = new LinkedList<Object>();
-    snkCollection.add(error.snd);
-    List<Object> errorPath = finder.find();
+      Set<String> refutedEdgeStrings, CallGraph cg, HeapModel hm, IClassHierarchy cha, Logger logger) {
+    //Collection<Object> snkCollection = new LinkedList<Object>();
+    List<Object> errorPath = findNewErrorPath(hg, error.fst, error.snd, cha); 
     if (errorPath == null) {
       Util.Print("Edges refuted on previous error preclude us from finding path! this error infeasible");
       return true;
@@ -739,21 +789,23 @@ public class Main {
             // was in a different context. however, since we refute for all
             // contexts at once, we can refute this edge immediately
             // because we've already done so in the past)
-            List<Pair<InstanceKey, Object>> srcFieldPairs;
+            boolean witnessed;
             if (refutedEdges.contains(witnessMe) || refutedEdgeStrings.contains(witnessMe.toString())) {
-              if (DEBUG)
+              if (Options.DEBUG)
                 Util.Debug("already refuted edge " + witnessMe);
-              srcFieldPairs = new LinkedList<Pair<InstanceKey, Object>>();
+              //srcFieldPairs = new LinkedList<Pair<InstanceKey, Object>>();
+              witnessed = false;
             } else {
-              if (DEBUG)
+              if (Options.DEBUG)
                 Util.Debug("ATTEMPTING TO REFUTE EDGE " + witnessMe);
               Util.Print("%%%%%%%%%%%%%%%%%Starting on edge " + witnessMe + "%%%%%%%%%%%%%%%%%");
               long start = System.currentTimeMillis();
-              srcFieldPairs = generateWitness(witnessMe, aDepRuleGenerator, cha, hg, cg, refutedEdges, logger);
+              witnessed = generateWitness(witnessMe, aDepRuleGenerator, cha, hg, cg, logger);
               Util.Print("Edge took " + ((System.currentTimeMillis() - start) / 1000.0) + " seconds.");
               WALACFGUtil.clearCaches();
             }
-            if (srcFieldPairs == null) {
+            if (witnessed) {
+            //if (srcFieldPairs == null) {
               // edge produced, continue generating witnesses on this path
               Util.Print("Successfully produced " + witnessMe + "; done with " + (++witnessedCount) + " of " + errorPath.size());
               producedEdges.add(witnessMe);
@@ -763,51 +815,23 @@ public class Main {
               witnessedCount = 0;
               refutedEdges.add(witnessMe);
               //IBinaryNaturalRelation ignoreIfBoth = finder.getIgnoreIfBoth();
-              finder = new BFSPathFinder<Object>(hg, error.fst, new CollectionFilter<Object>(snkCollection));
+              //finder = new BFSPathFinder<Object>(hg, error.fst, new CollectionFilter<Object>(snkCollection));
               //finder.setIgnoreIfBoth(ignoreIfBoth);
               if (fieldKey == null) {
                 Util.Assert(false, "how can field key be null?");
                 hg.addIgnoreEdge(src, snk);
               } else {
                 hg.addIgnoreEdge(fieldKey, snk);
-
-                if (fieldKey instanceof ArrayContentsKey) {
-                  for (Pair<InstanceKey, Object> pair : srcFieldPairs) {
-                    if (pair.snd instanceof ArrayContentsKey) {
-                      hg.addIgnoreEdge(pair.snd, snk);
-                    }
-                  }
-                } else {
-                  IField refutedFieldName = null;
-                  if (fieldKey instanceof StaticFieldKey) {
-                    refutedFieldName = ((StaticFieldKey) fieldKey).getField();
-                  } else if (fieldKey instanceof InstanceFieldKey) {
-                    refutedFieldName = ((InstanceFieldKey) fieldKey).getField();
-                  } else
-                    Util.Assert(false, "expecting instance field key ors static field key; got " + fieldKey);
-
-                  for (Pair<InstanceKey, Object> pair : srcFieldPairs) {
-                    if (pair.snd instanceof InstanceFieldKey) {
-                      IField otherFieldName = ((InstanceFieldKey) pair.snd).getField();
-                      if (otherFieldName.equals(refutedFieldName)) {
-                        hg.addIgnoreEdge(pair.snd, snk);
-                      }
-                    }
-                  }
-                }
               }
               Util.Print("Successfully refuted edge " + witnessMe + "; now trying to find error path  without it");
               logger.logEdgeRefutation();
-              // run another DFS to see if error path can still be created
-              // without refuted edge
               
-              errorPath = removeWeakReferences(hg, error.fst, error.snd, cha); 
-              //errorPath = finder.find();
+              errorPath = findNewErrorPath(hg, error.fst, error.snd, cha); 
               
               if (errorPath != null) {
-                if (DEBUG)
-                  Util.Debug("refuted edge, but err path still exists; size " + errorPath.size());
+                if (Options.DEBUG) Util.Debug("refuted edge, but err path still exists; size " + errorPath.size());
                 newPath = new LinkedList<Object>();
+                // reverse path
                 for (Object edge : errorPath) {
                   newPath.addFirst(edge);
                   Util.Print(edge.toString());
@@ -819,7 +843,7 @@ public class Main {
               break;
             }
           } else {
-            if (DEBUG)
+            if (Options.DEBUG)
               Util.Debug("already produced " + witnessMe);
           }
           fieldKey = null;
@@ -829,7 +853,7 @@ public class Main {
       } // end of srcIndex < errorPath.size() witness generation loop
       if (!refutation) {
         // ended loop without a refutation; we have witnessed entire error path
-        if (DEBUG)
+        if (Options.DEBUG)
           Util.Debug("error is real! we have witnessed entire path");
         if (Options.DUMP_WITNESSED_ERR_PATHS) {
           Util.Print("<Err Path>");
@@ -844,18 +868,17 @@ public class Main {
   }
 
   /**
-   * @return - null if feasible, list of (src, field) pairs to remove otherwise
+   * @return - true if witness for edge witnessMe found, false otherwise
    */
-  private static List<Pair<InstanceKey, Object>> generateWitness(PointsToEdge witnessMe,
+  private static boolean generateWitness(PointsToEdge witnessMe,
       AbstractDependencyRuleGenerator depRuleGenerator, IClassHierarchy cha, HeapGraph hg, CallGraph cg,
-      Set<PointsToEdge> refutedEdges, Logger logger) {
+      Logger logger) {
     final Set<PointsToEdge> toProduce = HashSetFactory.make();
     toProduce.add(witnessMe);
 
     // find potential last rule(s) applied in witness
     Iterator<PointsToEdge> setIter = toProduce.iterator();
     PointsToEdge produceMe = setIter.next();
-    // System.err.println("Producing " + produceMe);
     final Set<DependencyRule> lastApplied;
     if (Options.GEN_DEPENDENCY_RULES_EAGERLY)
       lastApplied = Util.getRulesProducingEdge(produceMe, hg, depRuleGenerator, cg);
@@ -867,22 +890,16 @@ public class Main {
     int lastRuleCounter = 1;
     for (DependencyRule lastRule : lastApplied) {
       Util.Print("starting on possible rule " + (lastRuleCounter++) + " of " + lastApplied.size() + "\n" + lastRule);
-      if (!lastRule.getShown().toString().equals(witnessMe.toString())) {
-        if (DEBUG)
-          Util.Debug("rule does not produce edge.. continuing");
-        if (DEBUG)
-          Util.Debug("refuted all contexts for possible rule " + lastRuleCounter + " of " + lastApplied.size());
-        continue;
-        // lastRule.getShown() + " not the same as " + witnessMe);
-      }
+      Util.Assert(lastRule.getShown().symbEq(witnessMe), "rule does not produce edge");
       PointerStatement snkStmt = lastRule.getStmt();
       int startLine = snkStmt.getLineNum();
-      if (DEBUG)
-        Util.Debug("start line is " + startLine);
+      if (Options.DEBUG) Util.Debug("start line is " + startLine);
       final Set<CGNode> potentialNodes = HashSetFactory.make();
       potentialNodes.add(lastRule.getNode());
       int numContexts = potentialNodes.size();
 
+      Util.Print(potentialNodes.size() + " potential start nodes");
+      
       for (CGNode startNode : potentialNodes) {
         Util.Assert(numContexts == potentialNodes.size(), "sizes don't match!");
         Util.Print("starting in method " + startNode);
@@ -901,21 +918,20 @@ public class Main {
         else if (Options.CALLGRAPH_PRUNING)
           exec = new PruningSymbolicExecutor(cg, logger);
         else
-          exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger, refutedEdges);
+          exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
         // start at line BEFORE snkStmt
         foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query);
-        //query.dispose(); // now done by the symbolic executor
         Util.Print(logger.dumpEdgeStats());
-        if (foundWitness) return null; // else, refuted this attempt; try again
+        if (foundWitness) return true; 
+        // else, refuted this attempt; try again
       }
     }
-    return new LinkedList<Pair<InstanceKey, Object>>(); // refuted all posssible
-                                                        // last rules without a
-                                                        // witness
+    // refuted all possible last rules without a witness
+    return false; 
   }
 
   // returns error path without weak refs if one can be found, null otherwise
-  public static List<Object> removeWeakReferences(HeapGraphWrapper hg, Object srcKey, Object snkKey, IClassHierarchy cha) {
+  public static List<Object> findNewErrorPath(HeapGraphWrapper hg, Object srcKey, Object snkKey, IClassHierarchy cha) {
     boolean foundWeakRef;
     for (;;) {
       foundWeakRef = false;
@@ -952,14 +968,14 @@ public class Main {
         }
       }
       if (!foundWeakRef) {
-        if (DEBUG) {
+        if (Options.DEBUG) {
           System.out.println("<FIELD PATH Length: " + path.size());
           for (int i = path.size() - 1; i >= 0; i--)
             System.out.println(path.get(i) + " (" + path.get(i).getClass() + ")");
           System.out.println("</FIELD PATH>");
         }
         return path;
-      }
+      } // else, try finding another path without weak references
     }
   }
 

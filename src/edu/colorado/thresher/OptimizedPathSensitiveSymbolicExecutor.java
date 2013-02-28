@@ -33,18 +33,17 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   // map from (CGNode, Block#) -> set of paths seen at block
   private final Map<Pair<CGNode, Integer>, Set<IPathInfo>> loopHeadSeenPaths;
 
-  Set<PointsToEdge> refuted; // set of edges that were already refuted
+  /*
+  public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger) {
+    this(callGraph, logger);
+  }
+  */
 
   public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger) {
-    this(callGraph, logger, Collections.EMPTY_SET);
-  }
-
-  public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger, Set<PointsToEdge> refuted) {
     super(callGraph, logger);
-    this.branchPointMap = HashMapFactory.make();//new HashMap<String, IBranchPoint>();
+    this.branchPointMap = HashMapFactory.make();
     this.branchPointStack = new LinkedList<IBranchPoint>();
-    this.refuted = refuted;
-    this.loopHeadSeenPaths = HashMapFactory.make(); //new HashMap<Pair<CGNode, Integer>, Set<IPathInfo>>();
+    this.loopHeadSeenPaths = HashMapFactory.make();
   }
 
   @Override
@@ -540,6 +539,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       // loops are a special case here...may need to drop constraints
       return mergeLoop(truePaths, falsePaths, point.getBlock()); 
     }
+    
+    // TODO: add implication-style merging here!
 
     Set<IPathInfo> toAdd = HashSetFactory.make();
     if (truePathsEmpty && falsePathsEmpty) { // no paths are feasible

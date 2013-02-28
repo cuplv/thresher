@@ -697,21 +697,10 @@ public class PathQuery implements IQuery {
    *         have it in our set
    */
   boolean addConstraint(AtomicPathConstraint constraint) {
-    // decline adding path constraints if we already have more than the max
-    // number
-    if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE)
-      return true;
+    // decline adding path constraints if we already have more than the max number
+    if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE) return true;
 
     if (constraints.add(constraint)) {
-      /*
-       * // DEBUG Iterator<AtomicPathConstraint> iter =
-       * constraints.descendingIterator(); AtomicPathConstraint last = null;
-       * while (iter.hasNext()) { AtomicPathConstraint cur = iter.next(); if
-       * (last != null) Util.Assert(last.compareTo(cur) >= 0,
-       * "compare invariant broken for " +
-       * Util.printCollection(this.constraints) + "\n" + last + " < " + cur);
-       * last = cur; } // END DEBUG
-       */
       rebuildZ3Constraints();
       return true;
     }

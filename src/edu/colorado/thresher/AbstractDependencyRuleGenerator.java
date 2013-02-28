@@ -89,31 +89,25 @@ public class AbstractDependencyRuleGenerator {
   private Map<PointerKey, Set<CGNode>> reversedModRef;
 
   // generate dependency rules for entire program
-  public AbstractDependencyRuleGenerator(CallGraph cg, HeapGraph hg, HeapModel heapModel, AnalysisCache cache,
-      Set<PointsToEdge> refutedEdges, Map<CGNode, OrdinalSet<PointerKey>> modRef, boolean debug) {
-    this.DEBUG = debug;
-    // this.DEBUG = false;
+  public AbstractDependencyRuleGenerator(CallGraph cg, HeapGraph hg, HeapModel heapModel, 
+                                         AnalysisCache cache, Map<CGNode, OrdinalSet<PointerKey>> modRef) {
     this.cg = cg;
     this.hg = hg;
     this.heapModel = heapModel;
     this.cha = (ClassHierarchy) cg.getClassHierarchy();
     this.lineIdCounter = 0;
     // list of all dependency rules
-    // rules = new LinkedList<DependencyRule>();
     this.rules = HashMapFactory.make();
-    // map of (globally) unique line number to IR containing instruction at line
-    // number
-    this.lineMethodMap = HashMapFactory.make();//new HashMap<Integer, Set<CGNode>>();
-    this.methodLineMap = HashMapFactory.make();//new HashMap<IMethod, Integer>();
-    this.instrLineMap = HashMapFactory.make();//new HashMap<SSAInstruction, Integer>();
-    // this.instrModMap = new HashMap<SSAInstruction,Set<DependencyRule>>();
-    this.alreadyGenerated = HashSetFactory.make();// new HashSet<CGNode>();
-    this.nodeRuleMap = HashMapFactory.make();//new HashMap<CGNode, TreeSet<DependencyRule>>();
-    this.nodeAndCalleesRuleMap = HashMapFactory.make();//new HashMap<CGNode, TreeSet<DependencyRule>>();
-    this.instrModMap = HashMapFactory.make();//new HashMap<String, TreeSet<DependencyRule>>();
+    // map of (globally) unique line number to IR containing instruction at line number
+    this.lineMethodMap = HashMapFactory.make();
+    this.methodLineMap = HashMapFactory.make();
+    this.instrLineMap = HashMapFactory.make();
+    this.alreadyGenerated = HashSetFactory.make();
+    this.nodeRuleMap = HashMapFactory.make();
+    this.nodeAndCalleesRuleMap = HashMapFactory.make();
+    this.instrModMap = HashMapFactory.make();
     this.modRef = modRef;
     this.cache = cache;
-    // generateRules();
   }
 
   public void clearRules() {

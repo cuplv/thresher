@@ -76,9 +76,6 @@ public class Util {
 
   private static int pathCounter = 0;
 
-  // generator of unique instance nums
-  public static int instanceNumCounter = 0;
-
   public static void Log(String s) {
     if (LOG)
       System.err.println(s);
@@ -98,8 +95,6 @@ public class Util {
     varIds.clear();
     fieldIds.clear();
     typeIds.clear();
-    // assumptions.clear();
-    // assumptionVars.clear();
     varIdCounter = 0;
     fieldIdCounter = 0;
     typeIdCounter = 0;
@@ -113,10 +108,6 @@ public class Util {
    * public static void clearAssumptions() { assumptions.clear();
    * assumptionVars.clear(); }
    */
-
-  public static int getFreshInstanceNum() {
-    return instanceNumCounter++;
-  }
 
   public static int newPathNum() {
     return pathCounter++;
@@ -311,9 +302,10 @@ public class Util {
     Util.Debug("getting rules relevant to " + edge);
     Object src = edge.getSource().getInstanceKey();
     Object snk = edge.getSink().getInstanceKey();
-    Util.Debug("finding methods where " + src + "\n->\n" + snk + " can be produced");
+    Util.Debug("finding methods where " + src + "\n->" + edge.getField()+ "\n" + snk + " can be produced");
     Util.Assert(src != null, "expected instance key for " + edge.getSource());
-    Util.Assert(snk != null, "expected instance key for " + edge.getSink());
+    // snk can be symbolic
+    //Util.Assert(snk != null, "expected instance key for " + edge.getSink());
     /*
      * if (snk == null) { // TODO: support this // trying to witness something
      * pointing to a constant... return empty rule set for now return rules;
@@ -362,15 +354,9 @@ public class Util {
               if (rule.getShown().equals(edge))
                 rules.add(rule); // this rule produces our edge
             }
-            break; // because of SSA, this must be the only statement that
-                   // produces our edge
+            break; // because of SSA, this must be the only statement that produces our edge
           }
         }
-      }
-      if (lpk.isParameter()) {
-        // add the callers of this node as well
-        // Iterator<CGNode> callers = cg.getPredNodes(lpk.getNode());
-        // while (callers.hasNext()) srcMethods.add(callers.next());
       }
     } else { // this edge has a heap LHS
       Set<CGNode> srcMethods = HashSetFactory.make(), snkMethods = HashSetFactory.make();
@@ -394,26 +380,36 @@ public class Util {
         }
       }
 
-      Iterator<Object> iter1 = hg.getPredNodes(snk);
-      while (iter1.hasNext()) { // find locals that point at the snk, since we
-                                // need a local ptr to write it to snk
-        Object next = iter1.next();
-        if (next instanceof LocalPointerKey) {
-          LocalPointerKey lpk = (LocalPointerKey) next;
-          snkMethods.add(lpk.getNode());
-          snkNums.add(lpk.getValueNumber());
+      if (snk != null) { // snk is an ordinary, concrete variable
+        Iterator<Object> iter1 = hg.getPredNodes(snk);
+        while (iter1.hasNext()) { 
+          // find locals that point at the snk, since we need a local ptr to write it to snk 
+          Object next = iter1.next();
+          if (next instanceof LocalPointerKey) {
+            LocalPointerKey lpk = (LocalPointerKey) next;
+            snkMethods.add(lpk.getNode());
+            snkNums.add(lpk.getValueNumber());
+          }
+        }
+      } else { // snk is a symbolic variable
+        Util.Assert(edge.getSink() instanceof SymbolicPointerVariable);
+        SymbolicPointerVariable sink = (SymbolicPointerVariable) edge.getSink();
+        for (InstanceKey key : sink.getPossibleValues()) {
+          Iterator<Object> iter1 = hg.getPredNodes(key);
+          while (iter1.hasNext()) { // find locals that point at the snk, since we
+                                    // need a local ptr to write it to snk
+            Object next = iter1.next();
+            if (next instanceof LocalPointerKey) {
+              LocalPointerKey lpk = (LocalPointerKey) next;
+              snkMethods.add(lpk.getNode());
+              snkNums.add(lpk.getValueNumber());
+            }
+          }
         }
       }
-
-      // Util.Debug("before, there are " + srcMethods.size() + " src methods");
-      // Util.Debug("before, there are " + snkMethods.size() + " snk methods");
-
-      if (!srcMethods.isEmpty())
-        snkMethods.retainAll(srcMethods);
-
+      if (!srcMethods.isEmpty()) snkMethods.retainAll(srcMethods);
       srcMethods = null;
-      // now, snkMethods contains all methods which could possibly produce our
-      // edge
+      // now, snkMethods contains all methods which could possibly produce our edge
 
       if (staticField) {
         // we're looking for a write to a static field
@@ -444,8 +440,7 @@ public class Util {
         // we're looking for an array write
         for (CGNode node : snkMethods) {
           IR ir = node.getIR();
-          if (ir == null)
-            continue;
+          if (ir == null) continue;
           SSAInstruction[] instrs = ir.getInstructions();
           int i = 0;
           for (i = 0; i < instrs.length; i++) {
@@ -467,25 +462,22 @@ public class Util {
         // we're looking for an ordinary field write
         for (CGNode node : snkMethods) {
           IR ir = node.getIR();
-          if (ir == null)
-            continue;
+          if (ir == null) continue;
           SSAInstruction[] instrs = ir.getInstructions();
           int i = 0;
           for (i = 0; i < instrs.length; i++) {
             SSAInstruction instr = instrs[i];
             if (instr instanceof SSAPutInstruction) {
-              // Util.Debug("PUT INSTR " + instr);
               SSAPutInstruction put = (SSAPutInstruction) instr;
-
               if (srcNums.contains(put.getUse(0)) && snkNums.contains(put.getUse(1))
                   && edgeField.getName().equals(put.getDeclaredField().getName())) {
-                // edgeField.equals(put.getDeclaredField())) {
 
                 // src/snk nums and fields match; may produce our edge
                 Set<DependencyRule> instrRules = depRuleGenerator.visit(put, node, ANY_LINE_ID, i, ir);
                 for (DependencyRule rule : instrRules) {
-                  if (rule.getShown().equals(edge))
-                    rules.add(rule); // this rule produces our edge
+                  //if (rule.getShown().equals(edge))
+                  if (rule.getShown().symbEq(edge))
+                    rules.add(rule); // this rule possibly produces our edge
                 }
               }
             }

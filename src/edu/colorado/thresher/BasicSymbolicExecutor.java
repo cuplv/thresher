@@ -170,6 +170,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return true if some summary makes this path redundant, false otherwise
    */
   boolean isPathInSummary(IPathInfo path) {
+    if (!Options.USE_SUMMARIES) return false;
     Set<IPathInfo> seen = seenPaths.get(path.getCurrentNode());
     if (seen == null) {
       // create seen and add this path to it
@@ -215,24 +216,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   
   @Override
   public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
-    /* TODO: determinize
-    List<CGNode> callers = new LinkedList<CGNode>();
-    
-    Iterator<CGNode> preds = graph.getPredNodes(path.getCurrentNode());
-    while (preds.hasNext()) {
-      callers.add(preds.next());
-    }
-      
-    if (callers.size() > 1) {
-      Collections.sort(callers, new Comparator<CGNode>() {
-        public int compare(CGNode node1, CGNode node2) {
-          // TODO: are graph node Id's consistent across different runs?
-          return node1.getGraphNodeId() - node2.getGraphNodeId();
-        }
-      });
-    }
-    */
-    
     return graph.getPredNodes(path.getCurrentNode());
   }
 
@@ -325,11 +308,10 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         IntIterator indexIter = indices.intIterator();
         Util.Assert(indexIter.hasNext(), "no call sites found in method " + possibleCaller);
         Util.Debug(indices.size() + " possible call instrs in this caller.");
-        while (indexIter.hasNext()) { // for each (caller, callee) pair
+        while (indexIter.hasNext()) { 
           int callIndex = indexIter.next();
           SSAInstruction instr = instrs[callIndex];
-          if (Options.DEBUG)
-            Util.Debug("Trying call instr " + instr);
+          if (Options.DEBUG) Util.Debug("Trying call instr " + instr);
           Util.Assert(instr instanceof SSAInvokeInstruction, "Expecting a call instruction, found " + instr);
 
           SSACFG.BasicBlock callBlk = callerCFG.getBlockForInstruction(callIndex);

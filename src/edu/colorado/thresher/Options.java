@@ -108,6 +108,9 @@ public class Options {
   // not currently enabled
   // @boolOpt (description="keep full witness for each path", _default=true)
   public static boolean LOG_WITNESSES = false;
+  
+  @boolOpt (description="do summary check at function boundaries and loop heads", _default = true)
+  public static boolean USE_SUMMARIES = true;
 
   @intOpt(description = "if the call stack is larger than this, we drop constraints that can be produced in callees rather than exploring them", _default = 2)
   public static int MAX_CALLSTACK_DEPTH = 2;

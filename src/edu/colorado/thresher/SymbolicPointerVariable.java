@@ -19,8 +19,7 @@ public class SymbolicPointerVariable implements PointerVariable {
 
   public static PointerVariable makeSymbolicVar(Set<InstanceKey> possibleValues) {
     Util.Pre(!possibleValues.isEmpty(), "possible values empty");
-    if (possibleValues.size() == 1)
-      return Util.makePointerVariable(possibleValues.iterator().next());
+    if (possibleValues.size() == 1) return Util.makePointerVariable(possibleValues.iterator().next());
     return new SymbolicPointerVariable(possibleValues);
   }
 
