@@ -61,6 +61,9 @@ public class Options {
   @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported)", _default = false)
   public static boolean SYNTHESIS = false;
   
+  @boolOpt(description = "try to prove that Collections.unmodifiable* are actually immutable (currently unsupported", _default = false)
+  public static boolean IMMUTABILITY = false;
+  
   @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)
   public static boolean USE_EXCLUSIONS = true;
 
@@ -70,6 +73,8 @@ public class Options {
                                                                // list of
                                                                // witnessed
                                                                // errors in heap
+  @boolOpt(description = "are we running one of the dacapo benchmarks", _default = false)
+  public static boolean DACAPO = false;
 
   // if true, generate dependency rules for all statements in a method when we
   // generate rules for one statement in that method (cache all rules)

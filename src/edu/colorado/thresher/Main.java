@@ -35,6 +35,7 @@ import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
@@ -58,7 +59,6 @@ import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
-import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
@@ -74,6 +74,9 @@ public class Main {
   private static boolean REGRESSIONS = false; 
 
   public static String REGRESSION = "__regression";
+  
+  // absolute path to file containing core JVM components
+  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -88,7 +91,8 @@ public class Main {
     } else if (target.equals(REGRESSION))
       runRegressionTests();
     else
-      if (Options.SYNTHESIS) runSynthesizer(target);
+      if (Options.IMMUTABILITY) runImmutabilityCheck(target);
+      else if (Options.SYNTHESIS) runSynthesizer(target);
       else runAnalysisAllStaticFields(target);
   }
 
@@ -244,19 +248,19 @@ public class Main {
     // "Landroid/view/View"};
     String[] snkClasses = new String[] { "Landroid/app/Activity" };
     String[] srcClasses = new String[0]; // with no base
-    return runAnalysis(appName, srcClasses, snkClasses, refutedEdges, false);
+    return runAnalysis(appName, srcClasses, snkClasses, false);
   }
 
   public static boolean runAnalysisAllStaticFields(String appName) // wrapper
       throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    return runAnalysisAllStaticFields(appName, Collections.EMPTY_SET);
+    return runAnalysisAllStaticFields(appName);
   }
 
   public static boolean runAnalysisActivityAndViewFieldsOnly(String appName) // wrapper
       throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
     String[] srcClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View" };
     String[] snkClasses = new String[] { "Landroid/app/Activity" };
-    return runAnalysis(appName, srcClasses, snkClasses, Collections.EMPTY_SET, false);
+    return runAnalysis(appName, srcClasses, snkClasses, false);
   }
 
   public static boolean runAnalysisActivityFieldsOnly(String appName) // wrapper
@@ -275,18 +279,10 @@ public class Main {
   public static boolean runAnalysis(String appName, String baseClass, boolean fakeMap) // wrapper
       throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     String[] singleton = new String[] { baseClass };
-    return runAnalysis(appName, singleton, singleton, Collections.EMPTY_SET, fakeMap);
+    return runAnalysis(appName, singleton, singleton, fakeMap);
   }
- 
-
-  public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    JarFile androidJar = new JarFile(Options.ANDROID_JAR);
-    // add Android code
-    scope.addToScope(scope.getPrimordialLoader(), androidJar);
-    // add application code
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-
+  
+  public static void runImmutabilityCheck(String appPath)  throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     final MethodReference UNMODIFIABLE_COLLECTION = 
         MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
                                      "unmodifiableCollection", "(Ljava/util/Collection;)Ljava/util/Collection;");
@@ -314,6 +310,122 @@ public class Main {
     MethodReference[] unmodifiableContainers = new MethodReference[] { UNMODIFIABLE_COLLECTION, UNMODIFIABLE_LIST, UNMODIFIABLE_MAP,
                                                                        UNMODIFIABLE_SET, UNMODIFIABLE_SORTED_MAP, 
                                                                        UNMODIFIABLE_SORTED_SET };
+    
+    // TODO: hack; should get full names. 
+    String[] badMethods = new String[] { "add", "addAll", "clear", "remove", "removeAll", "retainAll", "set", "put", "putAll" };
+    
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    IClassHierarchy cha;
+    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
+
+    
+    if (Options.DACAPO) { // running one of the Dacapo benchmarks
+      String appName;
+      // removing trailing slash if needed
+      if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
+      else appName = appPath;
+      // strip of front of path away from app name
+      appName = appName.substring(appName.lastIndexOf("/") + 1);
+      Util.Print("Running on " + appName);
+      JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
+      JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+      scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
+      scope.addToScope(scope.getApplicationLoader(), appJar);
+      
+      final MethodReference DACAPO_MAIN =
+          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
+              "main", "([Ljava/lang/String;)V");
+      
+      cha = ClassHierarchy.make(scope);
+      entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
+      
+    } else { // running an android app
+      JarFile androidJar = new JarFile(Options.ANDROID_JAR);
+      scope.addToScope(scope.getPrimordialLoader(), androidJar);
+      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+      cha = ClassHierarchy.make(scope);
+      Iterator<IClass> classes = cha.iterator();
+
+      while (classes.hasNext()) {
+        IClass c = classes.next();
+        if (!scope.isApplicationLoader(c.getClassLoader())) continue;
+        for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
+          if (m.isPublic() || m.isProtected()) {
+            entryPoints.add(new DefaultEntrypoint(m, cha));
+            //entryPoints.add(new SameReceiverEntrypoint(m, cha));
+          }
+        }
+      }
+    }
+    
+    Collection<? extends Entrypoint> e = entryPoints;
+
+    AnalysisOptions options = new AnalysisOptions(scope, e); 
+    // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
+    AnalysisCache cache = new AnalysisCache();
+    CallGraphBuilder builder = 
+        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,cache, cha, scope);
+    if (Options.DEBUG) Util.Debug("building call graph");
+    CallGraph cg = builder.makeCallGraph(options, null);
+    // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
+    Util.Print(CallGraphStats.getStats(cg));
+    PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
+    HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
+    HeapModel hm = pointerAnalysis.getHeapModel();
+    ModRef modref = ModRef.make();
+    Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
+
+    Logger logger = new Logger(appPath);
+    AbstractDependencyRuleGenerator depRuleGenerator = 
+        new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
+
+    int creatorNodes = 0, creatorSites = 0, creatorCalls = 0;
+    
+    // list of instance keys corresponding to unmodifiable containers
+    for (int i = 0; i < unmodifiableContainers.length; i++) { // for each type of unmodifiable container
+      Set<CGNode> nodes = cg.getNodes(unmodifiableContainers[i]);
+      for (CGNode node : nodes) { // for each method that creates an unmodifiable container
+        Iterator<CGNode> preds = cg.getPredNodes(node);
+        while (preds.hasNext()) { // for each caller of such a method
+          creatorNodes++;
+          CGNode pred = preds.next();
+          IR ir = pred.getIR();
+          SSAInstruction[] instrs = ir.getInstructions();
+          Iterator<CallSiteReference> sites = cg.getPossibleSites(pred, node);
+          while (sites.hasNext()) { // for each call site that creates an unmodifiable container
+            creatorSites++;
+            CallSiteReference site = sites.next();
+            IntSet indices = ir.getCallInstructionIndices(site);
+            IntIterator indexIter = indices.intIterator();
+            while (indexIter.hasNext()) { // for each invocation of a call site
+              creatorCalls++;
+              int callIndex = indexIter.next();
+              Util.Assert(instrs[callIndex] instanceof SSAInvokeInstruction);
+              SSAInvokeInstruction instr = (SSAInvokeInstruction) instrs[callIndex];              
+              Util.Assert(instr.getNumberOfParameters() == 1); // should take single container as param
+              Util.Assert(instr.hasDef()); // should return ptr to unmodifiable container
+              
+              checkForBadMethodCalls(pred, instr, hm, hg, cg, badMethods);
+              //checkAllFields(pred, instr, hm, hg, cha, cg, logger, depRuleGenerator);
+              
+            }         
+          }
+        }
+      }
+    }
+    Util.Print(creatorNodes + " creator nodes, " + creatorSites + " creator sites, " + creatorCalls + " creator calls.");
+  }
+
+  public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    JarFile androidJar = new JarFile(Options.ANDROID_JAR);
+    // add Android code
+    scope.addToScope(scope.getPrimordialLoader(), androidJar);
+    // add application code
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Iterator<IClass> classes = cha.iterator();
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
@@ -355,69 +467,6 @@ public class Main {
     AbstractDependencyRuleGenerator depRuleGenerator = 
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
-    // list of instance keys corresponding to unmodifiable containers
-    Set<InstanceKey> unmodifiableContainerKeys = HashSetFactory.make();
-    for (int i = 0; i < unmodifiableContainers.length; i++) {
-      Util.Print("container " + unmodifiableContainers[i]);
-      Set<CGNode> nodes = cg.getNodes(unmodifiableContainers[i]);
-      for (CGNode node : nodes) {
-        Iterator<CGNode> preds = cg.getPredNodes(node);
-        while (preds.hasNext()) { // for each caller
-          CGNode pred = preds.next();
-          IR ir = pred.getIR();
-          SSAInstruction[] instrs = ir.getInstructions();
-          Iterator<CallSiteReference> sites = cg.getPossibleSites(pred, node);
-          while (sites.hasNext()) {
-            CallSiteReference site = sites.next();
-            IntSet indices = ir.getCallInstructionIndices(site);
-            IntIterator indexIter = indices.intIterator();
-            while (indexIter.hasNext()) { 
-              int callIndex = indexIter.next();
-              Util.Assert(instrs[callIndex] instanceof SSAInvokeInstruction);
-              SSAInvokeInstruction instr = (SSAInvokeInstruction) instrs[callIndex];
-              Util.Assert(instr.getNumberOfParameters() == 1, "bad invoke " + instr);
-              Util.Print(instr.toString());
-              // get param that points to unmodifiable conainer
-              PointerKey lpk = hm.getPointerKeyForLocal(pred, instr.getUse(0));
-              // get the possible heap locations that the param might point to
-              Iterator<Object> succs = hg.getSuccNodes(lpk);
-              while (succs.hasNext()) {
-                Object succ = succs.next();
-                PointerVariable lhs = Util.makePointerVariable(succ);
-                Util.Assert(succ instanceof InstanceKey);
-                //Util.Assert(unmodifiableContainerKeys.add((InstanceKey) succ), "already have " + succ);
-                // get all the fields of this heap location
-                Iterator<Object> fields = hg.getSuccNodes(succ);
-                while (fields.hasNext()) {
-                  Object fld = fields.next();
-                  Util.Assert(fld instanceof InstanceFieldKey);
-                  InstanceFieldKey field = (InstanceFieldKey) fld;
-                  Util.Print("FIELD is " + field);
-                  Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
-                  Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
-                  Util.Assert(fieldSuccs.hasNext());
-                  while (fieldSuccs.hasNext()) {
-                    Object fieldSucc = fieldSuccs.next();
-                    Util.Print("field succ " + fieldSucc);
-                    Util.Assert(fieldSucc instanceof InstanceKey);
-                    fieldSuccsSet.add((InstanceKey) fieldSucc);
-                  }
-                  // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
-                  // for each write that might occur *after* the construction of the immutable
-                  // container, we must refute this edge
-                  PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
-                                                           field.getField());
-                  Util.Print("to refute " + toRefute);
-                  boolean witnessed = generateWitness(toRefute, depRuleGenerator, cha, hg, cg, logger);
-                  
-                  System.exit(1);
-                }
-              }
-            }         
-          }
-        }
-      }
-    }
     
     // collect assertions
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
@@ -502,6 +551,101 @@ public class Main {
     }
   }
   
+  public static void checkAllFields(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, IClassHierarchy cha, 
+                                    CallGraph cg, Logger logger, AbstractDependencyRuleGenerator depRuleGenerator) {
+    // get param that points to unmodifiable conainer
+    PointerKey lpk = hm.getPointerKeyForLocal(node, instr.getUse(0));
+    // get the possible heap locations that the param might point to
+    Iterator<Object> succs = hg.getSuccNodes(lpk);
+    while (succs.hasNext()) { // for each heap loc that might be converted into an unmodifiable container
+      Object succ = succs.next();
+      PointerVariable lhs = Util.makePointerVariable(succ);
+      Util.Assert(succ instanceof InstanceKey);
+      //Util.Assert(unmodifiableContainerKeys.add((InstanceKey) succ), "already have " + succ);
+      // get all the fields of this heap location
+      Iterator<Object> fields = hg.getSuccNodes(succ);
+      while (fields.hasNext()) { // for each field of the heap location
+        Object fld = fields.next();
+        Util.Assert(fld instanceof InstanceFieldKey);
+        InstanceFieldKey field = (InstanceFieldKey) fld;
+        Util.Print("FIELD is " + field);
+        Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
+        Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+        Util.Assert(fieldSuccs.hasNext());
+        while (fieldSuccs.hasNext()) { // for each successor of the field
+          Object fieldSucc = fieldSuccs.next();
+          Util.Print("field succ " + fieldSucc);
+          Util.Assert(fieldSucc instanceof InstanceKey);
+          fieldSuccsSet.add((InstanceKey) fieldSucc);
+        }
+        // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
+        // for each write that might occur *after* the construction of the immutable
+        // container, we must refute this edge
+        PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
+                                                 field.getField());
+        Util.Print("to refute " + toRefute);
+        boolean witnessed = generateWitness(toRefute, depRuleGenerator, cha, hg, cg, logger);
+      }
+    }
+  }
+  
+  // check the object instance corresponding to the unmodifiable container to see if 
+  // any bad methods are called on it. this is an overapproximation of the dynamic check
+  public static void checkForBadMethodCalls(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, CallGraph cg,
+                                             String[] badMethods) {
+    // get local ptr to the unmodifiable container
+    PointerKey unmodifiableLocal = hm.getPointerKeyForLocal(node, instr.getDef());
+    Iterator<Object> unmodifiableHeapLocs = hg.getSuccNodes(unmodifiableLocal);
+    while (unmodifiableHeapLocs.hasNext()) {
+      Object next = unmodifiableHeapLocs.next();
+      Util.Assert(next instanceof InstanceKey);
+      Iterator<Object> localPtrs = hg.getPredNodes(next);
+      while (localPtrs.hasNext()) {
+        Object localPtr = localPtrs.next();
+        if (localPtr instanceof LocalPointerKey) {
+          Util.Assert(localPtr instanceof LocalPointerKey, "bad ptr " + localPtr);
+          LocalPointerKey local = (LocalPointerKey) localPtr;
+          IMethod method = local.getNode().getMethod();
+          if (method.isStatic()) {
+            // static methods have no recievers
+            continue; 
+          }
+          if (local.isParameter() && local.getValueNumber() == 1) {
+            // local is receiver to a method...make sure this function is not one
+            // of the bad ones
+            String methodName = method.toString();
+            for (String badMethod : badMethods) {
+              if (methodName.contains(badMethod)) {
+                CGNode localNode = local.getNode();
+                Iterator<CGNode> preds = cg.getPredNodes(localNode);
+                while (preds.hasNext()) {
+                  CGNode pred = preds.next();
+                  //Util.Print(pred.getIR().toString());
+                  SSAInstruction[] instrs = pred.getIR().getInstructions();
+                  Iterator<CallSiteReference> siteIter = cg.getPossibleSites(pred, localNode);
+                  while (siteIter.hasNext()) {
+                    CallSiteReference site = siteIter.next();
+                    IntSet indices = pred.getIR().getCallInstructionIndices(site);
+                    IntIterator indexIter = indices.intIterator();
+                    while (indexIter.hasNext()) {
+                      SSAInstruction callInstr = instrs[indexIter.next()];
+                      Util.Assert(callInstr instanceof SSAInvokeInstruction);
+                      Util.Print("bad call " + callInstr);
+                      Util.Print("bad call; unmodifiable reference created in " + node + " may flow to " +
+                                 callInstr);
+                      //Util.Print(node.getIR().toString());
+                      // call Thresher
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } 
+  }
+  
   /**
    * run Thresher on app
    * 
@@ -511,8 +655,8 @@ public class Main {
    * @param fakeMap - debug parameter; should be false for all real uses
    * @return - true if no instance of the base classes is reachable from a static field of the base class, false otherwise
    */
-  public static boolean runAnalysis(String appPath, String[] srcStrings, String[] snkStrings, Set<String> refutedEdges,
-      boolean fakeMap) throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+  public static boolean runAnalysis(String appPath, String[] srcStrings, String[] snkStrings, boolean fakeMap) 
+      throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
     Set<IField> staticFields = HashSetFactory.make();
     Set<MethodReference> saveMethods = HashSetFactory.make();
@@ -674,7 +818,7 @@ public class Main {
     long refuteStart = System.currentTimeMillis();
     boolean result = false;
     if (!Options.FLOW_INSENSITIVE_ONLY) {
-      result = refuteFieldErrors(fieldErrorList, hg, cache, cg, hm, cha, modRefMap, refutedEdges, logger);
+      result = refuteFieldErrors(fieldErrorList, hg, cache, cg, hm, cha, modRefMap, logger);
     }
     long refuteEnd = System.currentTimeMillis();
     Util.Print("Symbolic execution completed in " + ((refuteEnd - refuteStart) / 1000.0) + " seconds");
@@ -684,8 +828,7 @@ public class Main {
   }
 
   public static boolean refuteFieldErrors(Set<Pair<Object, Object>> fieldErrors, HeapGraphWrapper hg, AnalysisCache cache,
-      CallGraph cg, HeapModel hm, IClassHierarchy cha, Map<CGNode, OrdinalSet<PointerKey>> modRef,
-      Set<String> refutedEdgeStrings, Logger logger) {
+      CallGraph cg, HeapModel hm, IClassHierarchy cha, Map<CGNode, OrdinalSet<PointerKey>> modRef, Logger logger) {
     List<Pair<Object, Object>> trueErrors = new LinkedList<Pair<Object, Object>>(), falseErrors = new LinkedList<Pair<Object, Object>>();
     Set<PointsToEdge> producedEdges = HashSetFactory.make(), refutedEdges = HashSetFactory.make();
     AbstractDependencyRuleGenerator aDepRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRef);
@@ -699,8 +842,8 @@ public class Main {
         Util.Print("starting on error " + count++ + " of " + fieldErrors.size() + ": " + error.fst);
         snkCollection.add(error.snd);
         // if we can refute error
-        if (refuteFieldErrorForward(error, hg, producedEdges, aDepRuleGenerator, refutedEdges, refutedEdgeStrings, cg,
-            hm, cha, logger)) {
+        if (refuteFieldErrorForward(error, hg, producedEdges, aDepRuleGenerator, 
+                                    refutedEdges, cg, hm, cha, logger)) {
           Util.Print("successfully refuted error path " + error);
           logger.logRefutedError();
           falseErrors.add(error);
@@ -735,7 +878,7 @@ public class Main {
    */
   public static boolean refuteFieldErrorForward(Pair<Object, Object> error, HeapGraphWrapper hg,
       Set<PointsToEdge> producedEdges, AbstractDependencyRuleGenerator aDepRuleGenerator, Set<PointsToEdge> refutedEdges,
-      Set<String> refutedEdgeStrings, CallGraph cg, HeapModel hm, IClassHierarchy cha, Logger logger) {
+      CallGraph cg, HeapModel hm, IClassHierarchy cha, Logger logger) {
     //Collection<Object> snkCollection = new LinkedList<Object>();
     List<Object> errorPath = findNewErrorPath(hg, error.fst, error.snd, cha); 
     if (errorPath == null) {
@@ -790,7 +933,7 @@ public class Main {
             // contexts at once, we can refute this edge immediately
             // because we've already done so in the past)
             boolean witnessed;
-            if (refutedEdges.contains(witnessMe) || refutedEdgeStrings.contains(witnessMe.toString())) {
+            if (refutedEdges.contains(witnessMe)) {
               if (Options.DEBUG)
                 Util.Debug("already refuted edge " + witnessMe);
               //srcFieldPairs = new LinkedList<Pair<InstanceKey, Object>>();
