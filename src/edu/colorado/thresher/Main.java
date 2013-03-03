@@ -312,7 +312,7 @@ public class Main {
     
     while (classes.hasNext()) {
       IClass c = classes.next();
-      // only application methods should be entrypoints
+       // only application methods should be entrypoints
       if (!scope.isApplicationLoader(c.getClassLoader())) continue;
 
       Collection<? extends IClass> implementedInterfaces = c.getDirectInterfaces();
@@ -401,7 +401,9 @@ public class Main {
         "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
     final MethodReference TAKE_PIC1 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/hardware/Camera"),
         "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
-    final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1 };
+    final MethodReference RECORD_AUDIO = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/media/MediaRecorder"),
+        "start", "()V");
+    final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1, RECORD_AUDIO };
     
     Set<String> buttonHandlers = buttonNamesMap.keySet();
     // set of all methods that are triggered when a button is clicked
@@ -423,9 +425,11 @@ public class Main {
           Set<CGNode> reachable = DFS.getReachableNodes(cg, cg.getNodes(buttonMethod.getReference()));
           if (reachable.contains(badNode)) {
             String buttonLabel = buttonNamesMap.get(buttonMethod.getName().toString());
-            warnings.add("Bad method " + badMethod.getName() + " triggered by button with label " + buttonLabel + "; is this ok?");
+            warnings.add("Sensitive method " + badMethod.getDeclaringClass() + "." + badMethod.getName() + 
+                         " triggered by button with label \"" + buttonLabel + "\"; is this ok?");
           } else {
-            warnings.add("Couldn't find any button that triggers bad method " + badMethod.getName());
+            warnings.add("Couldn't find any button that triggers sensitive method " + 
+                          badMethod.getDeclaringClass() + "." + badMethod.getName() + "; is this ok?");
           }
         }
       }
@@ -527,7 +531,7 @@ public class Main {
               Util.Assert(instr.getNumberOfParameters() == 1); // should take single container as param
               Util.Assert(instr.hasDef()); // should return ptr to unmodifiable container
               
-              checkForBadMethodCalls(pred, instr, hm, hg, cg, badMethods);
+              checkForBadMethodCalls(pred, instr, depRuleGenerator, badMethods);
               //checkAllFields(pred, instr, hm, hg, cha, cg, logger, depRuleGenerator);
               
             }         
@@ -536,6 +540,133 @@ public class Main {
       }
     }
     Util.Print(creatorNodes + " creator nodes, " + creatorSites + " creator sites, " + creatorCalls + " creator calls.");
+  }
+  
+  // check the object instance corresponding to the unmodifiable container to see if 
+  // any bad methods are called on it. this is an overapproximation of the dynamic check
+  public static void checkForBadMethodCalls(CGNode node, SSAInstruction instr, AbstractDependencyRuleGenerator depRuleGenerator,
+                                             String[] badMethods) {
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    Logger logger = new Logger();
+    
+    // get local ptr to the unmodifiable container
+    PointerKey unmodifiableLocal = hm.getPointerKeyForLocal(node, instr.getDef());
+    Iterator<Object> unmodifiableHeapLocs = hg.getSuccNodes(unmodifiableLocal);
+    
+    Set<PointsToEdge> toWitness = HashSetFactory.make();
+    
+    while (unmodifiableHeapLocs.hasNext()) { // for each heap loc the local may point to
+      Object next = unmodifiableHeapLocs.next();
+      Util.Assert(next instanceof InstanceKey);
+      Iterator<Object> localPtrs = hg.getPredNodes(next);
+      while (localPtrs.hasNext()) { // for each local that may point at the heap local
+        Object localPtr = localPtrs.next();
+        if (localPtr instanceof LocalPointerKey) {
+          Util.Assert(localPtr instanceof LocalPointerKey, "bad ptr " + localPtr);
+          LocalPointerKey local = (LocalPointerKey) localPtr;
+          IMethod method = local.getNode().getMethod();
+          if (method.isStatic()) {
+            // static methods have no receivers
+            continue; 
+          }
+          if (local.isParameter() && local.getValueNumber() == 1) {
+            // "immutable" local is receiver to a method...make sure this function 
+            // is not one of the bad ones
+            String methodName = method.toString();
+            for (String badMethod : badMethods) { // for each bad method 
+              if (methodName.contains(badMethod)) {
+                CGNode localNode = local.getNode();
+                Iterator<CGNode> preds = cg.getPredNodes(localNode);
+                while (preds.hasNext()) { // for each node a bad method resolves to
+                  CGNode pred = preds.next();
+                  //Util.Print(pred.getIR().toString());
+                  SSAInstruction[] instrs = pred.getIR().getInstructions();
+                  Iterator<CallSiteReference> siteIter = cg.getPossibleSites(pred, localNode);
+                  while (siteIter.hasNext()) { // for each call site of a bad method
+                    CallSiteReference site = siteIter.next();
+                    IntSet indices = pred.getIR().getCallInstructionIndices(site);
+                    IntIterator indexIter = indices.intIterator();
+                    while (indexIter.hasNext()) { // for each index of a bad call site
+                      SSAInstruction callInstr = instrs[indexIter.next()];
+                      Util.Assert(callInstr instanceof SSAInvokeInstruction);
+                      SSAInvokeInstruction invoke = (SSAInvokeInstruction) callInstr;
+                      Util.Print("bad call " + callInstr);
+                      Util.Print("bad call; unmodifiable reference created in " + node + " may flow to " +
+                                 callInstr);
+                      // query: can the receiver point to a supposedly "immutable" instance key at the time of
+                      // the call to the bad method?
+                      PointerVariable receiver = Util.makePointerVariable(
+                          hm.getPointerKeyForLocal(pred, invoke.getUse(0)));
+                      PointerVariable immutableInstanceKey = Util.makePointerVariable(next);
+                      PointsToEdge witnessMe = new PointsToEdge(receiver, immutableInstanceKey);
+                      toWitness.add(witnessMe);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } 
+    for (PointsToEdge edge : toWitness) {
+      if (Options.FLOW_INSENSITIVE_ONLY) {
+        Util.Print("Warning: unmodifiable reference created in " + edge.getSink().getNode() + " may flow to " +
+          edge.getSource());
+      }
+      else { 
+        // call Thresher to answer the query
+        boolean witnessed = generateWitness(edge, depRuleGenerator, logger);
+        if (witnessed) { 
+          Util.Print("Warning: unmodifiable reference created in " + edge.getSink().getNode() + " may flow to " +
+              edge.getSource());
+        } else {
+          Util.Print("Edge " + edge + " refuted");
+        }
+      }
+    }
+    
+  }
+  
+  public static void checkAllFields(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, IClassHierarchy cha, 
+                                    CallGraph cg, Logger logger, AbstractDependencyRuleGenerator depRuleGenerator) {
+    // get param that points to unmodifiable conainer
+    PointerKey lpk = hm.getPointerKeyForLocal(node, instr.getUse(0));
+    // get the possible heap locations that the param might point to
+    Iterator<Object> succs = hg.getSuccNodes(lpk);
+    while (succs.hasNext()) { // for each heap loc that might be converted into an unmodifiable container
+      Object succ = succs.next();
+      PointerVariable lhs = Util.makePointerVariable(succ);
+      Util.Assert(succ instanceof InstanceKey);
+      //Util.Assert(unmodifiableContainerKeys.add((InstanceKey) succ), "already have " + succ);
+      // get all the fields of this heap location
+      Iterator<Object> fields = hg.getSuccNodes(succ);
+      while (fields.hasNext()) { // for each field of the heap location
+        Object fld = fields.next();
+        Util.Assert(fld instanceof InstanceFieldKey);
+        InstanceFieldKey field = (InstanceFieldKey) fld;
+        Util.Print("FIELD is " + field);
+        Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
+        Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+        Util.Assert(fieldSuccs.hasNext());
+        while (fieldSuccs.hasNext()) { // for each successor of the field
+          Object fieldSucc = fieldSuccs.next();
+          Util.Print("field succ " + fieldSucc);
+          Util.Assert(fieldSucc instanceof InstanceKey);
+          fieldSuccsSet.add((InstanceKey) fieldSucc);
+        }
+        // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
+        // for each write that might occur *after* the construction of the immutable
+        // container, we must refute this edge
+        PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
+                                                 field.getField());
+        Util.Print("to refute " + toRefute);
+        boolean witnessed = generateWitness(toRefute, depRuleGenerator, logger);
+        Util.Print("witnessed? " + witnessed);
+      }
+    }
   }
 
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
@@ -584,7 +715,7 @@ public class Main {
         MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
                                      "Unmodifiable", "(Ljava/lang/Object;Ljava/lang/String;)V");
 
-    Logger logger = new Logger(appPath);
+    Logger logger = new Logger();
     AbstractDependencyRuleGenerator depRuleGenerator = 
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
@@ -672,102 +803,6 @@ public class Main {
     }
   }
   
-  public static void checkAllFields(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, IClassHierarchy cha, 
-                                    CallGraph cg, Logger logger, AbstractDependencyRuleGenerator depRuleGenerator) {
-    // get param that points to unmodifiable conainer
-    PointerKey lpk = hm.getPointerKeyForLocal(node, instr.getUse(0));
-    // get the possible heap locations that the param might point to
-    Iterator<Object> succs = hg.getSuccNodes(lpk);
-    while (succs.hasNext()) { // for each heap loc that might be converted into an unmodifiable container
-      Object succ = succs.next();
-      PointerVariable lhs = Util.makePointerVariable(succ);
-      Util.Assert(succ instanceof InstanceKey);
-      //Util.Assert(unmodifiableContainerKeys.add((InstanceKey) succ), "already have " + succ);
-      // get all the fields of this heap location
-      Iterator<Object> fields = hg.getSuccNodes(succ);
-      while (fields.hasNext()) { // for each field of the heap location
-        Object fld = fields.next();
-        Util.Assert(fld instanceof InstanceFieldKey);
-        InstanceFieldKey field = (InstanceFieldKey) fld;
-        Util.Print("FIELD is " + field);
-        Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
-        Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
-        Util.Assert(fieldSuccs.hasNext());
-        while (fieldSuccs.hasNext()) { // for each successor of the field
-          Object fieldSucc = fieldSuccs.next();
-          Util.Print("field succ " + fieldSucc);
-          Util.Assert(fieldSucc instanceof InstanceKey);
-          fieldSuccsSet.add((InstanceKey) fieldSucc);
-        }
-        // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
-        // for each write that might occur *after* the construction of the immutable
-        // container, we must refute this edge
-        PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
-                                                 field.getField());
-        Util.Print("to refute " + toRefute);
-        boolean witnessed = generateWitness(toRefute, depRuleGenerator, logger);
-        Util.Print("witnessesed? " + witnessed);
-      }
-    }
-  }
-  
-  // check the object instance corresponding to the unmodifiable container to see if 
-  // any bad methods are called on it. this is an overapproximation of the dynamic check
-  public static void checkForBadMethodCalls(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, CallGraph cg,
-                                             String[] badMethods) {
-    // get local ptr to the unmodifiable container
-    PointerKey unmodifiableLocal = hm.getPointerKeyForLocal(node, instr.getDef());
-    Iterator<Object> unmodifiableHeapLocs = hg.getSuccNodes(unmodifiableLocal);
-    while (unmodifiableHeapLocs.hasNext()) {
-      Object next = unmodifiableHeapLocs.next();
-      Util.Assert(next instanceof InstanceKey);
-      Iterator<Object> localPtrs = hg.getPredNodes(next);
-      while (localPtrs.hasNext()) {
-        Object localPtr = localPtrs.next();
-        if (localPtr instanceof LocalPointerKey) {
-          Util.Assert(localPtr instanceof LocalPointerKey, "bad ptr " + localPtr);
-          LocalPointerKey local = (LocalPointerKey) localPtr;
-          IMethod method = local.getNode().getMethod();
-          if (method.isStatic()) {
-            // static methods have no recievers
-            continue; 
-          }
-          if (local.isParameter() && local.getValueNumber() == 1) {
-            // local is receiver to a method...make sure this function is not one
-            // of the bad ones
-            String methodName = method.toString();
-            for (String badMethod : badMethods) {
-              if (methodName.contains(badMethod)) {
-                CGNode localNode = local.getNode();
-                Iterator<CGNode> preds = cg.getPredNodes(localNode);
-                while (preds.hasNext()) {
-                  CGNode pred = preds.next();
-                  //Util.Print(pred.getIR().toString());
-                  SSAInstruction[] instrs = pred.getIR().getInstructions();
-                  Iterator<CallSiteReference> siteIter = cg.getPossibleSites(pred, localNode);
-                  while (siteIter.hasNext()) {
-                    CallSiteReference site = siteIter.next();
-                    IntSet indices = pred.getIR().getCallInstructionIndices(site);
-                    IntIterator indexIter = indices.intIterator();
-                    while (indexIter.hasNext()) {
-                      SSAInstruction callInstr = instrs[indexIter.next()];
-                      Util.Assert(callInstr instanceof SSAInvokeInstruction);
-                      Util.Print("bad call " + callInstr);
-                      Util.Print("bad call; unmodifiable reference created in " + node + " may flow to " +
-                                 callInstr);
-                      //Util.Print(node.getIR().toString());
-                      // call Thresher
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    } 
-  }
-  
   /**
    * run Thresher on app
    * 
@@ -783,7 +818,7 @@ public class Main {
     Set<IField> staticFields = HashSetFactory.make();
     Set<MethodReference> saveMethods = HashSetFactory.make();
     Util.Print("Starting on " + appPath);
-    Logger logger = new Logger(appPath);
+    Logger logger = new Logger();
     long start = System.currentTimeMillis();
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     if (Options.USE_EXCLUSIONS) {

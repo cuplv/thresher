@@ -15,8 +15,6 @@ import com.ibm.wala.util.intset.MutableIntSet;
 
 public class Logger {
 
-  final String benchmark;
-
   final Map<String, Integer> countMap = HashMapFactory.make();
 
   int failures = 0;
@@ -40,9 +38,7 @@ public class Logger {
 
   final MutableIntSet pathsWithRelevantLoop = new BitVectorIntSet();
 
-  public Logger(String benchmark) {
-    this.benchmark = benchmark;
-  }
+  public Logger() {}
 
   public void log(String str) {
     Integer count = countMap.get(str);
@@ -86,7 +82,7 @@ public class Logger {
     // only reporting timeouts on errors where error was witnessed (since
     // precision loss doesn't matter if we refuted the error)
     int failures = totalErrors - edgesRefuted - errorsRefuted;
-    return benchmark + "," + totalErrors + "," + errorsWitnessed + "," + errorsRefuted + "," + failures + "," + edgesRefuted + ","
+    return totalErrors + "," + errorsWitnessed + "," + errorsRefuted + "," + failures + "," + edgesRefuted + ","
         + edgesWitnessed + "," + timeouts;
   }
 
