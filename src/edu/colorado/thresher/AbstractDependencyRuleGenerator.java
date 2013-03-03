@@ -756,10 +756,7 @@ public class AbstractDependencyRuleGenerator {
   }
 
   // the "visitor"
-  public Set<DependencyRule> visit(SSAInstruction instr, CGNode node, int lineId, int lineNum, IR ir) {// ,
-                                                                                                       // Set<Object>
-                                                                                                       // relevantInstanceKeys)
-                                                                                                       // {
+  public Set<DependencyRule> visit(SSAInstruction instr, CGNode node, int lineId, int lineNum, IR ir) {
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     // get the line number for the instruction;
     // ISSABasicBlock blk = ir.getBasicBlockForInstruction(instr);

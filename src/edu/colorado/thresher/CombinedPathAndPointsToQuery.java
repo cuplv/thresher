@@ -48,11 +48,15 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   
   // special class just to allow us to override methods of PointsToQuery
   private static final class PointsToQueryWrapper extends PointsToQuery {
-    //private final PointsToQuery delegate;
     private final CombinedPathAndPointsToQuery parent;
+    
     public PointsToQueryWrapper(DependencyRule producer, AbstractDependencyRuleGenerator depRuleGenerator, CombinedPathAndPointsToQuery parent) {
       super(producer, depRuleGenerator);
-      //this.delegate = qry;
+      this.parent = parent;
+    }
+    
+    public PointsToQueryWrapper(PointsToEdge startEdge, AbstractDependencyRuleGenerator depRuleGenerator, CombinedPathAndPointsToQuery parent) {
+      super(startEdge, depRuleGenerator);
       this.parent = parent;
     }
     
@@ -95,6 +99,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   final PointsToQueryWrapper pointsToQuery;
   boolean fakeWitness = false;
 
+  public CombinedPathAndPointsToQuery(PointsToEdge startEdge, AbstractDependencyRuleGenerator depRuleGenerator) {
+    super(depRuleGenerator);
+    this.pointsToQuery = new PointsToQueryWrapper(startEdge, depRuleGenerator, this);
+  }
+  
   public CombinedPathAndPointsToQuery(DependencyRule producer, AbstractDependencyRuleGenerator depRuleGenerator) {
     super(depRuleGenerator);
     this.pointsToQuery = new PointsToQueryWrapper(producer, depRuleGenerator, this);

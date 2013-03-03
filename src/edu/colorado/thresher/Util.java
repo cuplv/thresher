@@ -330,15 +330,16 @@ public class Util {
       int i = 0;
       for (i = 0; i < instrs.length; i++) {
         SSAInstruction instr = instrs[i];
-        if (instr.hasDef() && instr.getDef() == lpk.getValueNumber()) {
+        if (instr != null && instr.hasDef() && instr.getDef() == lpk.getValueNumber()) {
           // this is the statement that produces our edge
           Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, node, ANY_LINE_ID, i, ir);
           for (DependencyRule rule : instrRules) {
             if (rule.getShown().equals(edge))
               rules.add(rule); // this rule produces our edge
           }
-          break; // because of SSA, this must be the only statement that
-                 // produces our edge
+          // because of SSA, this must be the only statement that
+          // produces our edge
+          return rules;
         }
       }
       if (rules.isEmpty()) { // it's possible that the edge is produced by a

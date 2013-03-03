@@ -382,7 +382,6 @@ public class Main {
     Util.Print("Building mod/ref");
     ModRef modref = ModRef.make();
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
-
     return new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
   }
   
@@ -394,8 +393,6 @@ public class Main {
     
     AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-    HeapGraph hg = depRuleGenerator.getHeapGraph();
     
     final MethodReference TAKE_PIC0 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/hardware/Camera"),
         "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
@@ -504,8 +501,8 @@ public class Main {
     
     AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
-    HeapGraph hg = depRuleGenerator.getHeapGraph();
-    HeapModel hm = depRuleGenerator.getHeapModel();
+    
+    Util.Print("Starting immutability check");
     
     // list of instance keys corresponding to unmodifiable containers
     for (int i = 0; i < unmodifiableContainers.length; i++) { // for each type of unmodifiable container
@@ -586,22 +583,44 @@ public class Main {
                   Iterator<CallSiteReference> siteIter = cg.getPossibleSites(pred, localNode);
                   while (siteIter.hasNext()) { // for each call site of a bad method
                     CallSiteReference site = siteIter.next();
-                    IntSet indices = pred.getIR().getCallInstructionIndices(site);
+                    IR predIR = pred.getIR();
+                    IntSet indices = predIR.getCallInstructionIndices(site);
                     IntIterator indexIter = indices.intIterator();
                     while (indexIter.hasNext()) { // for each index of a bad call site
-                      SSAInstruction callInstr = instrs[indexIter.next()];
+                      int callLine = indexIter.next();
+                      SSAInstruction callInstr = instrs[callLine];
                       Util.Assert(callInstr instanceof SSAInvokeInstruction);
-                      SSAInvokeInstruction invoke = (SSAInvokeInstruction) callInstr;
+                      //SSAInvokeInstruction invoke = (SSAInvokeInstruction) callInstr;
                       Util.Print("bad call " + callInstr);
                       Util.Print("bad call; unmodifiable reference created in " + node + " may flow to " +
                                  callInstr);
                       // query: can the receiver point to a supposedly "immutable" instance key at the time of
                       // the call to the bad method?
                       PointerVariable receiver = Util.makePointerVariable(
-                          hm.getPointerKeyForLocal(pred, invoke.getUse(0)));
+                          hm.getPointerKeyForLocal(pred, callInstr.getUse(0)));
                       PointerVariable immutableInstanceKey = Util.makePointerVariable(next);
+                      
                       PointsToEdge witnessMe = new PointsToEdge(receiver, immutableInstanceKey);
+                      Util.Print("witnessMe: " + witnessMe);
                       toWitness.add(witnessMe);
+                      
+                      Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, node, 0, callLine, predIR);
+                      for (DependencyRule rule : instrRules) {
+                        Util.Print("shown " + rule.getShown());
+                        if (rule.getShown().equals(witnessMe)) {
+                          Util.Print("found!");
+                          final IQuery query = new CombinedPathAndPointsToQuery(rule, depRuleGenerator);
+                          SSACFG cfg = predIR.getControlFlowGraph();
+                          SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(callLine);
+                          int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(callInstr, startBlk);
+                          Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(callInstr), "instrs dif! expected "
+                              + callInstr + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
+                          ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+                          // start at line BEFORE the call
+                          boolean foundWitness = exec.executeBackward(pred, startBlk, startLineBlkIndex - 1, query);
+                          Util.Print("witnessed? " + foundWitness);
+                        }
+                      }
                     }
                   }
                 }
@@ -611,23 +630,6 @@ public class Main {
         }
       }
     } 
-    for (PointsToEdge edge : toWitness) {
-      if (Options.FLOW_INSENSITIVE_ONLY) {
-        Util.Print("Warning: unmodifiable reference created in " + edge.getSink().getNode() + " may flow to " +
-          edge.getSource());
-      }
-      else { 
-        // call Thresher to answer the query
-        boolean witnessed = generateWitness(edge, depRuleGenerator, logger);
-        if (witnessed) { 
-          Util.Print("Warning: unmodifiable reference created in " + edge.getSink().getNode() + " may flow to " +
-              edge.getSource());
-        } else {
-          Util.Print("Edge " + edge + " refuted");
-        }
-      }
-    }
-    
   }
   
   public static void checkAllFields(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, IClassHierarchy cha, 
@@ -1173,6 +1175,7 @@ public class Main {
         Util.Print("starting in method " + startNode);
         final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
         IR ir = startNode.getIR();
+        Util.Debug(ir.toString());
         SSACFG cfg = ir.getControlFlowGraph();
         SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
         int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
