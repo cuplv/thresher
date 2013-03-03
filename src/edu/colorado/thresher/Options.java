@@ -61,8 +61,11 @@ public class Options {
   @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported)", _default = false)
   public static boolean SYNTHESIS = false;
   
-  @boolOpt(description = "try to prove that Collections.unmodifiable* are actually immutable (currently unsupported", _default = false)
+  @boolOpt(description = "try to prove that Collections.unmodifiable* are actually immutable (currently unsupported)", _default = false)
   public static boolean IMMUTABILITY = false;
+  
+  @boolOpt(description = "verification for Android UI components (currently unsupported)", _default = false)
+  public static boolean ANDROID_UI = false;
   
   @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)
   public static boolean USE_EXCLUSIONS = true;

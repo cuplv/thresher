@@ -583,9 +583,11 @@ public class Util {
    *          - edge to be produced
    * @return all dependency rules that could possibly produce that edge
    */
-  public static Set<DependencyRule> getRulesProducingEdge(PointsToEdge edge, HeapGraph hg,
-      AbstractDependencyRuleGenerator depRuleGenerator, CallGraph cg) {
+  public static Set<DependencyRule> getRulesProducingEdge(PointsToEdge edge,
+      AbstractDependencyRuleGenerator depRuleGenerator) {
     Util.Unimp("don't call this");
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    CallGraph cg = depRuleGenerator.getCallGraph();
     Set<CGNode> sharedMethods = getPotentialProducersForEdgeAndGenerateRules(edge, hg, depRuleGenerator, cg);
     Set<DependencyRule> producers = new TreeSet<DependencyRule>();
 
@@ -1577,7 +1579,7 @@ public class Util {
        * " already refuted!"); Util.Unimp("refuting on flow-insens witness");
        * return false; }
        */
-      Set<DependencyRule> rules = Util.getRulesProducingEdge(nextEdge, hg, depRuleGenerator, cg);
+      Set<DependencyRule> rules = Util.getRulesProducingEdge(nextEdge, depRuleGenerator);
       Util.Assert(!rules.isEmpty(), "no rule can produce " + nextEdge);
 
       boolean applicable = true;
