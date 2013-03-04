@@ -150,8 +150,8 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "DoubleLoopNoRefute" };
+    final String[] fakeMapTests0 = new String[] {};
+    //final String[] fakeMapTests0 = new String[] { "DoubleLoopNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
