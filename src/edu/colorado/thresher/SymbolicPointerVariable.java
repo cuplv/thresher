@@ -66,9 +66,16 @@ public class SymbolicPointerVariable implements PointerVariable {
    */
   public Collection<PointerKey> getPossibleFields(IField fld, HeapModel hm) {
     Collection<PointerKey> possibleFields = new ArrayList<PointerKey>(possibleValues.size());
-    for (InstanceKey key : possibleValues) {
-      possibleFields.add(hm.getPointerKeyForInstanceField(key, fld));  
-    }
+    
+    if (fld == AbstractDependencyRuleGenerator.ARRAY_CONTENTS) {
+      for (InstanceKey key : possibleValues) {
+        possibleFields.add(hm.getPointerKeyForArrayContents(key));  
+      }
+    } else {
+      for (InstanceKey key : possibleValues) {
+        possibleFields.add(hm.getPointerKeyForInstanceField(key, fld));  
+      }
+    }    
     return possibleFields;
   }
 
