@@ -90,7 +90,7 @@ public class Main {
   public static String REGRESSION = "__regression";
   
   // absolute path to file containing core JVM components
-  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
+  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -118,12 +118,8 @@ public class Main {
     Util.PRINT = true;
     REGRESSIONS = true;
     runImmutabilityRegressionTests();
-<<<<<<< HEAD
-    runAndroidLeakRegressionTests();
-=======
     //runAndroidLeakRegressionTests();
->>>>>>> 99a41c325b4b305718a6d10e303d1b8c50d5625f
-}
+  }
   
   
   public static void runAndroidLeakRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
@@ -241,13 +237,10 @@ public class Main {
   public static void runImmutabilityRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
     CallGraphBuilderCancelException {
     Options.DACAPO = true;
-<<<<<<< HEAD
-    final String[] immutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute" }; 
-=======
+
     final String[] immutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
                                                        "ContainerRefute", "ContainerNoRefute" }; 
->>>>>>> 99a41c325b4b305718a6d10e303d1b8c50d5625f
     
     String regressionDir = "apps/tests/immutability/";
     boolean result;
@@ -256,14 +249,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-<<<<<<< HEAD
-    final String[] tests0 = { "HeapNoRefute" };
-=======
     final String[] tests0 = { "ContainerNoRefute" };
->>>>>>> 99a41c325b4b305718a6d10e303d1b8c50d5625f
 
-    //for (String test : immutabilityTests) {
-    for (String test : tests0) {
+    for (String test : immutabilityTests) {
+    //for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
