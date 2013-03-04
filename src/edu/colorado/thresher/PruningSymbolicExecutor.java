@@ -215,7 +215,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
             reachable.addAll(reachableFromCaller);
           }
         }
-      }
+      } // end for (;;)
       if (!progress) break;
       srcs = frontier;
     }

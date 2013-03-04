@@ -235,13 +235,12 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   // public boolean isConstant() { return (lhs.isIntegerConstant() &&
   // rhs.isIntegerConstant()); }
   public boolean isConstant() {
-    if (lhs.isIntegerConstant() && rhs.isIntegerConstant())
-      return true;
-    // else if (this.op == ConditionalBranchInstruction.Operator.EQ || this.op
-    // == ConditionalBranchInstruction.Operator.NE) {
-    // return (lhs.isIntegerConstant() && rhs.isHeapLocation()) ||
-    // (lhs.isHeapLocation() && rhs.isIntegerConstant());
-    // }
+    if (lhs.isIntegerConstant() && rhs.isIntegerConstant()) return true;
+    else if (this.op == ConditionalBranchInstruction.Operator.EQ || 
+             this.op == ConditionalBranchInstruction.Operator.NE) {
+      return (lhs.isIntegerConstant() && rhs.isHeapLocation()) ||
+             (lhs.isHeapLocation() && rhs.isIntegerConstant());
+    }
     return false;
   }
 
@@ -306,21 +305,21 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
         default:
           Util.Unimp("evaluating op " + op);
       }
-    }/*
-      * TODO: can't do this because we can read null from static fields else if
-      * (lhs.isIntegerConstant() && rhs.isHeapLocation()) { int lhsVal =
-      * ((SimplePathTerm) lhs).getIntegerConstant(); switch (this.op) { case EQ:
-      * return lhsVal != 0 ; // we had heapLoc == lhsVal; lhsVal can't be zero
-      * or we refute case NE: return lhsVal == 0; // we had heapLoc != lhsVal;
-      * lhsVal must zero or we refute default:
-      * Util.Unimp("unsupported op for obj comparison " + op); } } else if
-      * (lhs.isHeapLocation() && rhs.isIntegerConstant()) { int rhsVal =
-      * ((SimplePathTerm) rhs).getIntegerConstant(); switch (this.op) { case EQ:
-      * return rhsVal != 0 ; // we had heapLoc == lhsVal; lhsVal can't be zero
-      * or we refute case NE: return rhsVal == 0; // we had heapLoc != lhsVal;
-      * lhsVal must zero or we refute default:
-      * Util.Unimp("unsupported op for obj comparison " + op); } }
-      */
+    } else if (lhs.isIntegerConstant() && rhs.isHeapLocation()) { 
+      int lhsVal = ((SimplePathTerm) lhs).getIntegerConstant();
+      switch (this.op) {
+        case EQ: return lhsVal != 0 ; // we had heapLoc == lhsVal; lhsVal can't be zero or we refute
+        case NE: return lhsVal == 0; // we had heapLoc != lhsVal; lhsVal must zero or we refute
+        default:  Util.Unimp("unsupported op for obj comparison " + op);
+      }
+    } else if (lhs.isHeapLocation() && rhs.isIntegerConstant()) {
+      int rhsVal = ((SimplePathTerm) rhs).getIntegerConstant();
+      switch (this.op) {
+        case EQ: return rhsVal != 0 ; // we had heapLoc == lhsVal; lhsVal can't be zero or we refute
+        case NE: return rhsVal == 0; // we had heapLoc != lhsVal; lhsVal must zero or we refute
+        default:  Util.Unimp("unsupported op for obj comparison " + op);
+      }
+    }
     Util.Unimp("should not be evaluating non-const constraint " + this);
     return true;
   }

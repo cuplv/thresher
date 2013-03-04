@@ -1,10 +1,10 @@
 package edu.colorado.thresher;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
 import java.util.TreeSet;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
@@ -36,10 +36,11 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
-import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
+import com.ibm.wala.types.annotations.Annotation;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.OrdinalSet;
@@ -514,24 +515,23 @@ public class AbstractDependencyRuleGenerator {
 
     else if (instr instanceof SSAReturnInstruction) {
       SSAReturnInstruction instruction = (SSAReturnInstruction) instr;
-      if (instruction.returnsVoid())
-        return rules;
+      if (instruction.returnsVoid()) return rules;
       PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
       PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
+      
       if (def != null && returnValue != null) {
         PointerVariable lhs = Util.makePointerVariable(def);
         PointerVariable rhsPointer = Util.makePointerVariable(returnValue);
         PointerStatement stmt = new PointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
             lineNum);
-        Set<InstanceKey> possibleRHSs = HashSetFactory.make();//new HashSet<InstanceKey>();
+        Set<InstanceKey> possibleRHSs = HashSetFactory.make();
         Iterator<Object> iter = hg.getSuccNodes(returnValue);
         while (iter.hasNext()) {
           Object next = iter.next();
           Util.Assert(next instanceof InstanceKey, "expecting instanceKey, found " + next);
           possibleRHSs.add((InstanceKey) next);
         }
-        if (possibleRHSs.isEmpty())
-          return rules;
+        if (possibleRHSs.isEmpty()) return rules;
         TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
         PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(possibleRHSs);
         PointsToEdge shown = new PointsToEdge(rhsPointer, rhs);
@@ -816,8 +816,7 @@ public class AbstractDependencyRuleGenerator {
       SSAReturnInstruction instruction = (SSAReturnInstruction) instr;
       // skip returns of primitive type (optimization)
       // if (instruction.returnsPrimitiveType() || instruction.returnsVoid()) {
-      if (instruction.returnsVoid())
-        return rules;
+      if (instruction.returnsVoid()) return rules;
       PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
       PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
       if (def != null && returnValue != null) {
@@ -1146,7 +1145,7 @@ public class AbstractDependencyRuleGenerator {
     PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
     PointerStatement stmt = new PointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, fieldName, lineId,
         lineNum);
-
+    
     // generate dependency rule for each possible value of rhs
     Iterator<Object> ptValues = hg.getSuccNodes(lhsKey);
     while (ptValues.hasNext()) {

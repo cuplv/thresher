@@ -699,7 +699,7 @@ public class PointsToQuery implements IQuery {
     // special case for when the constraints contain a symbolic edge that
     // matches a concrete edge in the constraints
     for (PointsToEdge ruleEdge : rule.getToShow()) {
-      if (ruleEdge.isSymbolic())continue;
+      if (ruleEdge.isSymbolic()) continue;
       for (PointsToEdge edge : query.constraints) {
         if (edge.getSink().isSymbolic() && edge.getSource().equals(ruleEdge.getSource())) {
           if (edge.getSink().symbContains(ruleEdge.getSink())) {
@@ -722,8 +722,17 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) query.produced.remove(removeMe);
+    toRemove.clear();
 
     query.constraints.remove(rule.getShown());
+    // special case for if shown removes a symbolic edge from the constraints
+    for (PointsToEdge edge : query.constraints) {
+	if (edge.isSymbolic() && edge.symbContains(rule.getShown())) {
+	    toRemove.add(edge);
+	}
+    }
+    for (PointsToEdge removeMe : toRemove) query.constraints.remove(removeMe);
+
     if (!WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
 
     for (PointsToEdge edge : rule.getToShow()) {
@@ -736,6 +745,18 @@ public class PointsToQuery implements IQuery {
             break;
           }
         }
+        
+        // TODO: should do narrowing of symbolic vars here...
+        //boolean lhsSymbolic = edge.getSource().isSymbolic();
+        //boolean rhsSymbolic = edge.getSink().isSymbolic();
+        for (PointsToEdge queryEdge : query.constraints) {
+          if (edge.symbContains(queryEdge)) {
+            // query edge is already more specific
+            add = false;
+            break;
+          }
+        }
+         
         if (add) query.addConstraint(edge);
       } else {
         if (!query.produced.contains(edge)) {
@@ -783,8 +804,7 @@ public class PointsToQuery implements IQuery {
 
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
 
-    // first, match edges with local LHS's and concrete RHS's. these are hard
-    // constraints
+    // first, match edges with local LHS's and concrete RHS's. these are hard constraints
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (ruleEdge.getSource().isLocalVar() && edge.getSource().isLocalVar() && !edge.getSink().isSymbolic())
@@ -800,8 +820,7 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    // now, match edges with local LHS's and symbolic sinks. these are not hard
-    // constraints; there may be multiple choices
+    // now, match edges with local LHS's and symbolic sinks. these are not hard constraints; there may be multiple choices
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (ruleEdge.getSource().isLocalVar() && edge.getSink().isSymbolic())
@@ -1014,10 +1033,10 @@ public class PointsToQuery implements IQuery {
         if (edge.getSource().isSymbolic() && constraint.getSource().isSymbolic()) { // both
                                                                                     // edges
                                                                                     // symbolic
-          // lhsMatch =
-          // Util.intersectionNonEmpty(edge.getSource().getPossibleValues(),
-          // constraint.getSource().getPossibleValues());
-          lhsMatch = edge.getSource() == constraint.getSource();
+
+          //lhsMatch = edge.getSource() == constraint.getSource();
+          lhsMatch = edge.getSource().getPossibleValues().equals(constraint.getSource().getPossibleValues());
+          
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getFieldRef() == null || !(constraint.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS));
@@ -1037,16 +1056,7 @@ public class PointsToQuery implements IQuery {
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getField() == null || !(constraint.getField() instanceof ArrayContentsKey));
-          /*
-           * if (lhsMatch && fieldsEqualAndNotArrays) { PointerVariable sub =
-           * subMap.get(edge.getSource()); Util.Assert(sub == null ||
-           * sub.equals(constraint.getSource()),
-           * "more than one instantiation choice " + sub + " " +
-           * constraint.getSource()); if (sub == null) {
-           * subMap.put((SymbolicPointerVariable) edge.getSource(),
-           * constraint.getSource()); } }
-           */
-        } else if (constraint.getSource().isSymbolic()) { // constraint edge
+         } else if (constraint.getSource().isSymbolic()) { // constraint edge
                                                           // symbolic, rule edge
                                                           // concrete
           lhsMatch = constraint.getSource().getPossibleValues().contains(edge.getSource().getInstanceKey());
@@ -1063,37 +1073,31 @@ public class PointsToQuery implements IQuery {
         if (lhsMatch && fieldsEqualAndNotArrays) {
           boolean rhsEq;
           if (edge.getSink().isSymbolic() && constraint.getSink().isSymbolic()) {
-            // rhsEq =
-            // Util.intersectionNonEmpty(edge.getSink().getPossibleValues(),
-            // constraint.getSink().getPossibleValues());
-            rhsEq = edge.getSink() == constraint.getSink();
-            /*
-             * PointerVariable sub = subMap.get(edge.getSink()); Util.Assert(sub
-             * == null || sub.equals(constraint.getSink()),
-             * "more than one instantiation choice " + sub + " " +
-             * constraint.getSink()); if (sub == null) {
-             * Util.Debug("adding sub relationship " + edge.getSink() + " " +
-             * constraint.getSink()); subMap.put((SymbolicPointerVariable)
-             * edge.getSink(), constraint.getSink()); }
-             */
+            rhsEq = Util.intersectionNonEmpty(edge.getSink().getPossibleValues(), 
+                                               constraint.getSink().getPossibleValues());
           } else if (edge.getSink().isSymbolic()) {
             rhsEq = edge.getSink().getPossibleValues().contains(constraint.getSink().getInstanceKey());
-            /*
-             * PointerVariable sub = subMap.get(edge.getSink()); Util.Assert(sub
-             * == null || sub.equals(constraint.getSink()),
-             * "more than one instantiation choice " + sub + " " +
-             * constraint.getSink()); if (sub == null) {
-             * subMap.put((SymbolicPointerVariable) edge.getSink(),
-             * constraint.getSink()); }
-             */
-          } else if (constraint.getSink().isSymbolic()) {
+           } else if (constraint.getSink().isSymbolic()) {
             rhsEq = constraint.getSink().getPossibleValues().contains(edge.getSink().getInstanceKey());
-          } else {
+          } else { // concrete case
             rhsEq = constraint.getSink().equals(edge.getSink());
           }
           if (!rhsEq) {
-            if (Options.DEBUG)
-              Util.Debug("refuted: " + edge + " and " + constraint);
+	      if (Options.DEBUG) {
+		  Util.Debug("symb refuted: " + edge + " and " + constraint);
+		  Set<InstanceKey> vals0 = edge.getSink().getPossibleValues();
+		  if (vals0 != null) {
+		      Util.Debug("vals for " + edge);
+		      for (InstanceKey key : vals0) Util.Debug(key +"");
+		  }
+
+		  Set<InstanceKey> vals1 = constraint.getSink().getPossibleValues();
+		  if (vals1 != null) {
+		      Util.Debug("vals for " + constraint);
+		      for (InstanceKey key : vals1) Util.Debug(key +"");
+		  }
+
+	      }
             unsatCore.add(constraint);
             return null;
           }
@@ -1242,7 +1246,12 @@ public class PointsToQuery implements IQuery {
         boolean fieldsEqualAndNotArrays = Util.equal(constraint.getField(), edge.getField())
             && (constraint.getField() == null || !(constraint.getField() instanceof ArrayContentsKey))
             && (edge.getField() == null || !(edge.getField() instanceof ArrayContentsKey));
-        boolean rhsesEqual = constraint.getSink().equals(edge.getSink());
+        boolean rhsesEqual;
+	if (constraint.getSink().isSymbolic()) {
+	    rhsesEqual = constraint.getSink().symbEq(edge.getSink());
+	} else {
+	    rhsesEqual = constraint.getSink().equals(edge.getSink());
+	}
 
         if (lhsNameMatch && fieldsEqualAndNotArrays && !rhsesEqual) {
           PointerVariable constraintSrc = constraint.getSource();
@@ -1266,6 +1275,7 @@ public class PointsToQuery implements IQuery {
             } else {
               // locals are not in a loop. we have a definite refutation, since
               // no local can point to two values at once
+	      Thread.dumpStack();
               Util.Debug("refuted: " + edge + " and " + constraint);
               unsatCore.add(constraint);
               return false;
@@ -1285,6 +1295,7 @@ public class PointsToQuery implements IQuery {
           // each instance number...
           // if (caseSplits.isEmpty()) caseSplits.add(currentPath.deepCopy());
           // a single "rule not applied" case suffices
+	  Thread.dumpStack();
           Util.Debug("refuted: " + edge + " and " + constraint);
           unsatCore.add(constraint);
           return false; // ok to label as inconsistent; only the rule not taken
@@ -1396,7 +1407,6 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {     
       PointerKey key = edge.getField();    
       if (key != null && keys.contains(key)) {
-        // relevant due to the return value
         toRemove.add(edge);
         if (earlyRet) return toRemove; 
       }
@@ -1404,9 +1414,9 @@ public class PointsToQuery implements IQuery {
       // if the source is symbolic, there may be many fields that are modified -- check 'em all
       if (edge.getSource().isSymbolic()) {
         Util.Assert(edge.getFieldRef() != null);
-        SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();
+        SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
-          if (keys.contains(fieldKey)) {
+          if (keys.contains(fieldKey)) {  
             toRemove.add(edge);
             if (earlyRet) return toRemove; 
           }

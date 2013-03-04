@@ -740,32 +740,20 @@ public class PathQuery implements IQuery {
       PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.depRuleGenerator.getHeapModel()); 
       List<FieldReference> toSub = new LinkedList<FieldReference>();
       for (AtomicPathConstraint constraint : constraints) {
-        if (constraint.getLhs() instanceof SimplePathTerm) {
-          SimplePathTerm constraintLHS = (SimplePathTerm) constraint.getLhs();
-          // we model 0 == null == false all as the integer 0. each is the
-          // default value for its respective type
-          if (constraintLHS.getObject() != null && constraintLHS.hasField() && constraintLHS.getObject().equals(thisVar)) {
-            toSub.add(constraintLHS.getFirstField());
+	Set<SimplePathTerm> terms = constraint.getTerms();
+        for (SimplePathTerm term : terms) {
+	  if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
+            toSub.add(term.getFirstField());
           }
-        }
-        if (constraint.getRhs() instanceof SimplePathTerm) {
-          SimplePathTerm constraintRHS = (SimplePathTerm) constraint.getRhs();
-          // we model 0 == null == false all as the integer 0. each is the
-          // default value for its respective type
-          if (constraintRHS.getObject() != null && constraintRHS.hasField() && constraintRHS.getObject().equals(thisVar)) {
-            toSub.add(constraintRHS.getFirstField());
-          }
-        }
+	}
       }
-      
-      
       
       // init to default values
       for (FieldReference field : toSub) {
+	if (Options.DEBUG) Util.Debug("initializing " + field + " to default value");
         substituteExpForFieldRead(new SimplePathTerm(0), thisVar, field);
         // check if substitution made query infeasible
-        if (!this.isFeasible())
-          return IQuery.INFEASIBLE;
+        if (!this.isFeasible()) return IQuery.INFEASIBLE;
       }
     }
     if (WALACFGUtil.isClassInit(instr) || WALACFGUtil.isConstructor(instr)) {
