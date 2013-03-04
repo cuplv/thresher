@@ -740,10 +740,11 @@ public class PointsToQuery implements IQuery {
         boolean add = true;
         // check if some produced edge already subsumes the new edge 
         for (PointsToEdge prod : query.produced) {
-          if (edge.symbContains(prod)) {
-            add = false;
-            break;
-          }
+	    //if (edge.symbContains(prod)) {
+	    if (edge.equals(prod)) {
+		add = false;
+		break;
+	    }
         }
         
         // TODO: should do narrowing of symbolic vars here...
@@ -1275,7 +1276,6 @@ public class PointsToQuery implements IQuery {
             } else {
               // locals are not in a loop. we have a definite refutation, since
               // no local can point to two values at once
-	      Thread.dumpStack();
               Util.Debug("refuted: " + edge + " and " + constraint);
               unsatCore.add(constraint);
               return false;
@@ -1295,7 +1295,6 @@ public class PointsToQuery implements IQuery {
           // each instance number...
           // if (caseSplits.isEmpty()) caseSplits.add(currentPath.deepCopy());
           // a single "rule not applied" case suffices
-	  Thread.dumpStack();
           Util.Debug("refuted: " + edge + " and " + constraint);
           unsatCore.add(constraint);
           return false; // ok to label as inconsistent; only the rule not taken
