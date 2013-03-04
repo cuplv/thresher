@@ -298,8 +298,9 @@ public class PathQuery implements IQuery {
       int use = instr.getUse(1);
       if (tbl.isConstant(use)) {
         if (tbl.isIntegerConstant(use)) { // assigning constant to field
-          if (Options.DEBUG)
+          if (Options.DEBUG) {
             Util.Debug("subbing constant " + tbl.getIntValue(use) + " for " + varName + "." + fieldName);
+          }
           substituteExpForFieldRead(new SimplePathTerm(tbl.getIntValue(use)), varName, fieldName);
         } else if (tbl.isNullConstant(use)) {
           substituteExpForFieldRead(SimplePathTerm.NULL, varName, fieldName);
@@ -307,9 +308,20 @@ public class PathQuery implements IQuery {
           // TODO: can cause overflow. just adding to get easy initializations of longs to 0. will fix later
           substituteExpForFieldRead(new SimplePathTerm(new Long(tbl.getLongValue(use)).intValue()), varName, fieldName);
         } else { // don't know how to sub this kind of constant. just drop instead
-          // TODO: implement other kinds of subbing
-          // can't sub...drop constraints c
-          dropConstraintsContaining(varName);
+          // check if this is writing to a field in our constraints
+          for (AtomicPathConstraint constraint : this.constraints) {
+            Set<SimplePathTerm> terms = constraint.getTerms();
+            for (SimplePathTerm term : terms) {
+              if (term.getVars().contains(varName) &&
+                  term.hasField() && term.getFirstField().equals(fieldName)) {
+                // TODO: implement other kinds of subbing
+                // can't sub...drop constraints c
+                dropConstraintsContaining(varName);
+              }
+            }
+          }
+          // doesn't write to a field we care about; no need to drop
+          return true;
         }
       } else { // assigning var to field
         // TODO: write test where name being substituted is active at multiple locations

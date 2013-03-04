@@ -242,6 +242,9 @@ public class Main {
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
                                                        "ContainerRefute", "ContainerNoRefute" }; 
     
+    // need call stack depth of at least 3 to refute some of these tests
+    if (Options.MAX_CALLSTACK_DEPTH < 3) Options.MAX_CALLSTACK_DEPTH = 3;
+    
     String regressionDir = "apps/tests/immutability/";
     boolean result;
     int testNum = 0;
@@ -249,10 +252,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    final String[] tests0 = { "ContainerNoRefute" };
+    final String[] tests0 = { "MapNoRefute" };
 
-    for (String test : immutabilityTests) {
-    //for (String test : tests0) {
+    //for (String test : immutabilityTests) {
+    for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {

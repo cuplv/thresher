@@ -378,7 +378,7 @@ public class IPathInfo { // implements Comparable {
   public List<IPathInfo> enterCall(SSAInvokeInstruction instr, CallGraph cg, CGNode callee) {
     return enterCall(instr, cg, callee, false);
   }
-
+  
   /**
    * alter constraints to reflect that we are entering callee. note that
    * currentNode is still the caller node here
@@ -392,9 +392,8 @@ public class IPathInfo { // implements Comparable {
    */
   private List<IPathInfo> enterCall(SSAInvokeInstruction instr, CallGraph cg, CGNode callee, boolean skip) {
     String calleeName = null;
-    if (callee != null) {
-      calleeName = callee.getMethod().toString();
-    } else Util.Assert(skip);
+    if (callee != null) calleeName = callee.getMethod().toString();
+    else Util.Assert(skip);
     // if this call is relevant
     if (skip || callee.getIR() == null || calleeName.contains("equals") || calleeName.contains("hashCode")
         || calleeName.contains("indexOf") || calleeName.contains("Iterator") || !isCallRelevantToQuery(instr, callee, cg)) { 
