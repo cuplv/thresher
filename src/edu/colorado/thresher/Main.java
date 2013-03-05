@@ -137,11 +137,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
+    //final String[] fakeMapTests0 = new String[] {};
+    final String[] fakeMapTests0 = new String[] { "SingletonNoRefute" };
 
-    //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { };
+    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;

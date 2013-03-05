@@ -10,6 +10,7 @@ import z3.java.Z3AST;
 import z3.java.Z3Context;
 
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -531,7 +532,8 @@ public class SimplePathTerm implements PathTerm {
   public boolean isHeapLocation() {
     // need to be careful since we can read null from fields; this is why fields
     // must be null
-    return this.object != null && !this.object.isLocalVar() && this.fields == null;
+    return this.object != null && !this.object.isLocalVar() && this.fields == null &&
+        !(this.object.getInstanceKey() instanceof StaticFieldKey);
   }
 
 }
