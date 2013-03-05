@@ -1,6 +1,6 @@
 public class FakeMap {
 
-    private final static Object[] EMPTY_TABLE = new Object[0];
+    private final static Object[] EMPTY_TABLE = new Object[1];
     private int size = 0;
     private int capacity;
     private Object[] table;
