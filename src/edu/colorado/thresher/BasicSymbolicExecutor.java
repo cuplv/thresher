@@ -178,7 +178,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       seenPaths.put(path.getCurrentNode(), seen);
       seen.add(path);
     } else {
-      //return !IPathInfo.mergePathWithPathSet(path, seen);
+      return !IPathInfo.mergePathWithPathSet(path, seen);
+      /*
       if (Options.SUBSUMPTION_CHECK_AT_SUMMARIES) {
         List<IPathInfo> toRemove = new LinkedList<IPathInfo>();
         for (IPathInfo seenPath : seen) {
@@ -204,6 +205,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           return true;
         } // else, haven't seen it; continue execution as normal
       }
+            */
     }
     return false;
   }

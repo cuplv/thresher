@@ -93,10 +93,13 @@ public class IBranchPoint {
     // true branch is always the first one
     boolean trueBranch = this.ir.getControlFlowGraph().getNormalSuccessors(this.blk).iterator().next().equals(path.getLastBlock());
     Util.Debug("adding path " + path + " as " + trueBranch + " branch for " + id + ": " + this.instr);
-    if (trueBranch)
-      truePaths.add(path);
-    else
-      falsePaths.add(path);
+    if (trueBranch) {
+      IPathInfo.mergePathWithPathSet(path, truePaths);
+      //truePaths.add(path);
+    } else {
+      IPathInfo.mergePathWithPathSet(path, falsePaths);
+      //falsePaths.add(path);
+    }
   }
 
   public boolean addPathToLoopHead(IPathInfo path) {
