@@ -1100,7 +1100,7 @@ public class Util {
   public static void Assert(boolean assertion, String msg) {
     if (!assertion) {
       Util.Print("FAILED ASSERTION: " + msg);
-      Util.Debug("FAILED ASSERTION: " + msg);
+      //Util.Debug("FAILED ASSERTION: " + msg);
       // Thread.dumpStack();
       // System.exit(1);
       throw new NullPointerException();

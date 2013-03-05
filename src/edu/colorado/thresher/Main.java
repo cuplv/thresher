@@ -117,8 +117,8 @@ public class Main {
     Util.LOG = true;
     Util.PRINT = true;
     REGRESSIONS = true;
-    runImmutabilityRegressionTests();
-    //runAndroidLeakRegressionTests();
+    //runImmutabilityRegressionTests();
+    runAndroidLeakRegressionTests();
   }
   
   
@@ -151,10 +151,10 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "DoubleLoopNoRefute" };
+    //final String[] fakeMapTests0 = new String[] { "ManuLoopNoRefute" };
 
-    final String[] realHashMapTests0 = new String[] { };
-    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    //final String[] realHashMapTests0 = new String[] { };
+    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;

@@ -18,7 +18,8 @@ public class SymbolicPointerVariable implements PointerVariable {
   private final int id;
 
   public static PointerVariable makeSymbolicVar(Set<InstanceKey> possibleValues) {
-    Util.Pre(!possibleValues.isEmpty(), "possible values empty");
+    // can't make symbolic var from the empty set
+    Util.Pre(!possibleValues.isEmpty());
     if (possibleValues.size() == 1) return Util.makePointerVariable(possibleValues.iterator().next());
     return new SymbolicPointerVariable(possibleValues);
   }
@@ -26,9 +27,14 @@ public class SymbolicPointerVariable implements PointerVariable {
   private SymbolicPointerVariable(Set<InstanceKey> possibleValues) {
     // this.name = makeNewSymbolicVariable();
     this.id = symbCounter++;
-
     Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
     this.possibleValues = possibleValues;
+    
+    if (Options.DEBUG) {
+      Util.Debug("Possible values for " + id + "symb:");
+      Util.Debug(Util.printCollection(possibleValues));
+    }
+    
   }
 
   public CGNode getNode() {
@@ -129,6 +135,9 @@ public class SymbolicPointerVariable implements PointerVariable {
     return toReturn;
   }
 
+  
+  // TODO: these names (symbEq and symbContains) are dumb...they mean the opposite of what one would think
+  
   @Override
   public boolean symbEq(PointerVariable other) {
     if (other instanceof SymbolicPointerVariable) {

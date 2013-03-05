@@ -141,6 +141,7 @@ public class PointsToEdge implements Constraint, Comparable {
    *          - mappings produced here are hard constraints -- add them to
    *          alreadySubbed
    */
+  /*
   public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
       Set<PointerVariable> alreadySubbed, boolean hard) {
     // Util.Debug("getting subs for " + this + " and " + other);
@@ -155,7 +156,6 @@ public class PointsToEdge implements Constraint, Comparable {
             // the original map already has a value here; make a different choice
             copy.put((SymbolicPointerVariable) this.source, other.getSource());
             toAdd.add(copy);
-            // Util.Unimp("did case split!");
           }
 
           // Util.Assert(sub == null || sub.equals(other.getSource()),
@@ -185,10 +185,8 @@ public class PointsToEdge implements Constraint, Comparable {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
           PointerVariable sub = subMap.get(this.sink);
 
-          if (sub != null && !sub.equals(other.getSink())) { // more than one
-                                                             // instantiation
-                                                             // choice. must do
-                                                             // a case split
+          // more than one instantiation choice. must do a case split
+          if (sub != null && !sub.equals(other.getSink())) { 
             Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
             // Util.Debug("adding case split sub relationship " + this.sink +
             // " " + other.getSink());
@@ -196,7 +194,6 @@ public class PointsToEdge implements Constraint, Comparable {
             // choice
             copy.put((SymbolicPointerVariable) this.sink, other.getSink());
             toAdd.add(copy);
-            // Util.Unimp("did case split!");
           }
 
           // Util.Assert(sub == null || sub.equals(other.getSink()),
@@ -206,9 +203,77 @@ public class PointsToEdge implements Constraint, Comparable {
             // Util.Debug("adding sub relationship " + this.sink + " " +
             // other.getSink());
             subMap.put((SymbolicPointerVariable) this.sink, other.getSink());
-            if (hard)
-              alreadySubbed.add(this.sink); // hard constraints should ot be
-                                            // mapped twiced
+            // hard constraints should not be mapped twice
+            if (hard) alreadySubbed.add(this.sink); 
+          }
+        }
+        subMaps.addAll(toAdd);
+      }
+    }
+  }
+   */
+  
+  public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
+      Set<PointerVariable> alreadySubbed, boolean hard) {
+    List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
+    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
+      if (this.source.isSymbolic()) {
+        for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
+          PointerVariable sub = subMap.get(this.source);
+          // more than one instantiation choice. must do a case split
+          if (sub != null && !sub.equals(other.getSource())) { 
+            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
+            // the original map already has a value here; make a different choice
+            copy.put((SymbolicPointerVariable) this.source, other.getSource());
+            toAdd.add(copy);
+          }
+
+          else if (sub == null && this.source != other.getSource()) {
+            // add a case split where we do not bind this edge
+            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
+            toAdd.add(copy);
+            // add case where we do bind this edge
+            if (other.getSource().isSymbolic()) {
+              // compute intersection
+              Set<InstanceKey> newKeys = Util.deepCopySet(this.source.getPossibleValues());
+              newKeys.retainAll(other.getSource().getPossibleValues());
+              Util.Debug("computing intersected!");
+              subMap.put((SymbolicPointerVariable) this.source, SymbolicPointerVariable.makeSymbolicVar(newKeys));
+            } else subMap.put((SymbolicPointerVariable) this.source, other.getSource());
+          }
+        }
+
+        subMaps.addAll(toAdd);
+        toAdd.clear();
+      }
+
+      // Util.Debug("trying symbolic sink " + this.sink);
+      // Util.Debug("symbolic? " + this.sink.isSymbolic() + " symb eq " +
+      // other.getSink() + "? " + this.sink.symbEq(other.getSink()));
+      if (this.sink.isSymbolic() && this.sink.symbEq(other.getSink()) && !alreadySubbed.contains(this.sink)) {
+        for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
+          PointerVariable sub = subMap.get(this.sink);
+
+          // more than one instantiation choice. must do a case split
+          if (sub != null && !sub.equals(other.getSink())) { 
+            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
+            // Util.Debug("adding case split sub relationship " + this.sink +
+            // " " + other.getSink());
+            // the original map already has a value here; make a different
+            // choice
+            copy.put((SymbolicPointerVariable) this.sink, other.getSink());
+            toAdd.add(copy);
+          }
+
+          // Util.Assert(sub == null || sub.equals(other.getSink()),
+          // "more than one instantiation choice for " + this.sink + ": " + sub
+          // + " and " + other.getSink());
+          else if (sub == null && this.sink != other.getSink()) {
+            // Util.Debug("adding sub relationship " + this.sink + " " +
+            // other.getSink());
+            subMap.put((SymbolicPointerVariable) this.sink, other.getSink());
+            // hard constraints should not be mapped twice
+            if (hard) alreadySubbed.add(this.sink); 
           }
         }
         subMaps.addAll(toAdd);

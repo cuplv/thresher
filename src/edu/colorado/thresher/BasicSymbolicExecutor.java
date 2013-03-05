@@ -174,11 +174,11 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     Set<IPathInfo> seen = seenPaths.get(path.getCurrentNode());
     if (seen == null) {
       // create seen and add this path to it
-      // seen = new TreeSet<IPathInfo>();
-      seen = HashSetFactory.make();//new HashSet<IPathInfo>();
+      seen = HashSetFactory.make();
       seenPaths.put(path.getCurrentNode(), seen);
       seen.add(path);
     } else {
+      //return !IPathInfo.mergePathWithPathSet(path, seen);
       if (Options.SUBSUMPTION_CHECK_AT_SUMMARIES) {
         List<IPathInfo> toRemove = new LinkedList<IPathInfo>();
         for (IPathInfo seenPath : seen) {

@@ -6,7 +6,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 
 public class DependencyRule implements Comparable {
@@ -51,46 +53,58 @@ public class DependencyRule implements Comparable {
    * @return
    */
   public DependencyRule substitute(Map<SymbolicPointerVariable, PointerVariable> subMap) {
-    if (subMap.isEmpty())
-      return this;
+    if (subMap.isEmpty()) return this;
     // perform substitutions suggested by subMap
+
+    Map<SymbolicPointerVariable, PointerVariable> newMap = HashMapFactory.make();
+    
+    // get new shown edge
     PointerVariable newSrc = shown.getSource(), newSnk = shown.getSink();
-    for (PointerVariable subFor : subMap.keySet()) { // get new shown edge
-      // Util.Debug("sub " + subFor + " with " + subMap.get(subFor));
-      // if (shown.getSource().equals(subFor)) {
+    for (SymbolicPointerVariable subFor : subMap.keySet()) { // get new shown edge
       if (shown.getSource() == subFor) {
-        newSrc = subMap.get(subFor);
+        if (newMap.containsKey(subFor)) newSrc = newMap.get(subFor);
+        else newSrc = subMap.get(subFor);
+        /*
+        if (newSrc.isSymbolic()) { // constrain by shown src
+          Set<InstanceKey> newKeys = Util.deepCopySet(newSrc.getPossibleValues());
+          newKeys.retainAll(shown.getSource().getPossibleValues());
+          newSrc = SymbolicPointerVariable.makeSymbolicVar(newKeys);
+          newMap.put(subFor, newSrc);
+        }
+        */
       }
-      // if (shown.getSink().equals(subFor)) {
       if (shown.getSink() == subFor) {
-        newSnk = subMap.get(subFor);
+        if (newMap.containsKey(subFor)) newSnk = newMap.get(subFor);
+        else newSnk = subMap.get(subFor);
+        /*
+        if (newSnk.isSymbolic()) { // constrain by shown snk
+          Set<InstanceKey> newKeys = Util.deepCopySet(newSnk.getPossibleValues());
+          newKeys.retainAll(shown.getSink().getPossibleValues());
+          newSnk = SymbolicPointerVariable.makeSymbolicVar(newKeys);
+          newMap.put(subFor, newSnk);
+        } 
+        */
       }
     }
-    PointsToEdge newShown;
-    if (newSrc instanceof ConcretePointerVariable)
-      newShown = new PointsToEdge((ConcretePointerVariable) newSrc, newSnk, shown.getFieldRef());
-    else
-      newShown = new PointsToEdge((SymbolicPointerVariable) newSrc, newSnk, shown.getFieldRef());
-
+    PointsToEdge newShown = new PointsToEdge(newSrc, newSnk, shown.getFieldRef());
+    
     // get new toShow set
     TreeSet<PointsToEdge> newToShow = new TreeSet<PointsToEdge>();
     for (PointsToEdge edge : this.toShow) {
       PointerVariable src = edge.getSource(), snk = edge.getSink();
       for (PointerVariable subFor : subMap.keySet()) {
-        // if (edge.getSource().equals(subFor)) {
         if (edge.getSource() == subFor) {
-          src = subMap.get(subFor);
+          if (newMap.containsKey(subFor)) src = newMap.get(subFor);
+          else src = subMap.get(subFor);
         }
-        // if (edge.getSink().equals(subFor)) {
         if (edge.getSink() == subFor) {
-          snk = subMap.get(subFor);
+          if (newMap.containsKey(subFor)) snk = newMap.get(subFor);
+          else snk = subMap.get(subFor);
         }
       }
-      if (src instanceof ConcretePointerVariable)
-        newToShow.add(new PointsToEdge((ConcretePointerVariable) src, snk, edge.getFieldRef()));
-      else
-        newToShow.add(new PointsToEdge((SymbolicPointerVariable) src, snk, edge.getFieldRef()));
+      newToShow.add(new PointsToEdge(src, snk, edge.getFieldRef()));
     }
+     
     Util.Assert(newToShow.size() == toShow.size(), "discrepancy in toShow set sizes! newToShow " + Util.printCollection(newToShow)
         + " toShow " + Util.printCollection(toShow));
     DependencyRule newRule = new DependencyRule(newShown, this.stmt, newToShow, this.node, this.blk);

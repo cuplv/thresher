@@ -1,5 +1,7 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -73,8 +75,8 @@ public class IBranchPoint {
     this.node = node;
     this.ir = node.getIR();
     this.symbolTable = ir.getSymbolTable();
-    this.truePaths = HashSetFactory.make();//new HashSet<IPathInfo>();
-    this.falsePaths = HashSetFactory.make();// new HashSet<IPathInfo>();
+    this.truePaths = HashSetFactory.make();
+    this.falsePaths = HashSetFactory.make();
     this.branchPointKey = makeBranchPointKey(instr, blk, node);
     this.loopHead = loopHead;
     this.id = id;
@@ -102,11 +104,8 @@ public class IBranchPoint {
     Util.Pre(path.getLastBlock() != null, "need last block to be set here");
     // true branch is always the first one
     Util.Debug("adding loop head path " + path + id + ": " + this.instr + "; have " + truePaths.size());
-    // boolean add = true;
-    //if (truePaths.size() > 100)
-      //Util.Assert(false, "have seen an unreasonable number of paths at loop head!");
-    return truePaths.add(path);
-    // return seenPaths.add(path);
+
+    return IPathInfo.mergePathWithPathSet(path, truePaths);
   }
 
   public boolean isLoopHead() {

@@ -30,8 +30,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
   private final Map<String, IBranchPoint> branchPointMap;
   LinkedList<IBranchPoint> branchPointStack;
+  // TODO: clear this after merging loop head!
   // map from (CGNode, Block#) -> set of paths seen at block
-  private final Map<Pair<CGNode, Integer>, Set<IPathInfo>> loopHeadSeenPaths;
+  //private final Map<Pair<CGNode, Integer>, Set<IPathInfo>> loopHeadSeenPaths;
 
   /*
   public OptimizedPathSensitiveSymbolicExecutor(CallGraph callGraph, Logger logger) {
@@ -43,7 +44,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     super(callGraph, logger);
     this.branchPointMap = HashMapFactory.make();
     this.branchPointStack = new LinkedList<IBranchPoint>();
-    this.loopHeadSeenPaths = HashMapFactory.make();
+    //this.loopHeadSeenPaths = HashMapFactory.make();
   }
 
   @Override
@@ -60,7 +61,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // more mileage out of summaries
     info.removeLoopProduceableConstraints(currentBlock);
     if (info.foundWitness()) return true;
-
+/*
     // use summaries to avoid redundant exploration
     Pair<CGNode, Integer> loopKey = Pair.make(info.getCurrentNode(), info.getCurrentBlock().getNumber());
     Set<IPathInfo> seen = loopHeadSeenPaths.get(loopKey);
@@ -95,6 +96,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         } // else, haven't seen it; continue execution as normal
       }
     }
+    */
 
     boolean seenLoopHead = false;
     // if (info.seenLoopHead(currentBlock)) {
@@ -285,6 +287,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   public IPathInfo mergeLoop(Set<IPathInfo> truePaths, Set<IPathInfo> falsePaths, SSACFG.BasicBlock loopHeadBlock) {
     if (Options.DEBUG) Util.Debug("merging loop");
    
+    Util.Debug(pathsToExplore.size() + " paths left to explore.");
+    for (IPathInfo path : this.pathsToExplore) {
+      Util.Debug("TO EXPLORE " + path.getPathId());
+    }
+    
     if (Options.SYNTHESIS) {
       // add "loop taken" constraint
       for (IPathInfo info : truePaths) {
@@ -300,48 +307,57 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       // TODO: change stale constraints to retvals of native/unknown functions
     }
     
-    truePaths.addAll(falsePaths);
+    for (IPathInfo falsePath : falsePaths) {
+      IPathInfo.mergePathWithPathSet(falsePath, truePaths);
+    }
 
-    // Util.Assert(!truePaths.isEmpty(), "true paths empty!");
     if (truePaths.isEmpty()) {
-      if (Options.DEBUG)
-        Util.Debug("no paths at loop head");
+      if (Options.DEBUG) Util.Debug("no paths at loop head");
       return selectPath();
     }
 
-    // TreeSet<IPathInfo> mergedPaths = new TreeSet<IPathInfo>();
-
-    // boolean first = true;
-    // IPathInfo base = null;
-
-    List<IPathInfo> toAdd = new LinkedList<IPathInfo>(), toRemove = new LinkedList<IPathInfo>();
-    if (Options.DEBUG)
+    List<IPathInfo> toRemove = new LinkedList<IPathInfo>();
+    if (Options.DEBUG) {
       Util.Debug("seen " + truePaths.size() + " paths at loop head");
-    for (IPathInfo path : truePaths) {
-      if (Options.DEBUG)
+      for (IPathInfo path : truePaths) {
         Util.Debug("PATH " + path);
+      }
     }
 
     for (IPathInfo info : truePaths) {
       info.setCurrentBlock(loopHeadBlock);
       // start before the branch instr
       info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); 
-
       List<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info);
       if (cases == IPathInfo.INFEASIBLE) toRemove.add(info);
     }
-    truePaths.addAll(toAdd);
     truePaths.removeAll(toRemove);
-
+    toRemove.clear();
+    
+    for (IPathInfo info0 : truePaths) {
+      for (IPathInfo info1 : truePaths) {
+        if (info0 != info1) {
+          if (info0.containsQuery(info1)) toRemove.add(info0);
+        }
+      }
+    }
+    
+    truePaths.removeAll(toRemove);
+    
     for (IPathInfo info : truePaths) {
       if (!info.containsLoopProduceableConstraints(loopHeadBlock)) {
+        Util.Debug("path " + info.getPathId() + " has loop produceable constraints");
+      }
+
+      // TODO: THIS IS NOT SOUND! get rid of it
+      //if (!info.containsLoopProduceableConstraints(loopHeadBlock)) {
         info.removeSeenLoopHead(loopHeadBlock); // forget that we saw this loop
                                                 // head; needed for nested loops
         addPath(info);
-      }
+      //} else Util.Debug("not adding " + info.getPathId() + " because it contains loop produceable constraints.");
     }
     // Util.Debug("starting with " + truePaths.size() + " paths");
-    if (Options.DEBUG) Util.Debug("done merging loop; adding " + truePaths.size() + " paths");
+    if (Options.DEBUG) Util.Debug("done merging loop; added " + truePaths.size() + " paths");
     return selectPath();
   }
 
@@ -532,7 +548,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // true/false branch
     boolean truePathsEmpty = truePaths.isEmpty();
     boolean falsePathsEmpty = falsePaths.isEmpty();
-    if (Options.DEBUG) Util.Debug("merging branch point " + point);
+    if (Options.DEBUG) Util.Debug("merging branch point in method " + point.getMethod().getMethod().getName() + ": " + point);
 
     if (point.isLoopHead()) {
       // Util.visualizeIR(Options.DEBUG_cha, point.getIR(), "TEST");

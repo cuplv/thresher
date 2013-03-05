@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -316,9 +317,8 @@ public class IPathInfo { // implements Comparable {
    */
   public void removeSeenLoopHead(SSACFG.BasicBlock loopHead) {
     Pair<CGNode, SSACFG.BasicBlock> pair = Pair.make(this.currentNode, loopHead);
-    // boolean removed = loopHeadSet.remove(loopHead);
     boolean removed = loopHeadSet.remove(pair);
-    Util.Assert(removed, "couldn't remove loop head " + pair);
+    //Util.Assert(removed, "couldn't remove loop head " + pair + " from " + Util.printCollection(loopHeadSet));
   }
 
   public int loopsSeen() {
@@ -669,6 +669,32 @@ public class IPathInfo { // implements Comparable {
     startedInLoop = true;
   }
   public void clearStartedInLoop() { startedInLoop = false; }
+  
+  /**
+   * insert info into pathSet if pathSet does not contain any paths simpler than info
+   * if info is simpler than some path(s) in pathSet, remove them
+   * 
+   * if Options.USE_SUMMARIES is false, this performs a normal insertion
+   * @return
+   */
+  public static boolean mergePathWithPathSet(IPathInfo info, Set<IPathInfo> pathSet) {
+    if (Options.USE_SUMMARIES) {
+      List<IPathInfo> toRemove = new ArrayList<IPathInfo>(pathSet.size());
+      for (IPathInfo path : pathSet) {
+        if (info == path) continue;
+        if (info.containsQuery(path)) {
+          // already seen path simpler than this; don't add
+          if (Options.DEBUG) Util.Debug(info.getPathId() + " refuted by summary; " 
+                                        + path.getPathId() + " is simpler");
+          return false;
+        } else if (path.containsQuery(info)) {
+          toRemove.add(path);
+        } // else, they're incomparable
+      }
+      for (IPathInfo removeMe : toRemove) pathSet.remove(removeMe);
+    } 
+    return pathSet.add(info);
+  }
 
   // TODO: possibly use program point information in hash code as well
   @Override

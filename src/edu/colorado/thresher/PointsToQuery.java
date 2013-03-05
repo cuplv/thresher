@@ -695,13 +695,16 @@ public class PointsToQuery implements IQuery {
   }
 
   static void applyRule(DependencyRule rule, PointsToQuery query) {
+    // TODO: this is a giant mess that's impossible to reason about. clean it up
+    Util.Debug("applying rule " + rule);
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     // special case for when the constraints contain a symbolic edge that
     // matches a concrete edge in the constraints
     for (PointsToEdge ruleEdge : rule.getToShow()) {
       if (ruleEdge.isSymbolic()) continue;
       for (PointsToEdge edge : query.constraints) {
-        if (edge.getSink().isSymbolic() && edge.getSource().equals(ruleEdge.getSource())) {
+        if (edge.getSink().isSymbolic() && 
+            edge.getSource().equals(ruleEdge.getSource())) {
           if (edge.getSink().symbContains(ruleEdge.getSink())) {
             // remove the symbolic edge; it should be replaced with the concrete
             // one from this rule
@@ -717,21 +720,55 @@ public class PointsToQuery implements IQuery {
     toRemove.clear();
     for (PointsToEdge edge : query.produced) {
       if (edge.getSource().isLocalVar()) continue;
-      if (edge.getSource().equals(rule.getShown().getSource()) && !rule.getShown().getSink().equals(edge.getSink())) {
+      if (edge.getSource().equals(rule.getShown().getSource()) && 
+          !rule.getShown().getSink().equals(edge.getSink())) {
         toRemove.add(edge);
       }
     }
     for (PointsToEdge removeMe : toRemove) query.produced.remove(removeMe);
     toRemove.clear();
+        
+    Map<SymbolicPointerVariable,PointerVariable> subMap = HashMapFactory.make();
 
     query.constraints.remove(rule.getShown());
     // special case for if shown removes a symbolic edge from the constraints
     for (PointsToEdge edge : query.constraints) {
-	if (edge.isSymbolic() && edge.symbContains(rule.getShown())) {
-	    toRemove.add(edge);
-	}
+      //if (edge.isSymbolic() && edge.symbContains(rule.getShown())) {
+      if (edge.isSymbolic() && edge.symbEq(rule.getShown())) {
+        toRemove.add(edge);
+        // look for other instances of the symbolic var to subsitute
+        if (edge.getSource().isSymbolic()) {
+          subMap.put((SymbolicPointerVariable) edge.getSource(), rule.getShown().getSource());
+        } else if (edge.getSink().isSymbolic()) {
+          subMap.put((SymbolicPointerVariable) edge.getSink(), rule.getShown().getSink());
+        }
+      }
     }
     for (PointsToEdge removeMe : toRemove) query.constraints.remove(removeMe);
+
+    for (SymbolicPointerVariable key : subMap.keySet()) {
+      toRemove.clear();
+      List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>();
+      for (PointsToEdge edge : query.constraints) {
+        boolean remove = false;
+        PointerVariable newSrc = edge.getSource(), newSnk = edge.getSink();
+        if (edge.getSource() == key) {
+          newSrc = subMap.get(key);
+          remove = true;
+        }
+        if (edge.getSink() == key) {
+          newSnk = subMap.get(key);
+          remove = true;
+        }
+        if (remove) {
+          toAdd.add(new PointsToEdge(newSrc, newSnk, edge.getFieldRef()));
+          toRemove.add(edge);
+        }
+      }
+      query.constraints.removeAll(toRemove);
+      query.constraints.addAll(toAdd);
+    }
+        
 
     if (!WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
 
@@ -740,11 +777,10 @@ public class PointsToQuery implements IQuery {
         boolean add = true;
         // check if some produced edge already subsumes the new edge 
         for (PointsToEdge prod : query.produced) {
-	    //if (edge.symbContains(prod)) {
-	    if (edge.equals(prod)) {
-		add = false;
-		break;
-	    }
+          if (edge.equals(prod)) {
+            add = false;
+            break;
+          }
         }
         
         // TODO: should do narrowing of symbolic vars here...
@@ -803,7 +839,7 @@ public class PointsToQuery implements IQuery {
     ruleEdges.add(shown);
     ruleEdges.addAll(rule.getToShow());
 
-    List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
+    //List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
 
     // first, match edges with local LHS's and concrete RHS's. these are hard constraints
     for (PointsToEdge edge : constraints) {
@@ -844,7 +880,7 @@ public class PointsToQuery implements IQuery {
     alreadySubbed.addAll(singleMap.values());
     DependencyRule newRule = rule.substitute(singleMap);
     // }
-
+    
     // now, do substitution for non-local edges
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
@@ -889,73 +925,6 @@ public class PointsToQuery implements IQuery {
     // Util.Debug("returning " + rules.size() + " rules.");
     return rules;
   }
-
-  /*
-   * Set<DependencyRule> bindSymbolicRule(DependencyRule rule, PointsToQuery
-   * currentQuery, CGNode currentNode) { PointsToEdge shown = rule.getShown();
-   * Set<DependencyRule> rules = new TreeSet<DependencyRule>();
-   * List<Map<SymbolicPointerVariable,PointerVariable>> subMaps = new
-   * LinkedList<Map<SymbolicPointerVariable,PointerVariable>>(); subMaps.add(new
-   * HashMap<SymbolicPointerVariable,PointerVariable>());
-   * //Map<SymbolicPointerVariable,PointerVariable> subMap = new
-   * HashMap<SymbolicPointerVariable,PointerVariable>(); Set<PointerVariable>
-   * alreadySubbed = new HashSet<PointerVariable>();
-   * 
-   * List<PointsToEdge> ruleEdges = new LinkedList<PointsToEdge>();
-   * ruleEdges.add(shown); ruleEdges.addAll(rule.getToShow());
-   * 
-   * List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
-   * 
-   * // match edges with local LHS's first. since these can't have case splits,
-   * they are hard constraints for (PointsToEdge edge : constraints) { for
-   * (PointsToEdge ruleEdge : ruleEdges) { if (ruleEdge.getSource().isLocalVar()
-   * && edge.getSource().isLocalVar()) ruleEdge.getSubsFromEdge(edge, subMaps,
-   * alreadySubbed, true); } }
-   * 
-   * for (PointsToEdge edge : produced) {
-   * Util.Assert(edge.getSource().isLocalVar(),
-   * "produced should only contain locals"); for (PointsToEdge ruleEdge :
-   * ruleEdges) { if (ruleEdge.getSource().isLocalVar())
-   * ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, true); } }
-   * Util.Assert(subMaps.size() == 1,
-   * "more than one instantiation choice for shown! have " + subMaps.size() +
-   * " this shouldn't happen, since we've only considered local constraints");
-   * //DependencyRule newRule = rule; //if (subMaps.size() == 1) {
-   * Map<SymbolicPointerVariable,PointerVariable> singleMap =
-   * subMaps.iterator().next(); alreadySubbed.addAll(singleMap.values());
-   * DependencyRule newRule = rule.substitute(singleMap); //}
-   * 
-   * // now, do substitution for non-local edges for (PointsToEdge edge :
-   * constraints) { for (PointsToEdge ruleEdge : ruleEdges) { if
-   * (!ruleEdge.getSource().isLocalVar() && !edge.getSource().isLocalVar())
-   * ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false); } }
-   * 
-   * for (Map<SymbolicPointerVariable,PointerVariable> map : subMaps) {
-   * rules.add(newRule.substitute(map)); }
-   * 
-   * Map<SymbolicPointerVariable,PointerVariable> aliasMap = new
-   * HashMap<SymbolicPointerVariable, PointerVariable>();
-   * 
-   * List<DependencyRule> toAdd = new LinkedList<DependencyRule>(); // also
-   * consider possible aliasing relationships for (DependencyRule symbRule :
-   * rules) { Set<SymbolicPointerVariable> symbVars =
-   * symbRule.getSymbolicVars(); if (symbVars.size() > 1) { // more than 1
-   * symbolic var; consider all possible aliasing combos
-   * Util.Assert(symbVars.size() == 2, "more than 2 symbvars in " + symbRule);
-   * Iterator<SymbolicPointerVariable> iter = symbVars.iterator();
-   * SymbolicPointerVariable var0 = iter.next(), var1 = iter.next(); //
-   * comparison issues mean we don't know whether var0/var1 is the toSub/subFor
-   * var. // whichever var the old rule contains, that's the subFor variable if
-   * (rule.getSymbolicVars().contains(var0)) { if (Options.DEBUG)
-   * Util.Debug("considering aliasing of " + var0 + " and " + var1);
-   * aliasMap.put(var0, var1); } else { if (Options.DEBUG)
-   * Util.Debug("considering aliasing of " + var1 + " and " + var0);
-   * aliasMap.put(var1, var0); }
-   * 
-   * toAdd.add(symbRule.substitute(aliasMap)); } aliasMap.clear(); }
-   * rules.addAll(toAdd); //Util.Debug("returning " + rules.size() + " rules.");
-   * return rules; }
-   */
 
   boolean isSymbolicRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
     PointsToEdge shown = rule.getShown();
