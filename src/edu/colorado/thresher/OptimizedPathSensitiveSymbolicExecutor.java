@@ -44,7 +44,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     super(callGraph, logger);
     this.branchPointMap = HashMapFactory.make();
     this.branchPointStack = new LinkedList<IBranchPoint>();
-    //this.loopHeadSeenPaths = HashMapFactory.make();
   }
 
   @Override
@@ -57,46 +56,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     final CGNode node = info.getCurrentNode();
     final IR ir = node.getIR();
 
-    // normalize query w.r.t to loop produceable constraints in order to get more mileage out of summaries
-    // more mileage out of summaries
+    // remove loop produceable path constraints. we're not computing a fixed point over those
     info.removeLoopProduceableConstraints(currentBlock);
     if (info.foundWitness()) return true;
-/*
-    // use summaries to avoid redundant exploration
-    Pair<CGNode, Integer> loopKey = Pair.make(info.getCurrentNode(), info.getCurrentBlock().getNumber());
-    Set<IPathInfo> seen = loopHeadSeenPaths.get(loopKey);
-    if (seen == null) { // don't have a summary list for this loop head
-      seen = HashSetFactory.make(); 
-      loopHeadSeenPaths.put(loopKey, seen);
-      seen.add(info);
-    } else { // do have a summary list for this loop head
-      if (Options.SUBSUMPTION_CHECK_AT_SUMMARIES) {
-        List<IPathInfo> toRemove = new LinkedList<IPathInfo>();
-        for (IPathInfo path : seen) {
-          if (info.containsQuery(path)) { // have we seen a simpler path?
-            if (Options.DEBUG)
-              Util.Debug("refuted by loop summary: " + path + " simpler than " + info);
-            info.refute();
-            return false;
-          } else if (path.containsQuery(info)) { // no; is this one simpler?
-            if (Options.DEBUG)
-              Util.Debug("this path simpler than one we've seen; swapping");
-            toRemove.add(path);
-          }
-        }
-        seen.removeAll(toRemove);
-        seen.add(info);
-      } else { // just do regular check
-        // check if we've seen this path already
-        if (!seen.add(info)) {
-          if (Options.DEBUG)
-            Util.Debug("refuted by loop summary");
-          info.refute();
-          return false;
-        } // else, haven't seen it; continue execution as normal
-      }
-    }
-    */
 
     boolean seenLoopHead = false;
     // if (info.seenLoopHead(currentBlock)) {
@@ -286,11 +248,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
   public IPathInfo mergeLoop(Set<IPathInfo> truePaths, Set<IPathInfo> falsePaths, SSACFG.BasicBlock loopHeadBlock) {
     if (Options.DEBUG) Util.Debug("merging loop");
-   
-    Util.Debug(pathsToExplore.size() + " paths left to explore.");
-    for (IPathInfo path : this.pathsToExplore) {
-      Util.Debug("TO EXPLORE " + path.getPathId());
-    }
     
     if (Options.SYNTHESIS) {
       // add "loop taken" constraint
@@ -348,13 +305,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (!info.containsLoopProduceableConstraints(loopHeadBlock)) {
         Util.Debug("path " + info.getPathId() + " has loop produceable constraints");
       }
-
-      // TODO: THIS IS NOT SOUND! get rid of it
-      //if (!info.containsLoopProduceableConstraints(loopHeadBlock)) {
-        info.removeSeenLoopHead(loopHeadBlock); // forget that we saw this loop
-                                                // head; needed for nested loops
-        addPath(info);
-      //} else Util.Debug("not adding " + info.getPathId() + " because it contains loop produceable constraints.");
+      // forget that we saw this loop head; needed for nested loops  
+      info.removeSeenLoopHead(loopHeadBlock); 
+      addPath(info);
     }
     // Util.Debug("starting with " + truePaths.size() + " paths");
     if (Options.DEBUG) Util.Debug("done merging loop; added " + truePaths.size() + " paths");
@@ -517,7 +470,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   public IPathInfo mergeBranchPoint(IBranchPoint point) {
     Set<IPathInfo> truePaths = point.getTruePaths();
     Set<IPathInfo> falsePaths = point.getFalsePaths();
-    Set<IPathInfo> toRemove = HashSetFactory.make();//new HashSet<IPathInfo>();
+    Set<IPathInfo> toRemove = HashSetFactory.make();
 
     // remove infeasible true paths
     for (IPathInfo info : truePaths) {
@@ -534,9 +487,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     toRemove.clear();
     // remove infeasible false paths
     for (IPathInfo info : falsePaths) {
-      // Util.Assert(info.isFeasible(), "infeasible path " + info);
-      if (!info.isFeasible())
-        toRemove.add(info);
+      if (!info.isFeasible()) toRemove.add(info);
     }
     for (IPathInfo removeMe : toRemove) {
       boolean removed = falsePaths.remove(removeMe);
@@ -560,11 +511,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
     Set<IPathInfo> toAdd = HashSetFactory.make();
     if (truePathsEmpty && falsePathsEmpty) { // no paths are feasible
-      if (Options.DEBUG)
-        Util.Debug("no paths feasible");
+      if (Options.DEBUG) Util.Debug("no paths feasible");
     } else if (truePathsEmpty) { // no true paths are feasible
-      if (Options.DEBUG)
-        Util.Debug("no true paths feasible");
+      if (Options.DEBUG) Util.Debug("no true paths feasible");
       for (IPathInfo info : falsePaths) {
         // add path constraints to each path in falsePaths and continue
         if (info.addConstraintFromBranchPoint(point, false)) {
@@ -580,10 +529,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           toAdd.add(info); // path is feasible after adding constraint
       }
     } else { // paths on both sides are feasible
-      if (Options.DEBUG)
-        Util.Debug("paths feasible on both sides");
+      if (Options.DEBUG) Util.Debug("paths feasible on both sides");
       toRemove.clear();
-
       for (IPathInfo falsePath : falsePaths) {
         for (IPathInfo truePath : truePaths) {
           // Util.Debug(falsePath + "\n eq\n " + truePath + "?");
@@ -598,11 +545,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             // constraints are the same whether we make one pass or two passes
             // through the
             // loop, we would prefer not to explore the loop another time
-            if (falsePath.loopsSeen() > truePath.loopsSeen())
+            if (falsePath.loopsSeen() > truePath.loopsSeen()) {
               toAdd.add(falsePath); // continue execution on the path that has
                                     // seen more loop heads
-            else
+            } else {
               toAdd.add(truePath);
+            }
             toRemove.add(truePath); // we could also add falsePath here; they're
                                     // the same
           }
@@ -611,14 +559,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       // remove paths that are in both sets from each set; we've already added
       // them to the path manager
       for (IPathInfo removeMe : toRemove) {
-        boolean removed = truePaths.remove(removeMe);
-        if (Options.DEBUG)
-          Util.Assert(removed, "couldn't remove " + removeMe);
-      }
-      for (IPathInfo removeMe : toRemove) {
-        boolean removed = falsePaths.remove(removeMe);
-        if (Options.DEBUG)
-          Util.Assert(removed, "couldn't remove " + removeMe);
+        truePaths.remove(removeMe);
+        falsePaths.remove(removeMe);
       }
       // now, each path that remains must have the appropriate constraint added
       // to it
@@ -638,13 +580,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     }
 
     return selectPath();
-    /*
-     * if (!pathsToExplore.isEmpty()){ IPathInfo next =
-     * pathsToExplore.removeFirst(); // return path on the top of the stack
-     * Util.Assert(!next.isLoopMergeIndicator(),
-     * "loop merge indicator is the next path! " + next); return next; } return
-     * null; // no paths left to explore
-     */
   }
 
   /**

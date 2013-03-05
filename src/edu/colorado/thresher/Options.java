@@ -100,7 +100,7 @@ public class Options {
   // @boolOpt
   // (description="do summaries do smart subsumption check (true), or dumb equality check (false)?",
   // _default=true )
-  public static final boolean SUBSUMPTION_CHECK_AT_SUMMARIES = true; // you want
+  //public static final boolean SUBSUMPTION_CHECK_AT_SUMMARIES = true; // you want
                                                                      // this on
                                                                      // to be
                                                                      // fast

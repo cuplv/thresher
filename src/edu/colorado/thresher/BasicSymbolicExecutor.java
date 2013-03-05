@@ -179,33 +179,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       seen.add(path);
     } else {
       return !IPathInfo.mergePathWithPathSet(path, seen);
-      /*
-      if (Options.SUBSUMPTION_CHECK_AT_SUMMARIES) {
-        List<IPathInfo> toRemove = new LinkedList<IPathInfo>();
-        for (IPathInfo seenPath : seen) {
-          if (path.containsQuery(seenPath)) { // have we seen a simpler path?
-            if (Options.DEBUG)
-              Util.Debug("refuted by function summary;\n" + seenPath + "\nsimpler than\n" + path);
-            path.refute();
-            return true;
-          } else if (seenPath.containsQuery(path)) { // no; is this one simpler?
-            if (Options.DEBUG)
-              Util.Debug("this path simpler than one we've seen; swapping");
-            toRemove.add(seenPath);
-          }
-        }
-        seen.removeAll(toRemove);
-        seen.add(path);
-      } else { // just do regular check
-        // check if we've seen this path already
-        if (!seen.add(path)) {
-          if (Options.DEBUG)
-            Util.Debug("refuted by function summary");
-          path.refute();
-          return true;
-        } // else, haven't seen it; continue execution as normal
-      }
-            */
     }
     return false;
   }

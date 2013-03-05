@@ -1,7 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -95,10 +93,8 @@ public class IBranchPoint {
     Util.Debug("adding path " + path + " as " + trueBranch + " branch for " + id + ": " + this.instr);
     if (trueBranch) {
       IPathInfo.mergePathWithPathSet(path, truePaths);
-      //truePaths.add(path);
     } else {
       IPathInfo.mergePathWithPathSet(path, falsePaths);
-      //falsePaths.add(path);
     }
   }
 
@@ -164,8 +160,6 @@ public class IBranchPoint {
   public boolean isDummy() {
     return this.id == DUMMY_ID;
   }
-
-  // public boolean isDummy() { return this.id == DUMMY_ID; }
 
   @Override
   public String toString() {

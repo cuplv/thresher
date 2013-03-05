@@ -696,7 +696,6 @@ public class PointsToQuery implements IQuery {
 
   static void applyRule(DependencyRule rule, PointsToQuery query) {
     // TODO: this is a giant mess that's impossible to reason about. clean it up
-    Util.Debug("applying rule " + rule);
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     // special case for when the constraints contain a symbolic edge that
     // matches a concrete edge in the constraints

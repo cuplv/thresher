@@ -6,24 +6,11 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
@@ -240,7 +227,7 @@ public class Main {
 
     final String[] immutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
-                                                       "ContainerRefute", "ContainerNoRefute" }; 
+                                                       "MapRefute", "MapNoRefute" }; 
     
     // need call stack depth of at least 3 to refute some of these tests
     if (Options.MAX_CALLSTACK_DEPTH < 3) Options.MAX_CALLSTACK_DEPTH = 3;
@@ -254,8 +241,8 @@ public class Main {
     
     final String[] tests0 = { "MapNoRefute" };
 
-    //for (String test : immutabilityTests) {
-    for (String test : tests0) {
+    for (String test : immutabilityTests) {
+    //for (String test : tests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -321,18 +308,13 @@ public class Main {
     }
   }
 
-  public static boolean runAnalysisAllStaticFields(String appName, Set<String> refutedEdges) // wrapper
+  public static boolean runAnalysisAllStaticFields(String appName) // wrapper
       throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
     // String[] snkClasses = new String[] { "Landroid/app/Activity",
     // "Landroid/view/View"};
     String[] snkClasses = new String[] { "Landroid/app/Activity" };
     String[] srcClasses = new String[0]; // with no base
     return runAnalysis(appName, srcClasses, snkClasses, false);
-  }
-
-  public static boolean runAnalysisAllStaticFields(String appName) // wrapper
-      throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    return runAnalysisAllStaticFields(appName);
   }
 
   public static boolean runAnalysisActivityAndViewFieldsOnly(String appName) // wrapper
