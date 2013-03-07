@@ -4,7 +4,7 @@ Installation
 
      make install-deps
 
-Go to step (4) if this works. Otherwise, go to step (2).  You'll probably have to download Z3 manually--cloning their repository has not worked on any machine I've tried.
+Go to step (4) if this works. Otherwise, go to step (2).
 
 (2) Download WALA (git clone https://github.com/wala/WALA.git) and move it to /lib.
 
