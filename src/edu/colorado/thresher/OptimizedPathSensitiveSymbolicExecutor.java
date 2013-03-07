@@ -316,6 +316,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * escape block
    */
   List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
+    Util.Debug("executing loop head blk");
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
@@ -352,6 +353,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             List<IPathInfo> toAdd = new LinkedList<IPathInfo>(), toRemove = new LinkedList<IPathInfo>();
             for (IPathInfo path : caseSplits) {
               path.setCurrentLineNum(i - 1);
+              Util.Debug("visiting phi " + instr);
               List<IPathInfo> cases = visitPhi((SSAPhiInstruction) instr, path, phiIndex);
               if (cases == IPathInfo.INFEASIBLE)
                 toRemove.add(path);

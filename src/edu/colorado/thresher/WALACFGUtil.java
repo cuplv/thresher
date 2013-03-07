@@ -221,21 +221,6 @@ public class WALACFGUtil {
     }
     Util.Assert(false, "couldn't find loop head for " + suspectedLoopBodyBlock);
     return null;
-    /*
-    // get the loop head lowest in the dominator hierarchy; this is the closest one enclosing our block
-    Collections.sort(loopHeadBlocks, new DomComparator(domInfo));
-
-    if (Options.DEBUG) {
-      for (int i = 0; i < loopHeadBlocks.size() -1 ; i++) {
-        Util.Assert(!domInfo.isDominatedBy(loopHeadBlocks.get(i+1), loopHeadBlocks.get(i)), 
-            "loop head " + loopHeadBlocks.get(i+1) + " dominated by " + loopHeadBlocks.get(i));
-      }
-    }
-    
-    Util.Print("loop head block for " + suspectedLoopBodyBlock + " is " + loopHeadBlocks.get(0));
-    
-    return loopHeadBlocks.get(0);
-    */
   }
   
   private static class DomComparator implements Comparator<SSACFG.BasicBlock> {
@@ -330,7 +315,6 @@ public class WALACFGUtil {
       // now we should have > 1 succ
       Util.Assert(succs.size() > 1, "need to be looking a loop escape block! instead have succs of " + loopHead);
       Set<ISSABasicBlock> toExplore = HashSetFactory.make();
-      boolean escapeBlock = true;
       for (ISSABasicBlock succ : succs) {
         // if we can't reach the loop head from this block, it's an 
         // escape block and shouldn't be added. however, we will accidentally
@@ -339,18 +323,7 @@ public class WALACFGUtil {
         // set if it has a different loop head than the current block
         if (isReachableFrom((SSACFG.BasicBlock) succ, loopHead, ir)) {
           toExplore.add(succ);
-          Util.Print("adding succ " + succ);
-          //Util.Assert(!escapeBlock, succ + " not escape block in " + ir.toString());
         }
-        
-        if (escapeBlock) escapeBlock = false; 
-
-        
-        /*
-        // throw away escape block... we only want to explore blocks in the loop
-        if (escapeBlock) escapeBlock = false; 
-        else toExplore.add(succ);
-        */
       }
 
       Dominators<ISSABasicBlock> domInfo = getDominators(ir);
@@ -358,7 +331,6 @@ public class WALACFGUtil {
       while (!toExplore.isEmpty()) {
         ISSABasicBlock blk = toExplore.iterator().next();
         toExplore.remove(blk);
-        Util.Print("toExplore " + blk);
         // do nested loop check
         SSACFG.BasicBlock loopHeadForBlock = getLoopHeadForBlock((SSACFG.BasicBlock) blk, ir);
         if (loopHeadForBlock != loopHead && // if this block has a different loop head... 
@@ -389,8 +361,6 @@ public class WALACFGUtil {
       }
       loopBodyCache.put(key, loopBody);
     }
-    Util.Print(ir.toString());
-    Util.Debug("loop body blocks for " + loopHead + "\n" + Util.printCollection(loopBody));
     return loopBody;
   }
 

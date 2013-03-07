@@ -119,8 +119,10 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {
       // do any constraints have a local var from node on the LHS?
       if (edge.getSource().isLocalVar() && edge.getSource().getNode().equals(node)) {
-        if (Options.DEBUG)
+        if (Options.DEBUG) {
           Util.Debug("found stale constraint " + edge + "\nfor method " + node + "\nin " + this);
+        }
+        Util.Assert(false, "stale constraint " + node.getIR());
         this.feasible = false;
         return true;
       }
@@ -135,9 +137,11 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {
+    // TODO: explicitly check for assignment to null here
     Set<DependencyRule> rules = getRulesForInstr(instr, currentPath);
-    if (rules == null)
+    if (rules == null) {
       return IQuery.FEASIBLE;
+    }
     PointerVariable matchingPhiVar = new ConcretePointerVariable(currentPath.getCurrentNode(), instr.getUse(phiIndex),
         this.depRuleGenerator.getHeapModel());
     Set<DependencyRule> matchingRules = new TreeSet<DependencyRule>();
@@ -150,9 +154,19 @@ public class PointsToQuery implements IQuery {
         }
       }
     }
-    // won't get a match if one of the phi terms is a null
-    if (matchingRules.isEmpty())
+    // won't get a match if one of the phi terms is a null; check if we can refute based on this
+    if (matchingRules.isEmpty()) {
+      PointerVariable phiLHS = new ConcretePointerVariable(currentPath.getCurrentNode(), instr.getDef(),
+                               this.depRuleGenerator.getHeapModel());
+      for (PointsToEdge edge : this.constraints) {
+        // TODO: need to check rhs here? it shouldn't ever be null...
+        if (edge.getSource().equals(phiLHS)) {
+          Util.Debug("refuted by assignment to null");
+          return IQuery.INFEASIBLE;
+        }
+      }
       return IQuery.FEASIBLE;
+    }
     List<IQuery> splits = visitInternal(instr, currentPath, matchingRules);
     if (Options.DEBUG)
       Util.Debug("after phi visit " + this);
@@ -313,6 +327,7 @@ public class PointsToQuery implements IQuery {
         removeAllLocalConstraints();
         return IQuery.FEASIBLE;
       }
+      Util.Assert(false, "found stale constraint " + callee.getIR());
       if (Options.DEBUG) Util.Debug("refuted by stale constraints!");
       return IQuery.INFEASIBLE;
     }

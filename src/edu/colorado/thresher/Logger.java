@@ -51,7 +51,7 @@ public class Logger {
   }
 
   public void logWitnessList(List<DependencyRule> witnessList) {
-    Util.Debug("<witness List>");
+    Util.Print("<witness List>");
     for (DependencyRule rule : witnessList) {
       IR ir = rule.getNode().getIR();
       IBytecodeMethod method = (IBytecodeMethod) ir.getMethod();
@@ -62,9 +62,9 @@ public class Logger {
         bytecodeIndex = -1;
       }
       int sourceLineNum = method.getLineNumber(bytecodeIndex);
-      Util.Debug(rule.getShown() + " " + rule.getStmt() + " line " + sourceLineNum);
+      Util.Print(rule.getShown() + " " + rule.getStmt() + " line " + sourceLineNum);
     }
-    Util.Debug("</witness List>");
+    Util.Print("</witness List>");
   }
 
   public String dumpCountMap() {
