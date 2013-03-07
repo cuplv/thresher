@@ -125,6 +125,28 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
   }
 
   /**
+   * @return true if a path from srcNode to snkNode exists
+   */
+  boolean feasiblePathExists(CGNode srcNode, ISSABasicBlock srcBlk, CGNode snkNode, ISSABasicBlock snkBlk) {
+    Set<ISSABasicBlock> reachableBlks = DFS.getReachableNodes(srcNode.getIR().getControlFlowGraph(), 
+        Collections.singleton(srcBlk));
+    if (srcNode == snkNode) {
+       if (reachableBlks.contains(snkBlk)) return true;
+       // TODO: need to look for other calls of srcNode here? in general, yes obviously, but
+       // given the usage of this function, there may be some scope issues
+    } else {
+      Set<CGNode> reachable = HashSetFactory.make();
+      for (CGNode callee : WALACFGUtil.getCallTargetsInBlocks(reachableBlks, srcNode, callGraph)) {
+        reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
+      }
+      if (reachable.contains(snkNode)) return true;
+      reachable = getReachableStartingBackwardsFrom(Collections.singleton(srcNode), 
+          Collections.singleton(snkNode), reachable, true);
+    }
+    return false;
+  }
+
+  /**
    * Ask flow-sensitively: can we get from src to snk?
    */
   boolean feasiblePathExists(CGNode src, CGNode snk) {
@@ -145,8 +167,6 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
   public Set<CGNode> getReachable(Collection<CGNode> srcs, Set<CGNode> snks, final boolean includeCallers) {
     // all nodes that are completely reachable
     Set<CGNode> reachable = HashSetFactory.make();
-    // nodes whose entrypoints are reachable, but some callees may not be reachable
-    Set<CGNode> partiallyReachable = HashSetFactory.make();
 
     for (CGNode src : srcs) {
       reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(src)));
@@ -154,7 +174,14 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     if (reachable.containsAll(snks)) return reachable; // early return if we cover everything
     reachable.add(callGraph.getFakeRootNode()); // don't want to model control
                                                 // flow among entrypoints
-
+    return getReachableStartingBackwardsFrom(srcs, snks, reachable, includeCallers);
+  }
+  
+  
+  Set<CGNode> getReachableStartingBackwardsFrom(Collection<CGNode> srcs, 
+                                                Set<CGNode> snks, Set<CGNode> reachable, final boolean includeCallers) {
+    // nodes whose entrypoints are reachable, but some callees may not be reachable
+    Set<CGNode> partiallyReachable = HashSetFactory.make();
     for (;;) {
       boolean progress = false;
       // callers of a node in srcs that we have yet to explore
@@ -194,16 +221,9 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
                 }
               }
             }
-            Set<CGNode> callees = HashSetFactory.make();
+            
             Set<ISSABasicBlock> localReachable = DFS.getReachableNodes(cfg, possibleStartBlocks);
-            for (ISSABasicBlock blk : localReachable) {
-              if (blk.getLastInstructionIndex() < 0) continue;
-              SSAInstruction instr = blk.getLastInstruction();
-              if (instr != null && instr instanceof SSAInvokeInstruction) {
-                SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
-                callees.addAll(callGraph.getPossibleTargets(caller, invoke.getCallSite()));
-              }
-            }
+            Set<CGNode> callees = WALACFGUtil.getCallTargetsInBlocks(localReachable, caller, callGraph);
             for (CGNode callee : callees) {
               if (reachable.add(callee)) {
                 reachable.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(callee)));
@@ -223,5 +243,4 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     if (includeCallers) reachable.addAll(partiallyReachable);
     return reachable;
   }
-
 }

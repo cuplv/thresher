@@ -57,6 +57,7 @@ import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
+import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.graph.traverse.DFS;
@@ -77,7 +78,7 @@ public class Main {
   public static String REGRESSION = "__regression";
   
   // absolute path to file containing core JVM components
-  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
+  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -138,7 +139,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "SingletonNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "DoubleLoopRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -225,9 +226,12 @@ public class Main {
     CallGraphBuilderCancelException {
     Options.DACAPO = true;
 
-    final String[] immutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
+    final String[] weakImmutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
                                                        "MapRefute", "MapNoRefute" }; 
+    
+    final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
+                                                           "MapRefute" };
     
     // need call stack depth of at least 3 to refute some of these tests
     if (Options.MAX_CALLSTACK_DEPTH < 3) Options.MAX_CALLSTACK_DEPTH = 3;
@@ -239,10 +243,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    final String[] tests0 = { "MapNoRefute" };
+    final String[] tests0 = { "StrongImmutableNoRefute" };
 
-    for (String test : immutabilityTests) {
-    //for (String test : tests) {
+    //for (String test : strongImmutabilityTests) {
+    for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -560,7 +564,7 @@ public class Main {
     Util.Print("Starting immutability check");
     
     boolean errs = false;
-    
+    Logger logger = new Logger();
     // list of instance keys corresponding to unmodifiable containers
     for (int i = 0; i < unmodifiableContainers.length; i++) { // for each type of unmodifiable container
       Set<CGNode> nodes = cg.getNodes(unmodifiableContainers[i]);
@@ -585,9 +589,8 @@ public class Main {
               Util.Assert(instr.getNumberOfParameters() == 1); // should take single container as param
               Util.Assert(instr.hasDef()); // should return ptr to unmodifiable container
               
-              errs = checkForBadMethodCalls(pred, instr, depRuleGenerator, badMethods) || errs;
-              //checkAllFields(pred, instr, hm, hg, cha, cg, logger, depRuleGenerator);
-              
+              //errs = checkForBadMethodCalls(pred, instr, depRuleGenerator, badMethods) || errs;
+              errs = checkAllFields(pred, instr, callIndex, depRuleGenerator, logger) || errs;
             }         
           }
         }
@@ -595,6 +598,23 @@ public class Main {
     }
     return errs;
     //Util.Print(creatorNodes + " creator nodes, " + creatorSites + " creator sites, " + creatorCalls + " creator calls.");
+  }
+  
+  public static boolean isReachableFromEntrypoint(CallGraph cg, CGNode snk) {
+    for (CGNode node : cg.getEntrypointNodes()) {
+      Util.Print("ENTRYPOINT " + node);
+    }
+    BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(cg, cg.getEntrypointNodes().iterator(), snk);
+    List<CGNode> path = finder.find();
+    if (path == null) {
+      Util.Print(snk + " not reachable from entrypoint; skipping");
+      return false;
+    }
+    Util.Print("CALL PATH:");
+    for (CGNode node : path) Util.Print(node.toString());
+    //Set<CGNode> reachable = DFS.getReachableNodes(cg, cg.getEntrypointNodes());
+    //return reachable.contains(snk);
+    return true;
   }
   
   // check the object instance corresponding to the unmodifiable container to see if 
@@ -635,8 +655,9 @@ public class Main {
               if (methodName.contains(badMethod)) {
                 CGNode localNode = local.getNode();
                 Iterator<CGNode> preds = cg.getPredNodes(localNode);
-                while (preds.hasNext()) { // for each node a bad method resolves to
+                while (preds.hasNext()) { // for each caller of a bad method
                   CGNode pred = preds.next();
+                  if (!isReachableFromEntrypoint(cg, pred)) continue;
                   //Util.Print(pred.getIR().toString());
                   SSAInstruction[] instrs = pred.getIR().getInstructions();
                   Iterator<CallSiteReference> siteIter = cg.getPossibleSites(pred, localNode);
@@ -652,7 +673,7 @@ public class Main {
                       //SSAInvokeInstruction invoke = (SSAInvokeInstruction) callInstr;
                       Util.Print("bad call " + callInstr);
                       Util.Print("bad call; unmodifiable reference created in " + node + " may flow to " +
-                                 callInstr);
+                                 callInstr + " in " + pred);
                       // query: can the receiver point to a supposedly "immutable" instance key at the time of
                       // the call to the bad method?
                       PointerVariable receiver = Util.makePointerVariable(
@@ -686,43 +707,108 @@ public class Main {
     return errs;
   }
   
-  public static void checkAllFields(CGNode node, SSAInstruction instr, HeapModel hm, HeapGraph hg, IClassHierarchy cha, 
-                                    CallGraph cg, Logger logger, AbstractDependencyRuleGenerator depRuleGenerator) {
+  private void getAllReachableFields(InstanceKey obj, HeapGraph hg) {
+    BFSIterator<Object> iter = new BFSIterator<Object>(hg, obj);
+    
+    LinkedList<Object> base = new LinkedList<Object>();
+    base.add(obj);
+    // collect all fields that can be written from base object obj, along with their
+    // access paths
+    while (iter.hasNext()) {
+      
+    }
+    LinkedList<InstanceKey> instancesToExplore = new LinkedList<InstanceKey>();
+    instancesToExplore.add(obj);
+    while (!instancesToExplore.isEmpty()) {
+      InstanceKey key = instancesToExplore.removeFirst();
+      Iterator<Object> fields = hg.getSuccNodes(key);
+    }
+    
+    
+
+  }
+  
+  public static boolean checkAllFields(CGNode node, SSAInstruction instr, int callIndex,
+      AbstractDependencyRuleGenerator depRuleGenerator, Logger logger) {
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    boolean errs = false;
     // get param that points to unmodifiable container
     PointerKey lpk = hm.getPointerKeyForLocal(node, instr.getUse(0));
     // get the possible heap locations that the param might point to
     Iterator<Object> succs = hg.getSuccNodes(lpk);
     while (succs.hasNext()) { // for each heap loc that might be converted into an unmodifiable container
       Object succ = succs.next();
+      Util.Print("Base object is " + succ);
       PointerVariable lhs = Util.makePointerVariable(succ);
       Util.Assert(succ instanceof InstanceKey);
-      // get all the fields of this heap location
-      Iterator<Object> fields = hg.getSuccNodes(succ);
-      while (fields.hasNext()) { // for each field of the heap loc
-        Object fld = fields.next();
-        Util.Assert(fld instanceof InstanceFieldKey);
-        InstanceFieldKey field = (InstanceFieldKey) fld;
-        Util.Print("FIELD is " + field);
-        Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
-        Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
-        // if field doesn't point to anything, this is trivially provable
-        Util.Assert(fieldSuccs.hasNext());
-        while (fieldSuccs.hasNext()) { // for each successor of the field
-          Object fieldSucc = fieldSuccs.next();
-          Util.Print("field succ " + fieldSucc);
-          Util.Assert(fieldSucc instanceof InstanceKey);
-          fieldSuccsSet.add((InstanceKey) fieldSucc);
+      LinkedList<InstanceKey> instancesToExplore = new LinkedList<InstanceKey>();
+      instancesToExplore.add((InstanceKey) succ);
+      Set<InstanceKey> seen = HashSetFactory.make();
+      seen.add((InstanceKey) succ);
+      while (!instancesToExplore.isEmpty()) {
+        InstanceKey curInstance = instancesToExplore.removeFirst();
+        // get all the fields of this heap location
+        Iterator<Object> fields = hg.getSuccNodes(curInstance);
+        while (fields.hasNext()) { // for each field of the heap loc
+          Object fld = fields.next();
+          Util.Assert(fld instanceof InstanceFieldKey);
+          InstanceFieldKey field = (InstanceFieldKey) fld;
+          Util.Print("Field is " + field);
+          Iterator<Object> fieldSuccs = hg.getSuccNodes(field);
+          if (!fieldSuccs.hasNext()) continue;
+          Set<InstanceKey> fieldSuccsSet = HashSetFactory.make();
+          while (fieldSuccs.hasNext()) { // for each successor of the field
+            Object fieldSucc = fieldSuccs.next();
+            //Util.Print("field succ " + fieldSucc);
+            Util.Assert(fieldSucc instanceof InstanceKey);
+            fieldSuccsSet.add((InstanceKey) fieldSucc);
+            if (seen.add((InstanceKey) fieldSucc)) {
+              instancesToExplore.add((InstanceKey) fieldSucc);
+            }
+          }
+          // skip this step if we're assigning to a field belonging to the unmodifiable class; this is expected
+          // TODO: hack; do this the right way
+          if (!curInstance.toString().contains("Ljava/util/Collections, unmodifiable")) {
+            // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
+            // for each write that might occur *after* the construction of the immutable
+            // container, we must refute this edge
+            PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
+                                                     field.getField());
+            Util.Print("to refute " + toRefute);
+            PruningSymbolicExecutor exec = new PruningSymbolicExecutor(depRuleGenerator.getCallGraph(), logger);
+    
+            // three program points of concern: (1) the creation of the underlying reference, (2) the creation of
+            // the immutable container from the underlying reference, and (3) the alleged mutation of the
+            // underlying reference. the scope of our symbolic execution should usually be limited to these three,
+            // but may depend on setup that occurred before (1) in some cases
+            
+            for (DependencyRule producer : Util.getProducersForEdge(toRefute, depRuleGenerator)) {
+              PointerStatement snkStmt = producer.getStmt();
+              int producerLine = snkStmt.getLineNum();
+              CGNode producerNode = producer.getNode();
+              IR ir = producerNode.getIR();
+              SSACFG cfg = ir.getControlFlowGraph();
+              SSACFG.BasicBlock producerBlk = cfg.getBlockForInstruction(producerLine);
+              
+              SSACFG.BasicBlock creatorBlk = node.getIR().getControlFlowGraph().getBlockForInstruction(callIndex);
+              // check if the mutation happens after the creation of the immutable container
+              if (exec.feasiblePathExists(node, creatorBlk, producerNode, producerBlk)) {
+                Util.Assert(false);
+                Util.Print("path feasible; going do do execution");
+              } else Util.Print("mutation occurs before construction of immutable object; skipping");
+              
+              final IQuery query = new CombinedPathAndPointsToQuery(toRefute, depRuleGenerator);
+            }
+            // start at line BEFORE the call
+            //boolean foundWitness = exec.executeBackward(pred, startBlk, startLineBlkIndex - 1, query);
+            
+            //errs = errs || witnessed;
+          } else Util.Print("Field belong to unmodifiable collection, skipping");
         }
-        // <immutable loc>.f -> {all things that <immutable loc>.f might point to}
-        // for each write that might occur *after* the construction of the immutable
-        // container, we must refute this edge
-        PointsToEdge toRefute = new PointsToEdge(lhs, SymbolicPointerVariable.makeSymbolicVar(fieldSuccsSet),
-                                                 field.getField());
-        Util.Print("to refute " + toRefute);
-        boolean witnessed = generateWitness(toRefute, depRuleGenerator, logger);
-        Util.Print("witnessed? " + witnessed);
       }
     }
+    return errs;
   }
 
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
@@ -835,9 +921,6 @@ public class Main {
               Util.Print("producer " + producer);
               PointerStatement snkStmt = producer.getStmt();
               int startLine = snkStmt.getLineNum();
-              //PointsToQuery ptQuery = new PointsToQuery(producer, depRuleGenerator);
-              
-              //final IQuery query = new CombinedPathAndPointsToQuery(ptQuery);
               final IQuery query = new CombinedPathAndPointsToQuery(producer, depRuleGenerator);
               IR ir = producer.getNode().getIR();
               SSACFG cfg = ir.getControlFlowGraph();
@@ -1218,38 +1301,30 @@ public class Main {
       PointerStatement snkStmt = lastRule.getStmt();
       int startLine = snkStmt.getLineNum();
       if (Options.DEBUG) Util.Debug("start line is " + startLine);
-      final Set<CGNode> potentialNodes = HashSetFactory.make();
-      potentialNodes.add(lastRule.getNode());
-      int numContexts = potentialNodes.size();
+      CGNode startNode = lastRule.getNode();
+      Util.Print("starting in method " + startNode);
+      final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
+      IR ir = lastRule.getNode().getIR();
+      Util.Debug(ir.toString());
+      SSACFG cfg = ir.getControlFlowGraph();
+      SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
+      int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
+      Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), "instrs dif! expected "
+          + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
 
-      Util.Print(potentialNodes.size() + " potential start nodes");
-      
-      for (CGNode startNode : potentialNodes) {
-        Util.Assert(numContexts == potentialNodes.size(), "sizes don't match!");
-        Util.Print("starting in method " + startNode);
-        final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
-        IR ir = startNode.getIR();
-        Util.Debug(ir.toString());
-        SSACFG cfg = ir.getControlFlowGraph();
-        SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
-        int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
-        Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), "instrs dif! expected "
-            + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
-
-        ISymbolicExecutor exec;
-        boolean foundWitness;
-        if (Options.PIECEWISE_EXECUTION)
-          exec = new PiecewiseSymbolicExecutor(cg, logger);
-        else if (Options.CALLGRAPH_PRUNING)
-          exec = new PruningSymbolicExecutor(cg, logger);
-        else
-          exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
-        // start at line BEFORE snkStmt
-        foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query);
-        Util.Print(logger.dumpEdgeStats());
-        if (foundWitness) return true; 
-        // else, refuted this attempt; try again
-      }
+      ISymbolicExecutor exec;
+      boolean foundWitness;
+      if (Options.PIECEWISE_EXECUTION)
+        exec = new PiecewiseSymbolicExecutor(cg, logger);
+      else if (Options.CALLGRAPH_PRUNING)
+        exec = new PruningSymbolicExecutor(cg, logger);
+      else
+        exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+      // start at line BEFORE snkStmt
+      foundWitness = exec.executeBackward(startNode, startBlk, startLineBlkIndex - 1, query);
+      Util.Print(logger.dumpEdgeStats());
+      if (foundWitness) return true; 
+      // else, refuted this attempt; try again
     }
     // refuted all possible last rules without a witness
     return false; 

@@ -256,7 +256,7 @@ public class PathQuery implements IQuery {
     Util.Pre(instr.getNumberOfUses() == 1, "put " + instr + " has " + instr.getNumberOfUses() + " uses! expected 1");
     IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(instr.getDeclaredField());
     if (staticField == null) { // TODO: this shouldn't happen, but it sometimes
-                               // does. uncomment and try on NPR app punt
+                               // does. uncomment and try on NPR app 
       return true;
     }
     PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(

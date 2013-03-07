@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,7 +27,9 @@ import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Acyclic;
+import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.dominators.Dominators;
+import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.IntIterator;
@@ -185,7 +186,7 @@ public class WALACFGUtil {
 
   /**
    * @return - head of closest loop containing suspectedLoopBodyBlock if there is one, null otherwise
-   * that is, if the block is in a nested loop while (e0) { while (e1) { } }, this will return the loop
+   * that is, if the block B is in a nested loop while (e0) { while (e1) { B } }, this will return the loop
    * head associated with e1 
    */
   //public static SSACFG.BasicBlock getLoopHeadForBlock(SSACFG.BasicBlock suspectedLoopBodyBlock, IR ir) {
@@ -195,28 +196,46 @@ public class WALACFGUtil {
     final MutableIntSet loopHeaders = getLoopHeaders(ir);
     final SSACFG cfg = ir.getControlFlowGraph();
     final IntIterator iter = loopHeaders.intIterator();
-    List<SSACFG.BasicBlock> loopHeadBlocks = new ArrayList(2);
+    Set<ISSABasicBlock> loopHeadBlocks = HashSetFactory.make();
     while (iter.hasNext()) {
       SSACFG.BasicBlock loopHeadBlock = cfg.getBasicBlock(iter.next());
-      // a block B is in a loop by if it is dominated by the loop head...
+      // a block may B is in a loop by if it is dominated by the loop head...
       if (domInfo.isDominatedBy(suspectedLoopBodyBlock, loopHeadBlock) && 
           // ...and the loop head is reachable from B
           isReachableFrom(suspectedLoopBodyBlock, loopHeadBlock, ir)) {
         loopHeadBlocks.add(loopHeadBlock);
-        //return loopHeadBlock;
       }
     }
     if (loopHeadBlocks.size() == 0) return null;
-    else if (loopHeadBlocks.size() == 1) return loopHeadBlocks.get(0);
+    else if (loopHeadBlocks.size() == 1) return (SSACFG.BasicBlock) loopHeadBlocks.iterator().next();
+        
+    Graph<ISSABasicBlock> g = cfg;
+    // now, we have ths list of loop heads for loops that enclose this block.
+    // execute forward from the block and see which loop head is the first 
+    // one we hit; this one will be the enclosing loop head
+    BFSIterator<ISSABasicBlock> blkIter = 
+        new BFSIterator<ISSABasicBlock>(g, (ISSABasicBlock) suspectedLoopBodyBlock);
+    while (blkIter.hasNext()) {
+      ISSABasicBlock next = blkIter.next();
+      if (loopHeadBlocks.contains(next)) return (SSACFG.BasicBlock) next; // found it
+    }
+    Util.Assert(false, "couldn't find loop head for " + suspectedLoopBodyBlock);
+    return null;
+    /*
     // get the loop head lowest in the dominator hierarchy; this is the closest one enclosing our block
     Collections.sort(loopHeadBlocks, new DomComparator(domInfo));
 
+    if (Options.DEBUG) {
       for (int i = 0; i < loopHeadBlocks.size() -1 ; i++) {
         Util.Assert(!domInfo.isDominatedBy(loopHeadBlocks.get(i+1), loopHeadBlocks.get(i)), 
             "loop head " + loopHeadBlocks.get(i+1) + " dominated by " + loopHeadBlocks.get(i));
-      //}
+      }
     }
+    
+    Util.Print("loop head block for " + suspectedLoopBodyBlock + " is " + loopHeadBlocks.get(0));
+    
     return loopHeadBlocks.get(0);
+    */
   }
   
   private static class DomComparator implements Comparator<SSACFG.BasicBlock> {
@@ -313,9 +332,25 @@ public class WALACFGUtil {
       Set<ISSABasicBlock> toExplore = HashSetFactory.make();
       boolean escapeBlock = true;
       for (ISSABasicBlock succ : succs) {
+        // if we can't reach the loop head from this block, it's an 
+        // escape block and shouldn't be added. however, we will accidentally
+        // add escape blocks if they lead into an enclosing outer loop. this
+        // is dealt with later--we do not add the succs of a blk to the toExplore
+        // set if it has a different loop head than the current block
+        if (isReachableFrom((SSACFG.BasicBlock) succ, loopHead, ir)) {
+          toExplore.add(succ);
+          Util.Print("adding succ " + succ);
+          //Util.Assert(!escapeBlock, succ + " not escape block in " + ir.toString());
+        }
+        
+        if (escapeBlock) escapeBlock = false; 
+
+        
+        /*
         // throw away escape block... we only want to explore blocks in the loop
         if (escapeBlock) escapeBlock = false; 
         else toExplore.add(succ);
+        */
       }
 
       Dominators<ISSABasicBlock> domInfo = getDominators(ir);
@@ -323,13 +358,13 @@ public class WALACFGUtil {
       while (!toExplore.isEmpty()) {
         ISSABasicBlock blk = toExplore.iterator().next();
         toExplore.remove(blk);
-        
+        Util.Print("toExplore " + blk);
         // do nested loop check
         SSACFG.BasicBlock loopHeadForBlock = getLoopHeadForBlock((SSACFG.BasicBlock) blk, ir);
         if (loopHeadForBlock != loopHead && // if this block has a different loop head... 
             domInfo.isDominatedBy(loopHead, loopHeadForBlock)) { // ...and this block's loop head dominates ours
           // our loop is the inner of the two loops; we only want to compute i's loop body blocks, not those of its parent
-          //Util.Debug("skipping " + blk + " because " + loopHeadForBlock + " dominates " + loopHead);
+          Util.Debug("skipping " + blk + " because " + loopHeadForBlock + " dominates " + loopHead);
           continue;
         }
        
@@ -354,8 +389,8 @@ public class WALACFGUtil {
       }
       loopBodyCache.put(key, loopBody);
     }
-    
-    //Util.Debug("loop body blocks for " + loopHead + "\n" + Util.printCollection(loopBody));
+    Util.Print(ir.toString());
+    Util.Debug("loop body blocks for " + loopHead + "\n" + Util.printCollection(loopBody));
     return loopBody;
   }
 
@@ -396,25 +431,6 @@ public class WALACFGUtil {
     for (ISSABasicBlock blk : loopBodyBlocks) {
       instrs.addAll(((SSACFG.BasicBlock) blk).getAllInstructions());
     }
-    /*
-     * Set<SSAInstruction> instrs = new HashSet<SSAInstruction>();
-     * instrs.addAll(loopHead.getAllInstructions()); SSACFG cfg =
-     * ir.getControlFlowGraph(); final LinkedList<ISSABasicBlock> toExplore =
-     * new LinkedList<ISSABasicBlock>();
-     * 
-     * for (ISSABasicBlock pred : cfg.getNormalPredecessors(loopHead)) { if
-     * (!isLoopEscapeBlock((SSACFG.BasicBlock) pred, loopHead, ir)) {
-     * toExplore.add(pred); } }
-     * 
-     * final Set<SSACFG.BasicBlock> loopHeadsSeen = new
-     * HashSet<SSACFG.BasicBlock>(); loopHeadsSeen.add(loopHead);
-     * 
-     * while (!toExplore.isEmpty()) { SSACFG.BasicBlock blk =
-     * (SSACFG.BasicBlock) toExplore.remove(); if (!isLoopHead(blk, ir) ||
-     * loopHeadsSeen.add(blk)) { // avoid infinite loops
-     * instrs.addAll(blk.getAllInstructions());
-     * toExplore.addAll(cfg.getNormalPredecessors(blk)); } }
-     */
     return instrs;
   }
 
@@ -422,7 +438,6 @@ public class WALACFGUtil {
     IR ir = loopNode.getIR();
     Set<SSAInstruction> loopInstrs = getInstructionsInLoop(loopHead, ir);
     Set<CGNode> possibleTargets = HashSetFactory.make();
-    // drop all vars that can be written to in the loop body
     for (SSAInstruction instr : loopInstrs) {
       if (instr instanceof SSAInvokeInstruction) {
         SSAInvokeInstruction call = (SSAInvokeInstruction) instr;
@@ -430,6 +445,20 @@ public class WALACFGUtil {
       }
     }
     return possibleTargets;
+  }
+  
+  // TODO: merge this with previous function
+  public static Set<CGNode> getCallTargetsInBlocks(Set<ISSABasicBlock> blks, CGNode blkNode, CallGraph cg) {
+    Set<CGNode> callees = HashSetFactory.make();
+    for (ISSABasicBlock blk : blks) {
+      if (blk.getLastInstructionIndex() < 0) continue;
+      SSAInstruction instr = blk.getLastInstruction();
+      if (instr != null && instr instanceof SSAInvokeInstruction) {
+        SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
+        callees.addAll(cg.getPossibleTargets(blkNode, invoke.getCallSite()));
+      }
+    }
+    return callees;
   }
 
   /**

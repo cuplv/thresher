@@ -30,6 +30,7 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
@@ -347,71 +348,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     dropPathConstraintsWrittenInLoop(loopHead, currentNode);
   }
 
-  private void dropPathConstraintsWrittenInLoop(SSACFG.BasicBlock loopHead, CGNode node) {
-    if (this.constraints.isEmpty()) return;
-    Set<DependencyRule> loopRules = HashSetFactory.make(); 
-    // get all rules for node
-    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(node);
-
-    if (rules != null) {
-      for (DependencyRule rule : rules) { // keep only rules produced in loop
-        Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
-        if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, node.getIR())) {
-          loopRules.add(rule);
-        }
-      }
-      // remove all constraints produceable by one of these rules
-      dropConstraintsProuceableByRuleSet(loopRules); 
-    }
-
-    // check for additional relevant keys by consulting the points-to analysis
-    ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-
-    // the loop may also contain callees. drop any constraint containing vars
-    // that these callees can write to
-    Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
-    Set<AtomicPathConstraint> toDrop = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
-    // drop all vars that can be written by a call in the loop body
-    for (CGNode callNode : targets) { 
-      OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
-
-      for (AtomicPathConstraint constraint : constraints) {
-        for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
-          if (callKeys.contains(key)) {
-            toDrop.add(constraint);
-            break;
-          }
-          // else, check for refs in pts-to constraints
-          Set<SimplePathTerm> terms = constraint.getTerms();
-          for (SimplePathTerm term : terms) {
-            if (term.getObject() != null && term.getFields() != null) {
-              PointerVariable pointedTo = this.pointsToQuery.getPointedTo(term.getObject());
-              if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
-                FieldReference fieldRef = term.getFirstField();
-                if (fieldRef == null) continue;
-                IField fld = cha.resolveField(fieldRef);
-                if (fld == null) continue;
-                PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
-                if (fieldKey == null) continue;
-                if (callKeys.contains(fieldKey)) {
-                  toDrop.add(constraint);
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    for (AtomicPathConstraint dropMe : toDrop) {
-      if (Options.DEBUG) Util.Debug("dropping loop constraint " + dropMe);
-      removeConstraint(dropMe);
-    }
-  }
-
   @Override
   public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
+    Util.Unimp("don't call this");
     return pointsToQuery.containsLoopProduceableConstraints(loopHead, currentNode)
         || super.containsLoopProduceableConstraints(loopHead, currentNode);
   }
@@ -471,6 +410,105 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
     super.rebuildZ3Constraints();
   }
+  
+
+  private void dropPathConstraintsWrittenInLoop(SSACFG.BasicBlock loopHead, CGNode node) {
+    if (this.constraints.isEmpty()) return;
+    
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    for (SSAInstruction instr : WALACFGUtil.getInstructionsInLoop(loopHead, node.getIR())) {
+      if (instr instanceof SSAInvokeInstruction) {
+        SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
+        for (CGNode callee : cg.getPossibleTargets(node, invoke.getCallSite())) {
+          dropConstraintsProduceableInCall(invoke, node, callee);
+        }
+      } else if (instr instanceof SSAPutInstruction) {
+        SSAPutInstruction put = (SSAPutInstruction) instr;
+        if (put.isStatic()) {
+          IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(put.getDeclaredField());
+          if (staticField == null) { // TODO: this shouldn't happen, but it sometimes does
+            continue;
+          }
+          PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(
+              staticField));
+          if (pathVars.contains(staticFieldVar)) {
+            dropConstraintsContaining(staticFieldVar);
+          }
+        } else {
+          PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()); 
+          if (pathVars.contains(varName)) {
+            dropConstraintsContaining(varName);
+          }
+        }
+      } else if (instr.hasDef()) {
+        PointerVariable var = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+        if (this.pathVars.contains(var)) {
+          dropConstraintsContaining(var);
+        }
+      }
+    }
+    /*
+    Set<DependencyRule> loopRules = HashSetFactory.make(); 
+    // get all rules for node
+    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(node);
+
+    if (rules != null) {
+      for (DependencyRule rule : rules) { // keep only rules produced in loop
+        Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
+        if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, node.getIR())) {
+          loopRules.add(rule);
+        }
+      }
+      // remove all constraints produceable by one of these rules
+      dropConstraintsProuceableByRuleSet(loopRules); 
+    }
+
+    // check for additional relevant keys by consulting the points-to analysis
+    ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
+    HeapModel hm = depRuleGenerator.getHeapModel();
+
+    // the loop may also contain callees. drop any constraint containing vars
+    // that these callees can write to
+    Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
+    Set<AtomicPathConstraint> toDrop = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
+    // drop all vars that can be written by a call in the loop body
+    for (CGNode callNode : targets) { 
+      OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
+
+      for (AtomicPathConstraint constraint : constraints) {
+        for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
+          if (callKeys.contains(key)) {
+            toDrop.add(constraint);
+            break;
+          }
+          // else, check for refs in pts-to constraints
+          Set<SimplePathTerm> terms = constraint.getTerms();
+          for (SimplePathTerm term : terms) {
+            if (term.getObject() != null && term.getFields() != null) {
+              PointerVariable pointedTo = this.pointsToQuery.getPointedTo(term.getObject());
+              if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
+                FieldReference fieldRef = term.getFirstField();
+                if (fieldRef == null) continue;
+                IField fld = cha.resolveField(fieldRef);
+                if (fld == null) continue;
+                PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
+                if (fieldKey == null) continue;
+                if (callKeys.contains(fieldKey)) {
+                  toDrop.add(constraint);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    for (AtomicPathConstraint dropMe : toDrop) {
+      if (Options.DEBUG) Util.Debug("dropping loop constraint " + dropMe);
+      removeConstraint(dropMe);
+    }
+    */
+  }
 
   void dropPathConstraintsProduceableByCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
     ConcretePointerVariable retval = null;
@@ -492,10 +530,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
     }
-    for (AtomicPathConstraint dropMe : toDrop)
-      removeConstraint(dropMe); // constraints.remove(dropMe);
+    for (AtomicPathConstraint dropMe : toDrop) {
+      removeConstraint(dropMe); 
+    }
   }
-
+  
   boolean doesCallWriteToHeapLocsInPathConstraints(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg) {
     // do constraints contain retval of this call?
     if (instr.hasDef()) {

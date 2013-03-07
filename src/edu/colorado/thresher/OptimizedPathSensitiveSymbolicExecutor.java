@@ -302,9 +302,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     truePaths.removeAll(toRemove);
     
     for (IPathInfo info : truePaths) {
-      if (!info.containsLoopProduceableConstraints(loopHeadBlock)) {
-        Util.Debug("path " + info.getPathId() + " has loop produceable constraints");
-      }
       // forget that we saw this loop head; needed for nested loops  
       info.removeSeenLoopHead(loopHeadBlock); 
       addPath(info);
