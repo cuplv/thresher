@@ -859,51 +859,6 @@ public class Util {
     return preconditionChoices;
   }
 
-  /**
-   * @param edge
-   *          - the edge to be checked for produceability in loop
-   * @param loopHead
-   *          - head of the loop we are looking at
-   * @return the set of preconditions for producing this edge that are *not*
-   *         contained in the loop
-   */
-  /*
-   * public static Set<PointsToQuery> getAllLoopQueries(Set<PointsToEdge>
-   * initialQuery, SSACFG.BasicBlock loopHead, CGNode node, HeapGraph hg,
-   * AbstractDependencyRuleGenerator depRuleGenerator, CallGraph cg) {
-   * Set<DependencyRule> nodeRules = depRuleGenerator.getRulesForNode(node);
-   * HashMap<PointsToEdge,List<DependencyRule>> choices = new
-   * HashMap<PointsToEdge, List<DependencyRule>>(); for (PointsToEdge edge :
-   * initialQuery) { List<DependencyRule> loopProducers = new
-   * LinkedList<DependencyRule>();
-   * 
-   * for (DependencyRule rule : nodeRules) { SSACFG.BasicBlock ruleBlk =
-   * rule.getBlock(); Util.Assert(ruleBlk != null, "no basic block for rule " +
-   * rule); if (rule.getShown().equals(edge) &&
-   * WALACFGUtil.isInLoopBody(ruleBlk, loopHead, rule.getNode().getIR())) { //
-   * keep only rules that produce our edge and are in the loop
-   * loopProducers.add(rule); } }
-   * 
-   * for (DependencyRule rule : loopProducers) {
-   * 
-   * }
-   * 
-   * 
-   * }
-   * 
-   * 
-   * 
-   * if (loopProducers.isEmpty()) return preconditions; // else,
-   * Util.Assert(loopProducers.size() < 2, "too many loop producers " +
-   * loopProducers); for (DependencyRule rule : loopProducers) { // for each
-   * rule that produces the edge Set<PointsToEdge> toAdd = new
-   * TreeSet<PointsToEdge>(); for (PointsToEdge showMe : rule.getToShow()) { if
-   * (seen.add(showMe)) { // prevent infinite looping
-   * preconditions.addAll(getNonLoopPreconditionsForEdge(showMe, seen, loopHead,
-   * node, hg, depRuleGenerator, cg)); } } //else { //Util.Debug("not in loop "
-   * + rule); // preconditions.add(edge); //} } //return preconditions; }
-   */
-
   private static PointerVariable makePointerVariableImpl(Object key) {
     Util.Pre(key != null, "can't make pointer variable from null key!");
     CGNode node = null;
@@ -914,17 +869,7 @@ public class Util {
       if (key instanceof LocalPointerKey) {
         LocalPointerKey lpk = (LocalPointerKey) key;
         node = lpk.getNode();
-        // String methodName = lpk.getNode().getMethod().toString();
         int valueNum = lpk.getValueNumber();
-        // pointerString = methodName + "-v" + valueNum;
-        // pointerString.append(methodName);
-        // pointerString.append("-v");
-        // pointerString.append(valueNum);
-        // String str = pointerString.toString();
-        // typeId = getIdForType(methodName + "-local");
-        // typeId = getIdForType(str);
-        // if (symbolic) return new SymbolicPointerVariable(typeId);
-        // else
         return new ConcretePointerVariable(key, node, valueNum);
       } else if (key instanceof ReturnValueKey && !(key instanceof ExceptionReturnValueKey)) {
         ReturnValueKey rvk = (ReturnValueKey) key;
@@ -937,15 +882,12 @@ public class Util {
         // else
         return new ConcretePointerVariable(rvk, node, -2);
       } else if (key instanceof ExceptionReturnValueKey) {
+        /*
         ExceptionReturnValueKey erv = (ExceptionReturnValueKey) key;
-        // String methodName = erv.getNode().getMethod().getName().toString();
         node = erv.getNode();
-        // String methodName = erv.getNode().getMethod().toString();
-        // pointerString = methodName + " ExcRetVal";
-        // typeId = getIdForType(pointerString);
-        // if (symbolic) return new SymbolicPointerVariable(typeId);
-        // else
         return new ConcretePointerVariable(erv, node, -1);
+        */
+        return null; // purposely do not handle this case
       } else if (key instanceof StaticFieldKey) {
         StaticFieldKey sfk = (StaticFieldKey) key;
         IMethod classInit = sfk.getField().getDeclaringClass().getClassInitializer();
@@ -964,20 +906,8 @@ public class Util {
         // return makeStaticFieldVar(sfk.getField().getReference());
       } else if (key instanceof ArrayContentsKey) {
         ArrayContentsKey ack = (ArrayContentsKey) key;
-        // PointerVariable array =
-        // Util.makePointerVariable(ack.getInstanceKey());
-        // System.err.println(array);
-        // pointerString = ack.getInstanceKey().toString();
-        // System.err.println(key);
-        // System.err.println(pointerString);
         return makePointerVariableImpl(ack.getInstanceKey());
-        // typeId =
-        // getIdForType(ack.getInstanceKey().getConcreteType().getReference().toString());
-        // if (symbolic) return new SymbolicPointerVariable(typeId);
-        // else
-        // return new ConcretePointerVariable(pointerString, typeId);
       } else {
-        // pointerString = "Unimplemented Pointer Key";
         Util.Assert(false, "UNIMPLEMENTED POINTER KEY " + key.getClass());
         pointerString = key.toString();
         return null;
@@ -986,50 +916,30 @@ public class Util {
       if (key instanceof AllocationSiteInNode) {
         AllocationSiteInNode as = (AllocationSiteInNode) key;
         node = as.getNode();
-        // pointerString = as.getNode() + "-" +
-        // s.getDeclaredType().getName().toString() + "@" +
-        // s.getProgramCounter();
-        // typeId = getIdForType(as.getConcreteType().toString());
         return new ConcretePointerVariable((InstanceKey) key, node, -1);
       } else if (key instanceof NormalAllocationInNode) {
         NormalAllocationInNode nan = (NormalAllocationInNode) key;
         node = nan.getNode();
-        // pointerString = nan.getNode() + "-" +
-        // nan.getSite().getDeclaredType().getName().toString() + "@" +
-        // nan.getSite().getProgramCounter();
-        // typeId = getIdForType(nan.getConcreteType().toString());
         return new ConcretePointerVariable((InstanceKey) key, node, -1);
       } else if (key instanceof AllocationSite) {
         AllocationSite site = (AllocationSite) key;
-        // typeId = getIdForType(site.getConcreteType().toString());
         pointerString = site.getMethod() + "-" + site.getSite().getDeclaredType().getName().toString() + "@"
             + site.getSite().getProgramCounter();
-        return new ConcretePointerVariable(site, site.getMethod(), pointerString);// ,
-                                                                                  // typeId);
+        return new ConcretePointerVariable(site, site.getMethod(), pointerString);
       } else if (key instanceof ConcreteTypeKey) {
         ConcreteTypeKey ctk = (ConcreteTypeKey) key;
-        // pointerString = ctk.getType().getName().toString();
         pointerString = ctk.getType().toString();
-        // if (pointerString.equals("<Primordial,Ljava/lang/String>")) return
-        // null;
-        // typeId = getIdForType(ctk.toString());
-        // if (symbolic) return new SymbolicPointerVariable(typeId);
-        // else return new ConcretePointerVariable(pointerString, typeId);
-        // else
         return new ConcretePointerVariable(key, pointerString);// typeId);
       } else if (key instanceof ConstantKey) {
         // TODO: need to implement LoadMetaDataInstruction to get this to work
         ConstantKey ck = (ConstantKey) key;
         IClass clazz = ck.getConcreteType();
-        // typeId = getIdForType(ck.toString());
-        return new ConcretePointerVariable(ck, clazz + "_CONST"); // typeId);
+        return new ConcretePointerVariable(ck, clazz + "_CONST");
       } else if (key instanceof SmushedAllocationSiteInNode) {
         SmushedAllocationSiteInNode smushed = (SmushedAllocationSiteInNode) key;
-        // typeId = getIdForType(smushed.getConcreteType().toString());
         return new ConcretePointerVariable(key, smushed.getNode(), smushed.getNode().getMethod() + "_SMUSHED ");// typeId);
       } else {
         Util.Assert(false, "UNIMPLEMENTED INSTANCE KEY! " + key);
-        // pointerString = key.toString();
         pointerString = "Unimplemented Instance Key";
         return null;
       }

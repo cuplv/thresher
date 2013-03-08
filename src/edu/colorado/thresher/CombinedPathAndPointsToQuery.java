@@ -22,7 +22,6 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
-import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
@@ -33,6 +32,7 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.BitVectorIntSet;
@@ -85,7 +85,18 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       // declare an absolute refutation here; instead, say that the feasible case is the one where no rule is applied,
       // which we signify by returning an empty set
       if (!parent.isRuleConsistentWithPathQuery(rule)) {
-        Util.Debug("rule not consistent with path query");
+        PointerVariable lhs = rule.getShown().getSource();
+        // should only get inconsistency with path query on local
+        //Util.Assert(lhs.isLocalVar());
+        // check for presence of rule LHS in pts-to query
+        for (PointsToEdge edge : this.constraints) {
+          if (lhs.equals(edge.getSource())) {
+            // the path query says that lhs -> null, but in the pts-to query, we need lhs -> [non-null value]. refute
+            if (Options.DEBUG) Util.Debug("refuted by path/pts-to discrepancy");
+            return null;
+          }
+        }
+        if (Options.DEBUG) Util.Debug("rule not consistent with path query, but not in pt-constraints. applying no rules.");
         return Collections.EMPTY_SET;
       }
       return super.isRuleConsistent(rule, unsatCore, currentNode);
@@ -708,7 +719,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = HashSetFactory.make();
       addInitsForConstraintFields(constraint, nodes);
-      //addClassInitsForConstraintFields(constraint, nodes); // add class init
+      addClassInitsForStaticFields(constraint, nodes);
       // if it may write to the constraint
       for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
         Set<CGNode> modRefNodes = reversedModRef.get(key);
@@ -784,7 +795,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     if (pathVars.contains(src)) {
       // check for a constraint of the form src == null
       for (AtomicPathConstraint constraint : this.constraints) {
-        if (constraint.isNullConstraintFor(src)) return false;
+        if (constraint.isNullConstraintFor(rule.getShown())) return false;
       }
     }
     return true;
@@ -798,23 +809,31 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * @param constraint
    * @param nodes
    */
-  /*
-    private void addClassInitsForConstraintFields(AtomicPathConstraint constraint, Set<CGNode> nodes) {
-      Util.Debug("adding clinits for constraint " + constraint); 
-      for (PointerKey key : constraint.getPointerKeys()) { 
-        IField fieldKey; 
-        if (key instanceof InstanceFieldKey) fieldKey = ((InstanceFieldKey) key).getField(); 
-        else if (key instanceof StaticFieldKey) fieldKey = ((StaticFieldKey) key).getField(); 
-        else continue; 
+  
+  private void addClassInitsForStaticFields(AtomicPathConstraint constraint, Set<CGNode> nodes) {
+    Util.Debug("adding clinits for constraint " + constraint); 
+    for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
+      // if we have any static fields, need to consider running the class initializer for the class
+      // that declares the static field, since it may write to the field.
+      if (key instanceof StaticFieldKey) {
+        CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(depRuleGenerator.getCallGraph());
+        nodes.add(fakeWorldClinit);
+        break;
+        /*
+        IField fieldKey = ((StaticFieldKey) key).getField();
         IMethod clinit= fieldKey.getDeclaringClass().getClassInitializer();
+        if (clinit == null) continue;
         Util.Debug("classInit is " + clinit); 
+        // TODO: if class init is null, need to consider initializing static fields to default values
         MethodReference classInit = fieldKey.getDeclaringClass().getClassInitializer().getReference();
         Set<CGNode> classInitNodes = this.depRuleGenerator.getCallGraph().getNodes(classInit);
         Util.Assert(classInitNodes.size() == 1); // should only be one class init
-        nodes.add(classInitNodes.iterator().next()); 
-      } 
-   }
-   */
+        nodes.add(classInitNodes.iterator().next());
+        */
+      }
+    } 
+  }
+  
 
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {

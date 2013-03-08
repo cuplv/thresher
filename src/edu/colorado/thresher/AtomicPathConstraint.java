@@ -363,15 +363,21 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   }
   
   /**
-   * is this a constraint of the form var == 0?
+   * is this a constraint of the form var == 0 or var.f == 0?
    */
-  public boolean isNullConstraintFor(PointerVariable var) {
-    if (this.vars.contains(var)) {
+  public boolean isNullConstraintFor(PointsToEdge edge) {
+    if (this.vars.contains(edge.getSource())) {
       if (this.op == ConditionalBranchInstruction.Operator.EQ) {
         if (this.lhs == SimplePathTerm.NULL) {
-          return this.rhs instanceof SimplePathTerm;
+          if (this.rhs instanceof SimplePathTerm) {
+            return Util.equal(((SimplePathTerm) rhs).getFirstField(), 
+                                edge.getFieldRef());
+          }
         } else if (this.rhs == SimplePathTerm.NULL) {
-          return this.lhs instanceof SimplePathTerm;
+          if (this.lhs instanceof SimplePathTerm) {
+            return Util.equal(((SimplePathTerm) lhs).getFirstField(), 
+                edge.getFieldRef());
+          }
         }
       }
     }

@@ -449,7 +449,7 @@ public class SimplePathTerm implements PathTerm {
   }
 
   public FieldReference getFirstField() {
-    return fields.getFirst();
+    return fields != null ? fields.getFirst() : null;
   }
 
   @Override

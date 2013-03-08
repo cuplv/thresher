@@ -105,8 +105,8 @@ public class Main {
     Util.LOG = true;
     Util.PRINT = true;
     REGRESSIONS = true;
-    //runImmutabilityRegressionTests();
     runAndroidLeakRegressionTests();
+    runImmutabilityRegressionTests();
   }
   
   
@@ -125,7 +125,7 @@ public class Main {
         "SimpleConjunctiveRefute", "SimpleConjunctiveNoRefute", "MultiLevelParamPassRefute", "MultiLevelParamPassNoRefute",
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
-        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute" };
+        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute", "DoLoopRefute" };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -138,11 +138,11 @@ public class Main {
     final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
         "ContainsKeyNoRefute" };
     
-    final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "DoubleLoopRefute" };
+    //final String[] fakeMapTests0 = new String[] {};
+    final String[] fakeMapTests0 = new String[] { "DoLoopRefute" };
 
-    //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
+    final String[] realHashMapTests0 = new String[] { };
+    //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
 
     String regressionDir = "apps/tests/regression/";
     boolean result;
@@ -243,10 +243,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    final String[] tests0 = { "StrongImmutableNoRefute" };
+    final String[] tests0 = { "MapRefute" };
 
-    //for (String test : strongImmutabilityTests) {
-    for (String test : tests0) {
+    for (String test : weakImmutabilityTests) {
+    //for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -589,8 +589,8 @@ public class Main {
               Util.Assert(instr.getNumberOfParameters() == 1); // should take single container as param
               Util.Assert(instr.hasDef()); // should return ptr to unmodifiable container
               
-              //errs = checkForBadMethodCalls(pred, instr, depRuleGenerator, badMethods) || errs;
-              errs = checkAllFields(pred, instr, callIndex, depRuleGenerator, logger) || errs;
+              errs = checkForBadMethodCalls(pred, instr, depRuleGenerator, badMethods) || errs;
+              //errs = checkAllFields(pred, instr, callIndex, depRuleGenerator, logger) || errs;
             }         
           }
         }

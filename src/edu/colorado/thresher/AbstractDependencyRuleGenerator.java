@@ -134,14 +134,6 @@ public class AbstractDependencyRuleGenerator {
    * @return
    */
   private Set<DependencyRule> filterOutRefuted(Set<DependencyRule> rules) {
-    /*
-     * if (refutedEdges.isEmpty() || rules == null) return rules;
-     * Set<DependencyRule> filtered = new TreeSet<DependencyRule>(); for
-     * (DependencyRule rule : rules) { boolean refuted = false; for
-     * (PointsToEdge edge : refutedEdges) { if (rule.getShown().equals(edge) ||
-     * rule.getToShow().contains(edge)) { refuted = true; break; } } if
-     * (!refuted) filtered.add(rule); } return filtered;
-     */
     return rules;
   }
 
@@ -198,19 +190,6 @@ public class AbstractDependencyRuleGenerator {
       this.nodeAndCalleesRuleMap.put(node, rules);
     return rules;
   }
-
-  /*
-   * // generate dependency rules for node ONLY public
-   * DependencyRuleGenerator(CallGraph cg, HeapGraph hg, HeapModel heapModel,
-   * CGNode node) { this.cg = cg; this.hg = hg; this.heapModel = heapModel;
-   * lineIdCounter = 0; // list of all dependency rules rules = new
-   * LinkedList<DependencyRule>(); // map of (globally) unique line number to IR
-   * containing instruction at line number lineMethodMap = new
-   * HashMap<Integer,CGNode>(); instrLineMap = new HashMap<SSAInstruction,
-   * Integer>(); instrModMap = new
-   * HashMap<SSAInstruction,Set<DependencyRule>>();
-   * //generateRulesForNode(node); }
-   */
 
   public void generateRules() {
     // not using built-in visitor because we need index of each SSAInstruction
@@ -298,20 +277,6 @@ public class AbstractDependencyRuleGenerator {
     }
     return false;
   }
-
-  /*
-   * public void generateRuleForNodeAndSubNodes(CGNode node) {
-   * System.out.println("GOING ALL OUT!"); generateRulesForNode(node);
-   * SSAInstruction[] instrs = node.getIR().getInstructions();
-   * 
-   * for (SSAInstruction instr : instrs) { System.out.println("INSTR " + instr);
-   * if (instr instanceof SSAInvokeInstruction) {
-   * System.out.println("found invoke!"); SSAInvokeInstruction invoke =
-   * (SSAInvokeInstruction) instr; CallSiteReference site =
-   * invoke.getCallSite(); Set<CGNode> nodes =
-   * cg.getNodes(site.getDeclaredTarget()); for (CGNode call : nodes) {
-   * System.out.println("call " + call); generateRulesForNode(call); } } } }
-   */
 
   // returns true if a rule with a produced edge in interestingEdges occurs in a
   // generated rule
@@ -414,44 +379,7 @@ public class AbstractDependencyRuleGenerator {
     while (phiIter.hasNext()) {
       visit((SSAPhiInstruction) phiIter.next(), node, lineId, i++, ir);
     }
-    /*
-     * System.out.println("GENERATING RULES FOR " + node); //if (VISUALIZE)
-     * Util.visualizeIR(cha, node.getIR(),
-     * node.getIR().getMethod().getName().toString()); IMethod method =
-     * node.getMethod(); Integer lineId = methodLineMap.get(method); if (lineId
-     * == null) { lineId = lineIdCounter++; methodLineMap.put(method, lineId); }
-     * if (alreadyGenerated.contains(node)) { return; } else
-     * alreadyGenerated.add(node);
-     * 
-     * // not using built-in visitor because we need index of each
-     * SSAInstruction to get line number information IR ir = node.getIR();
-     * 
-     * if (ir == null) return;
-     * 
-     * if (DEBUG) System.out.println(ir);
-     * 
-     * SSAInstruction[] insts = ir.getInstructions(); int i; for (i = 0; i <
-     * insts.length; i++) { SSAInstruction instr = insts[i]; if (instr != null)
-     * { addToLineMethodMap(lineId, node); instrLineMap.put(instr, lineId);
-     * visit(instr, node, lineId, i, ir); } } //System.err.println("DONE");
-     * 
-     * // handle phi instructions; hopefully lack of line numbers won't be an
-     * issue? Iterator<SSAInstruction> instrIter = ir.iterateAllInstructions();
-     * while (instrIter.hasNext()) { SSAInstruction instr = instrIter.next(); if
-     * (instr instanceof SSAPhiInstruction) { addToLineMethodMap(lineId, node);
-     * instrLineMap.put(instr, lineId); visit(instr, node, lineId, i++, ir);
-     * //if (visit(instr, node, lineId, i++, ir, interestingEdges)) return true;
-     * } } // see if rule is relevant //Set<DependencyRule> rulesForNode =
-     * nodeRuleMap.get(node); //return hasRelevantRule(node,
-     * nodeRuleMap.get(node), interestingEdges, interestingPathVars);
-     */
   }
-
-  /*
-   * public boolean generateRulesForNode(CGNode node) { return
-   * generateRulesForNode(node, new TreeSet<PointsToEdge>(), new
-   * TreeSet<PointerVariable>()); }
-   */
 
   public Set<DependencyRule> generateAbstractRulesForInstr(SSAInstruction instr, CGNode node, int lineId, int lineNum, IR ir) {
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
@@ -516,6 +444,9 @@ public class AbstractDependencyRuleGenerator {
     else if (instr instanceof SSAReturnInstruction) {
       SSAReturnInstruction instruction = (SSAReturnInstruction) instr;
       if (instruction.returnsVoid()) return rules;
+      SymbolTable tbl = ir.getSymbolTable();
+      // if return value is null, we have no rules to generate
+      if (tbl.isNullConstant(instruction.getResult())) return rules;
       PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
       PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
       
@@ -685,7 +616,7 @@ public class AbstractDependencyRuleGenerator {
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
           Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
-          Set<InstanceKey> possibleRetvals = HashSetFactory.make(); //new HashSet<InstanceKey>();
+          Set<InstanceKey> possibleRetvals = HashSetFactory.make();
           while (retvalSuccs.hasNext()) {
             possibleRetvals.add((InstanceKey) retvalSuccs.next());
           }
@@ -817,6 +748,10 @@ public class AbstractDependencyRuleGenerator {
       // skip returns of primitive type (optimization)
       // if (instruction.returnsPrimitiveType() || instruction.returnsVoid()) {
       if (instruction.returnsVoid()) return rules;
+      SymbolTable tbl = ir.getSymbolTable();
+      // if return value is null, we have no rules to generate
+      if (tbl.isNullConstant(instruction.getResult())) return rules;
+      
       PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
       PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
       if (def != null && returnValue != null) {

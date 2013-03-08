@@ -334,9 +334,10 @@ public class WALACFGUtil {
         // do nested loop check
         SSACFG.BasicBlock loopHeadForBlock = getLoopHeadForBlock((SSACFG.BasicBlock) blk, ir);
         if (loopHeadForBlock != loopHead && // if this block has a different loop head... 
-            domInfo.isDominatedBy(loopHead, loopHeadForBlock)) { // ...and this block's loop head dominates ours
+            domInfo.isDominatedBy(loopHead, loopHeadForBlock) && // ...and this block's loop head dominates ours
+            blk != loopHeadForBlock) { // and this block is not itself a loop head (special case for do...while
           // our loop is the inner of the two loops; we only want to compute i's loop body blocks, not those of its parent
-          Util.Debug("skipping " + blk + " because " + loopHeadForBlock + " dominates " + loopHead);
+          if (Options.DEBUG) Util.Debug("skipping " + blk + " because " + loopHeadForBlock + " dominates " + loopHead);
           continue;
         }
        
@@ -359,6 +360,7 @@ public class WALACFGUtil {
           toExplore.add(succ);
         }
       }
+      if (Options.DEBUG) Util.Debug("loop body blocks for " + loopHead + "\n: " + Util.printCollection(loopBody));
       loopBodyCache.put(key, loopBody);
     }
     return loopBody;

@@ -22,9 +22,11 @@ import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
+import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -202,8 +204,7 @@ public class PointsToQuery implements IQuery {
     }
 
     if (rulesAtLine == null || rulesAtLine.isEmpty()) {
-      Util.Debug("No rules at line...returning");
-      return IQuery.FEASIBLE;
+      return checkForNullRefutation(instr, currentPath.getCurrentNode());
     }
     List<DependencyRule> applicableRules = new LinkedList<DependencyRule>();
     int inconsistentRules = 0;
@@ -285,8 +286,9 @@ public class PointsToQuery implements IQuery {
     if (currentPath.isCallStackEmpty()) { // special case; entering entirely new
                                           // node rather than returning to node
                                           // we were already in
-      if (Options.GEN_DEPENDENCY_RULES_EAGERLY)
+      if (Options.GEN_DEPENDENCY_RULES_EAGERLY) {
         depRuleGenerator.generateRulesForNode(currentPath.getCurrentNode());
+      }
       // enter call from perspective of caller node
       // TODO: need special case of visiting?
       bindActualsToFormals(instr, currentPath.getCurrentNode(), callee);
@@ -592,6 +594,33 @@ public class PointsToQuery implements IQuery {
     // constraints.removeAll(toRemove);
     return formalsAssigned;
   }
+  
+  private List<IQuery> checkForNullRefutation(SSAInstruction instr, CGNode node) {
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    PointerKey key = null;
+    if (instr instanceof SSAGetInstruction) {
+      key = hm.getPointerKeyForLocal(node, instr.getDef());
+    } else if (instr instanceof SSAReturnInstruction) {
+      SSAReturnInstruction ret = (SSAReturnInstruction) instr;
+      key = hm.getPointerKeyForReturnValue(node);
+      //key = hm.getPointerKeyForLocal(node, ret.getResult());
+    }
+    if (key != null) {
+      PointerVariable var = Util.makePointerVariable(key);
+      //Iterator<Object> succs = depRuleGenerator.getHeapGraph().getSuccNodes(key);
+      //Util.Assert(!succs.hasNext());
+      for (PointsToEdge edge : this.constraints) {
+        if (edge.getSource().equals(var)) {
+          this.feasible = false;
+          Util.Debug("refuted by assigment to null");
+          return IQuery.INFEASIBLE;
+        }
+      }
+    }
+    
+    if (Options.DEBUG) Util.Debug("No rules at line...returning");
+    return IQuery.FEASIBLE;
+  }
 
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
@@ -600,14 +629,13 @@ public class PointsToQuery implements IQuery {
     CGNode caller = currentPath.getCurrentNode(); 
     // need to do this even if there are no rules at the line because the return
     // value may be important (and is not represented in the dependency rules)
-    Set<PointerVariable> formalsAlreadyAssigned = bindFormalsToActuals(instr, caller, callee);
+    bindFormalsToActuals(instr, caller, callee);
 
     Util.Debug("PRODUCED " + Util.constraintSetToString(produced));
 
     Set<DependencyRule> rulesAtLine = depRuleGenerator.getRulesForInstr(instr, caller);
     if (rulesAtLine == null || rulesAtLine.isEmpty()) {
-      Util.Debug("No rules at line...returning");
-      return IQuery.FEASIBLE;
+      return checkForNullRefutation(instr, currentPath.getCurrentNode());
     }
     // Util.Assert(!rulesAtLine.isEmpty(),
     // "non-null list should always contain rules");

@@ -175,8 +175,8 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
               .getControlFlowGraph().getNormalPredecessors(path.getCurrentBlock()).isEmpty())), "feasible?" + path.isFeasible()
           + " blk " + path.getCurrentBlock() + " witness " + path.foundWitness() + " path " + path);
       // false return => (path infeasible || path split)
-      // TODO: this doesn't work because we'll sometimes get a false return for
-      // a feasible path
+      // TODO: this doesn't work because we'll sometimes get a false return for a feasible path
+      Util.Debug("result? " + result + " feasible? " + path.isFeasible());
       Util.Post(result || (!path.isFeasible() || split), " post failure on  path " + path + " blk " + path.getCurrentBlock()
           + "IR " + path.getCurrentNode().getIR());
       split = false;

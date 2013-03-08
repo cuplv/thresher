@@ -49,7 +49,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   @Override
   boolean handleLoopHead(IPathInfo info, SSAInstruction instr) {
     Util.Pre(WALACFGUtil.isLoopHead(info.getCurrentBlock(), info.getCurrentNode().getIR()), "only call this on paths at loop head!");
-    if (Options.DEBUG) Util.Debug("at loop head on path " + info.getPathId());
+    if (Options.DEBUG) Util.Debug("at loop head on path " + info.getPathId() + " " + info.getCurrentBlock() + "\n" + info.getCurrentNode().getIR());
     final String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
     IBranchPoint point = branchPointMap.get(key);
     final SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
