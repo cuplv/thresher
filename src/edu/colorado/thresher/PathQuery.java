@@ -1002,6 +1002,18 @@ public class PathQuery implements IQuery {
         default:
           Util.Assert(false, "UNSUPPORTED OPERATOR " + op + " IN GUARD");
       }
+    } else if ((tbl.isStringConstant(use0) && tbl.isNullConstant(use1)) ||
+              (tbl.isNullConstant(use0) && tbl.isStringConstant(use1))) { 
+      switch (op) {
+        case EQ:
+          result = false;
+          break;
+        case NE:
+          result = true;
+          break;
+        default:
+          Util.Assert(false, "UNSUPPORTED OPERATOR " + op + " IN GUARD");
+      }
     } else {
       Util.Debug("null const? " + tbl.isNullConstant(use0));
       Util.Debug("number const? " + tbl.isNumberConstant(use0));

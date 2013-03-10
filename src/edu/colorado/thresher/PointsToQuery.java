@@ -124,7 +124,6 @@ public class PointsToQuery implements IQuery {
         if (Options.DEBUG) {
           Util.Debug("found stale constraint " + edge + "\nfor method " + node + "\nin " + this);
         }
-        Util.Assert(false, "stale constraint " + node.getIR());
         this.feasible = false;
         return true;
       }
@@ -329,7 +328,6 @@ public class PointsToQuery implements IQuery {
         removeAllLocalConstraints();
         return IQuery.FEASIBLE;
       }
-      Util.Assert(false, "found stale constraint " + callee.getIR());
       if (Options.DEBUG) Util.Debug("refuted by stale constraints!");
       return IQuery.INFEASIBLE;
     }
@@ -637,16 +635,12 @@ public class PointsToQuery implements IQuery {
     if (rulesAtLine == null || rulesAtLine.isEmpty()) {
       return checkForNullRefutation(instr, currentPath.getCurrentNode());
     }
-    // Util.Assert(!rulesAtLine.isEmpty(),
-    // "non-null list should always contain rules");
-    // map from function parameter id's to list of dependency rules relevant to
-    // that id
+    // map from function parameter id's to list of dependency rules relevant to that id
     Map<Integer, List<DependencyRule>> idRuleMap = HashMapFactory.make();
     // set of function parameters we have seen for which there is a relevant but
     // not consistent rule
     Set<Integer> inconsistentParams = HashSetFactory.make();
-    // set of function parameters for which there is a relevant and consistent
-    // rule;
+    // set of function parameters for which there is a relevant and consistent rule
     Set<Integer> assignedParams = HashSetFactory.make(); 
 
     for (DependencyRule rule : rulesAtLine) { // create map of rules to parameters

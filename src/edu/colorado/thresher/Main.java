@@ -105,7 +105,7 @@ public class Main {
     Util.LOG = true;
     Util.PRINT = true;
     REGRESSIONS = true;
-    runAndroidLeakRegressionTests();
+    //runAndroidLeakRegressionTests();
     runImmutabilityRegressionTests();
   }
   
@@ -139,7 +139,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "DoLoopRefute" };
+    final String[] fakeMapTests0 = new String[] { "BranchInLoopNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -233,8 +233,8 @@ public class Main {
     final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
                                                            "MapRefute" };
     
-    // need call stack depth of at least 3 to refute some of these tests
-    if (Options.MAX_CALLSTACK_DEPTH < 3) Options.MAX_CALLSTACK_DEPTH = 3;
+    // need call stack depth of at least 4 to refute some of these tests
+    if (Options.MAX_CALLSTACK_DEPTH < 4) Options.MAX_CALLSTACK_DEPTH = 4;
     
     String regressionDir = "apps/tests/immutability/";
     boolean result;
@@ -1302,6 +1302,10 @@ public class Main {
       int startLine = snkStmt.getLineNum();
       if (Options.DEBUG) Util.Debug("start line is " + startLine);
       CGNode startNode = lastRule.getNode();
+      
+      //IRTransformer transformer = new IRTransformer();
+      //transformer.transform(startNode.getIR());
+      
       Util.Print("starting in method " + startNode);
       final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
       IR ir = lastRule.getNode().getIR();

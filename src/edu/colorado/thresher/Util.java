@@ -49,7 +49,9 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.WalaException;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -65,6 +67,8 @@ public class Util {
   public static boolean DEBUG = Options.DEBUG;
   public static boolean PRINT = Options.PRINT;
 
+  public static TypeReference EXCEPTION_TYPE = TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/lang/Exception");
+  
   public static Map<String, Integer> varIds = HashMapFactory.make();
   private static int varIdCounter = 0;
   public static Map<String, Integer> fieldIds = HashMapFactory.make();
@@ -928,6 +932,8 @@ public class Util {
         return new ConcretePointerVariable(site, site.getMethod(), pointerString);
       } else if (key instanceof ConcreteTypeKey) {
         ConcreteTypeKey ctk = (ConcreteTypeKey) key;
+        // purposely don't track exception literals
+        if (ctk.getConcreteType().getReference() == EXCEPTION_TYPE) return null;
         pointerString = ctk.getType().toString();
         return new ConcretePointerVariable(key, pointerString);// typeId);
       } else if (key instanceof ConstantKey) {
@@ -948,6 +954,16 @@ public class Util {
       return null;
     }
     // else return new PointerVariable(pointerString, typeId);
+  }
+  
+  public static boolean isExceptionType(InstanceKey key, IClassHierarchy cha) {
+    if (key instanceof ConcreteTypeKey){
+      ConcreteTypeKey ctk = (ConcreteTypeKey) key;
+      // purposely don't track exception literals
+      return ctk.getConcreteType().getReference() == Util.EXCEPTION_TYPE ||
+          cha.computeSubClasses(EXCEPTION_TYPE).contains(key.getConcreteType());
+    }
+    return false;
   }
 
   public static CGNode getNodeForInstanceKey(InstanceKey key) {

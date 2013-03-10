@@ -16,6 +16,7 @@ import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
+import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -600,13 +601,12 @@ public class AbstractDependencyRuleGenerator {
     else if (instr instanceof SSAInvokeInstruction) {
       SSAInvokeInstruction instruction = (SSAInvokeInstruction) instr;
       MethodReference method = instruction.getCallSite().getDeclaredTarget();
-      if (method.equals(WALACFGUtil.getFakeWorldClinitNode(cg).getMethod().getReference()))
-        return rules; // no rules to generate for this invoke
+      // no rules to generate for fakeWorldClinit
+      if (method.equals(WALACFGUtil.getFakeWorldClinitNode(cg).getMethod().getReference())) return rules;
       Set<CGNode> callees = cg.getPossibleTargets(node, instruction.getCallSite());
       // TODO: we could be even more abstract here and merge calls...but
       // currently, we only support a SymbolicPointerVariable being a
-      // disjunction
-      // TODO: of InstanceKeys. to merge calls into a single rule, we also need
+      // disjunction of InstanceKeys. to merge calls into a single rule, we also need
       // a disjunction of PointerKeys on the left
       for (CGNode callee : callees) {
         if (instr.hasDef()) {
@@ -630,27 +630,30 @@ public class AbstractDependencyRuleGenerator {
               (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
           rules.add(rule);
         }
-
-        // if the call is siteName(arg0, ..., argn), for the ith parameter,
-        // assign siteName-vi := argi
+        
+        SymbolTable tbl = ir.getSymbolTable();
+        // if the call is siteName(arg0, ..., argn), for the ith parameter, assign siteName-vi := argi
         for (int j = 0; j < instruction.getNumberOfUses(); j++) {
-          // String varName = Util.makeLocalVarName(callee, j+1);
-          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
           int localValNum = instruction.getUse(j);
+          if (tbl.isNullConstant(localValNum)) continue; 
+          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
           PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
           PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
-
-          Set<InstanceKey> possibleParamVals = HashSetFactory.make();// new HashSet<InstanceKey>();
+          
+          Set<InstanceKey> possibleParamVals = HashSetFactory.make();
 
           // consider possible values for rhs
           Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
           while (ptValues.hasNext()) {
-            possibleParamVals.add((InstanceKey) ptValues.next());
+            InstanceKey next = (InstanceKey) ptValues.next();
+            // don't track exception types
+            if (!Util.isExceptionType(next, cha)) {
+              possibleParamVals.add(next);
+            }
           }
-          if (possibleParamVals.isEmpty())
-            continue;
+          if (possibleParamVals.isEmpty()) continue;
           TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
           PointerVariable paramVal = SymbolicPointerVariable.makeSymbolicVar(possibleParamVals);
           PointsToEdge shown = new PointsToEdge(lhs, paramVal);
@@ -732,7 +735,6 @@ public class AbstractDependencyRuleGenerator {
       SSAPhiInstruction instruction = (SSAPhiInstruction) instr;
       PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
       if (def != null) {
-        // PointerKey[] usesArr = new PointerKey[instruction.getNumberOfUses()];
         for (int i = 0; i < instruction.getNumberOfUses(); i++) {
           PointerKey use = null;
           if (instruction.getUse(i) != -1)
@@ -819,57 +821,21 @@ public class AbstractDependencyRuleGenerator {
           }
         }
 
+        SymbolTable tbl = ir.getSymbolTable();
         // if the call is siteName(arg0, ..., argn), for the ith parameter,
         // assign siteName-vi := argi
         for (int j = 0; j < instruction.getNumberOfUses(); j++) {
-          // Util.Assert(!tbl.isStringConstant(j), "found str " +
-          // instruction.getCallSite());
-          // String varName = Util.makeLocalVarName(method, j+1, cha);
-          // System.out.println("var name: " + varName);
-          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
-          // System.out.println("LHS " + lhs);
           int localValNum = instruction.getUse(j);
-          // System.err.println("local var num is " + localValNum);
+          if (tbl.isNullConstant(localValNum)) continue;
+          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
           PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
-          // System.out.println("rhsKey is " + rhsKey);
-          // PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, j);
           PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
-
-          // consider possible values for rhs
-          // System.err.println("PARAM TYPE for " + j + ": " +
-          // instruction.getCallSite().getDeclaredTarget().getDescriptor().getParameters()[j]);
-          // System.err.println("Same as TYPE: " +
-          // instruction.getCallSite().getDeclaredTarget().getParameterType(j));
-
           Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
-          // if (!tbl.isConstant(instruction.getUse(j)) && rhsKey.)
-          // Util.Assert(ptValues.hasNext(), "no succs for rhsKey " + rhsKey +
-          // " " + rhsPointer);
 
-          /*
-           * if (!tbl.isConstant(instruction.getUse(j)) &&
-           * instruction.getCallSite
-           * ().getDeclaredTarget().getDescriptor().getParameters() != null &&
-           * tbl.isParameter(instruction.getUse(j)) &&
-           * //!instruction.getCallSite
-           * ().getDeclaredTarget().getDescriptor().getParameters
-           * ()[instruction.getUse(j)].isPrimitiveType() &&
-           * !instruction.getCallSite
-           * ().getDeclaredTarget().getDescriptor().getParameters
-           * ()[j+1].isPrimitiveType() && !ptValues.hasNext()) {
-           * System.err.println
-           * (instruction.getCallSite().getDeclaredTarget().getDescriptor
-           * ().getParameters()[j+1]); Util.Assert(ptValues.hasNext(),
-           * "no succs for rhsKey " + rhsKey + " " + rhsPointer); }
-           */
-          // if (!ptValues.hasNext()) {
-          // if (DEBUG) System.out.println("no succs for " + rhsKey);
-          // }
           while (ptValues.hasNext()) {
             PointerVariable rhs = Util.makePointerVariable(ptValues.next());
-            // System.err.println("RHS " + rhs);
             if (rhs != null) {
               PointsToEdge shown = new PointsToEdge(lhs, rhs);
               PointsToEdge toShow = new PointsToEdge(rhsPointer, rhs);
@@ -878,18 +844,12 @@ public class AbstractDependencyRuleGenerator {
                 toShowSet.add(toShow);
               DependencyRule rule = new DependencyRule(shown, stmt, toShowSet, node,
                   (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
-              // Util.Debug("generating call rule " + rule);
-              // addRule(rule, instr, callee);
-              // Util.Debug("adding rule " + rule + " for " + node);
               addRule(rule, instr, node);
               rules.add(rule);
-            } else {
-              System.out.println("RHS NULL!");
-            }
+            } 
           }
         }
       }
-      // System.err.println("DONE WITH RULES FOR INVOKE " + instruction);
     }
 
     else if (instr instanceof SSAGetInstruction) {

@@ -367,8 +367,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
               visitCallInLoopHead((SSAInvokeInstruction) instr, path);
             }
           } else {
-            if (Options.DEBUG)
-              Util.Assert(!(instr instanceof SSAConditionalBranchInstruction), "should never execute branch instr's here!");
+            //if (Options.DEBUG)
+            Util.Assert(!(instr instanceof SSAConditionalBranchInstruction), "should never execute branch instr's here!");
             // "normal" case
             List<IPathInfo> toAdd = new LinkedList<IPathInfo>(), toRemove = new LinkedList<IPathInfo>();
             for (IPathInfo path : caseSplits) {
@@ -408,6 +408,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         for (ISSABasicBlock pred : preds) {
           SSACFG.BasicBlock nextBlock = (SSACFG.BasicBlock) pred;
           if (WALACFGUtil.isLoopEscapeBlock(nextBlock, currentBlock, ir)) {
+          //if (WALACFGUtil.isLoopEscapeBlock(nextBlock, loopHead, ir)) {
             for (IPathInfo path : caseSplits) {
               // Util.Debug("selecting loop escape block " + nextBlock + " for "
               // + path.getPathId());
@@ -417,9 +418,19 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             return caseSplits;
           }
         }
-        // TODO: is this the right thing to do? or a non-termination bug? this
-        // is triggered by nested for each loops
-        Util.Unimp("couldn't find escape block for loop head " + currentBlock + " in\n" + ir);
+        // special case (terrible hack) for do...while loops        
+        SSACFG.BasicBlock escapeBlock = (SSACFG.BasicBlock) WALACFGUtil.findEscapeBlockForDoWhileLoop(currentBlock, ir);
+        for (IPathInfo path : caseSplits) {
+          // Util.Debug("selecting loop escape block " + nextBlock + " for "
+          // + path.getPathId());
+          path.setCurrentBlock(escapeBlock);
+          path.setCurrentLineNum(escapeBlock.getAllInstructions().size() - 1);
+        }
+        return caseSplits;
+
+       // Util.Unimp("couldn't find escape block for loop head " + currentBlock + " in\n" + ir);
+
+        
       }
     }
   }

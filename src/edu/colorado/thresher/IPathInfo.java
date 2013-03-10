@@ -412,7 +412,7 @@ public class IPathInfo { // implements Comparable {
     } else { 
       if (Options.DEBUG) Util.Debug("call stack size is " + callStack.size());
       // else, we should enter the call...if our call stack is not already too deep
-      if (callStack.size() > Options.MAX_CALLSTACK_DEPTH) { // is our call stack too deep?
+      if (callStack.size() >= Options.MAX_CALLSTACK_DEPTH) { // is our call stack too deep?
         if (Options.DEBUG)
           Util.Debug("skipping ordinary call " + callee + " due to call stack depth and dropping produced constraints");
         query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);

@@ -86,7 +86,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
 
-    Map<Integer, List<IPathInfo>> phiIndexPathsMap = HashMapFactory.make();//new HashMap<Integer, List<IPathInfo>>();
+    Map<Integer, List<IPathInfo>> phiIndexPathsMap = HashMapFactory.make();
 
     for (int i = instrs.size() - 1; i > -1; i--) {
       SSAInstruction instr = instrs.get(i);
@@ -96,7 +96,6 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         if (instr instanceof SSAPhiInstruction) {
           // found a phi node; need to do path splitting early in order to
           // decide which value is assigned on which path
-          // if (splitPaths.isEmpty()) {
           int phiIndex = instr.getNumberOfUses() - 1;
           if (phiIndexPathsMap.isEmpty()) {
             if (splitPaths.isEmpty())
@@ -176,7 +175,6 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
           + " blk " + path.getCurrentBlock() + " witness " + path.foundWitness() + " path " + path);
       // false return => (path infeasible || path split)
       // TODO: this doesn't work because we'll sometimes get a false return for a feasible path
-      Util.Debug("result? " + result + " feasible? " + path.isFeasible());
       Util.Post(result || (!path.isFeasible() || split), " post failure on  path " + path + " blk " + path.getCurrentBlock()
           + "IR " + path.getCurrentNode().getIR());
       split = false;

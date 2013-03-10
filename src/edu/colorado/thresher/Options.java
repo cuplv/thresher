@@ -121,7 +121,7 @@ public class Options {
   public static boolean USE_SUMMARIES = true;
 
   @intOpt(description = "if the call stack is larger than this, we drop constraints that can be produced in callees rather than exploring them", _default = 2)
-  public static int MAX_CALLSTACK_DEPTH = 2;
+  public static int MAX_CALLSTACK_DEPTH = 3;
 
   @intOpt(description = "if the path constraints are larger than this, we (soundly) refuse to collect new constraints", _default = 2)
   // how large do we allow the path constraints to grow?
