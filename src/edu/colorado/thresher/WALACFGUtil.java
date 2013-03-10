@@ -1,8 +1,6 @@
 package edu.colorado.thresher;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -18,11 +16,10 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSACFG.ExceptionHandlerBasicBlock;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
-import com.ibm.wala.ssa.SSAGotoInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
-import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
@@ -109,30 +106,13 @@ public class WALACFGUtil {
       final Dominators<ISSABasicBlock> domInfo = getDominators(ir);
 
       for (IntPair p : backEdges) {
-        final ISSABasicBlock src = cfg.getNode(p.getX());
         final ISSABasicBlock dst = cfg.getNode(p.getY());
+        if (dst instanceof ExceptionHandlerBasicBlock) continue;
+        final ISSABasicBlock src = cfg.getNode(p.getX());
         //Util.Print("back edge " + src + " -> " + dst);
         if (domInfo.isDominatedBy(src, dst)) {
-          //if (!(src.getLastInstruction() instanceof SSAConditionalBranchInstruction)) {
             loopHeaders.add(p.getY());
-            //Util.Print("loop head " + dst);
-          //} else loopHeaders.add(p.getX());
-
-          /*
-          // also add blocks that loop header transitions to directly (i.e. no splits)
-          // this is to handle loop structures where the loop leader consists of
-          // multiple blocks (i.e. one with phi nodes and arithmetic, and another
-          // with the actual conditional branch instr)
-          Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors(dst);
-          while (succs.size() == 1) {
-            ISSABasicBlock succ = succs.iterator().next();
-            // avoid (explicitly) infinite loops
-            if (succ.equals(src)) break;
-            loopHeaders.add(cfg.getNumber(succ));
-            succs = cfg.getNormalSuccessors(succ);
-          }
-          */
-        } 
+        }
       }
       loopHeadersCache.put(ir, loopHeaders);
     }
