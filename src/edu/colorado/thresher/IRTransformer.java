@@ -25,6 +25,7 @@ public class IRTransformer {
     
   }
   
+  /*
   public List<Instruction> transform(IR ir) {
     Util.Print("IR " + ir);
     SSACFG cfg = ir.getControlFlowGraph();
@@ -34,7 +35,6 @@ public class IRTransformer {
   public List<Instruction> transform(SSACFG cfg, IR ir, ISSABasicBlock startBlk) {
     List<Instruction> output = new ArrayList<Instruction>();
     Iterator<SSAInstruction> instrs = startBlk.iterator();
-    
     if (WALACFGUtil.isLoopHead((SSACFG.BasicBlock) startBlk, ir)) {
       // do...while loop case
       Util.Assert(startBlk.getLastInstruction() instanceof SSAConditionalBranchInstruction);
@@ -75,6 +75,7 @@ public class IRTransformer {
     }
     Util.Print(Util.printCollection(output));
     return output;
+    return null;
   }
   
   public ISSABasicBlock transformBlk(IR ir, SSACFG cfg, ISSABasicBlock blk) {
@@ -94,10 +95,6 @@ public class IRTransformer {
         Util.Assert(succs.isEmpty());
         return null;
     }
-    
-  }
-  
-  public void makeBranch(SSAConditionalBranchInstr ) {
     
   }
   
@@ -136,5 +133,6 @@ public class IRTransformer {
     }
     
   }
+  */
   
 }
