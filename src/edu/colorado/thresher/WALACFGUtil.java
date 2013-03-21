@@ -100,7 +100,6 @@ public class WALACFGUtil {
     MutableIntSet loopHeaders = loopHeadersCache.get(ir);
     final SSACFG cfg = ir.getControlFlowGraph();
     if (loopHeaders == null) {
-      if (Options.DEBUG) Util.Debug(ir.toString());
       loopHeaders = MutableSparseIntSet.makeEmpty();
       final IBinaryNaturalRelation backEdges = Acyclic.computeBackEdges(cfg, cfg.entry());
       final Dominators<ISSABasicBlock> domInfo = getDominators(ir);

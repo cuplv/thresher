@@ -93,8 +93,11 @@ public class Options {
                                                                     // fast
 
   @boolOpt(description = "use symbolic variables in dependency rules rather than doing a case split on concrete locations", _default = true)
-  public static boolean ABSTRACT_DEPENDENCY_RULES = true; // you want this on to
-                                                          // be fast
+  public static boolean ABSTRACT_DEPENDENCY_RULES = true; // you want this on to be fast
+
+  @boolOpt(description = "perform intersection of from constraints when applying rules", _default = true)
+  public static boolean NARROW_FROM_CONSTRAINTS = true; // you want this on to be fast
+  
 
   // not currently enabled
   // @boolOpt

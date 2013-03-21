@@ -105,7 +105,7 @@ public class Main {
     Util.LOG = true;
     Util.PRINT = true;
     REGRESSIONS = true;
-    //runAndroidLeakRegressionTests();
+    runAndroidLeakRegressionTests();
     runImmutabilityRegressionTests();
   }
   
@@ -125,7 +125,8 @@ public class Main {
         "SimpleConjunctiveRefute", "SimpleConjunctiveNoRefute", "MultiLevelParamPassRefute", "MultiLevelParamPassNoRefute",
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
-        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute", "DoLoopRefute" };
+        "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute", "DoLoopRefute",
+         "SimpleAliasingNoRefute", };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -139,7 +140,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "BranchInLoopNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "TrickyInfiniteLoopRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -349,7 +350,7 @@ public class Main {
   
   private static IClassHierarchy setupAndroidScopeAndEntryPoints(AnalysisScope scope, 
                                                                  Collection<Entrypoint> entryPoints, 
-                                                                 Map<String,String> buttonNamesMap, 
+                                                                 final Set<String> handlers,
                                                                  String appPath) 
       throws IOException, ClassHierarchyException {
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
@@ -358,7 +359,6 @@ public class Main {
     Util.Print("Building class hierarchy");
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Iterator<IClass> classes = cha.iterator();
-    Set<String> handlers = buttonNamesMap.keySet();
     
     while (classes.hasNext()) {
       IClass c = classes.next();
@@ -438,8 +438,15 @@ public class Main {
   public static void runAndroidBadMethodCheck(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
-    Map<String,String> buttonNamesMap = AndroidUtils.parseButtonInfo(appPath + "res/");
-    IClassHierarchy cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, buttonNamesMap, appPath);
+    Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
+    
+    // get event handlers that override onClick for each button
+    Set<String> handlers = HashSetFactory.make();
+    for (AndroidUtils.AndroidButton button : buttons) {
+      handlers.add(button.eventHandler);
+    }
+    
+    IClassHierarchy cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, handlers, appPath);
     
     AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
@@ -452,12 +459,18 @@ public class Main {
         "start", "()V");
     final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1, RECORD_AUDIO };
     
-    Set<String> buttonHandlers = buttonNamesMap.keySet();
+    // for each button:
+    //   check if an override listener for the button is declared. if so, we're done. 
+    //   find the call to findViewById() for the button id corresponding to this button. get the Button object returned from this call
+    //   find a call to setOnClickListener() for this button
+    //   get the object passed to setOnClickListener(). The CGNode's reachable from the onClick() method of this object represent the
+    //   behaviors that can be invoked by this button
+    
     // set of all methods that are triggered when a button is clicked
     Set<IMethod> buttonMethods = HashSetFactory.make();
     for (Entrypoint point : entryPoints) {
       IMethod method = point.getMethod();
-      if (buttonHandlers.contains(method.getName().toString())) {
+      if (handlers.contains(method.getName().toString())) {
         buttonMethods.add(method);
       }
     }
@@ -468,10 +481,13 @@ public class Main {
     for (MethodReference badMethod : badMethods) { // for each bad method
       Set<CGNode> nodes = cg.getNodes(badMethod);
       for (CGNode badNode : nodes) { // for each node a bad method resolves to
-        for (IMethod buttonMethod : buttonMethods) {
+        // see if the bad node can be called from *any* button
+        // for each button
+        
+        for (IMethod buttonMethod : buttonMethods) { // for each method that invokes a button
           Set<CGNode> reachable = DFS.getReachableNodes(cg, cg.getNodes(buttonMethod.getReference()));
           if (reachable.contains(badNode)) {
-            String buttonLabel = buttonNamesMap.get(buttonMethod.getName().toString());
+            String buttonLabel = "";//buttonNamesMap.get(buttonMethod.getName().toString());
             warnings.add("Sensitive method " + badMethod.getDeclaringClass() + "." + badMethod.getName() + 
                          " triggered by button with label \"" + buttonLabel + "\"; is this ok?");
           } else {
@@ -552,8 +568,8 @@ public class Main {
       entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
       
     } else { // running an android app
-      Map<String,String> buttonNamesMap = AndroidUtils.parseButtonInfo(appPath + "res/");
-      cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, buttonNamesMap, appPath);
+      //Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath + "res/");
+      cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, Collections.EMPTY_SET, appPath);
     }
 
     int creatorNodes = 0, creatorSites = 0, creatorCalls = 0;
@@ -1309,7 +1325,6 @@ public class Main {
       Util.Print("starting in method " + startNode);
       final IQuery query = new CombinedPathAndPointsToQuery(lastRule, depRuleGenerator);
       IR ir = lastRule.getNode().getIR();
-      Util.Debug(ir.toString());
       SSACFG cfg = ir.getControlFlowGraph();
       SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
       int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);

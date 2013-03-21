@@ -396,7 +396,8 @@ public class IPathInfo { // implements Comparable {
     else Util.Assert(skip);
     // if this call is relevant
     if (skip || callee.getIR() == null || calleeName.contains("equals") || calleeName.contains("hashCode")
-        || calleeName.contains("indexOf") || calleeName.contains("Iterator") || !isCallRelevantToQuery(instr, callee, cg)) { 
+        || calleeName.contains("indexOf") || calleeName.contains("Iterator") || 
+        calleeName.contains("MessageQueue, next") || !isCallRelevantToQuery(instr, callee, cg)) { 
       // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
       if (Options.DEBUG) Util.Debug("skipping call " + instr + " and dropping produced constraints");
@@ -594,7 +595,6 @@ public class IPathInfo { // implements Comparable {
   }
 
   public boolean isCallRelevantToQuery(SSAInvokeInstruction instr, CGNode callee, CallGraph cg) {
-    Util.Debug("checking call relevance");
     return query.isCallRelevant(instr, this.currentNode, callee, cg);
   }
 

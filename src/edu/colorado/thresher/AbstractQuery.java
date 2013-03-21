@@ -43,9 +43,9 @@ public abstract class AbstractQuery implements IQuery {
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
     return IQuery.FEASIBLE;
   }
-
+  
   @Override
-  public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+  public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode caller, IPathInfo currentPath) {
     return IQuery.FEASIBLE;
   }
 

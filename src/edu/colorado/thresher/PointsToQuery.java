@@ -438,7 +438,7 @@ public class PointsToQuery implements IQuery {
                 toRemove.add(edge1);
                 toRemove.add(edge2);
                 Set<InstanceKey> intersectedValues = Util.deepCopySet(edge1Sink.getPossibleValues());
-                intersectedValues.retainAll(edge2Sink.getPossibleValues());
+                if (Options.NARROW_FROM_CONSTRAINTS) intersectedValues.retainAll(edge2Sink.getPossibleValues());
                 toAdd.add(new PointsToEdge(edge1.getSource(), SymbolicPointerVariable.makeSymbolicVar(intersectedValues)));// new
                                                                                                                            // SymbolicPointerVariable(intersectedValues)));
               } else {
@@ -532,7 +532,7 @@ public class PointsToQuery implements IQuery {
           //Util.Debug("binding " + formal + " to " + edge.getSink());
           PointsToEdge newEdge = new PointsToEdge(formal, edge.getSink());
 
-          // DEBUG
+          // begin ugliness; should rework this
           for (PointsToEdge prod : produced) {
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
               // multipe assignments to formal; let's see if they're consistent
@@ -542,32 +542,36 @@ public class PointsToQuery implements IQuery {
                   // new assignment is more precise; remove old one
                   toRemove.add(prod);
                 } else
-                  Util.Assert(
-                      false,
-                      "incompatible multiple assignments to " + formal + " edge " + newEdge + " produced "
-                          + Util.constraintSetToString(produced));
+                  if (Options.DEBUG) {
+                    Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
+                              + newEdge + " produced " + Util.constraintSetToString(produced));
+                  }
+                // refuted
+                this.feasible = false;
               }
             }
           }
 
           for (PointsToEdge prod : constraints) {
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
-              // multipe assignments to formal; let's see if ther consistent
+              // multipe assignments to formal; let's see if they're consistent
               if (prod.getSink().isSymbolic() && !newEdge.getSink().isSymbolic()) {
                 SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
                 if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
                   // new assignment is more precise; remove old one
                   toRemove.add(prod);
                 } else
-                  Util.Assert(
-                      false,
-                      "incompatible multiple assignments to " + formal + " edge " + newEdge + " constraints "
-                          + Util.constraintSetToString(constraints));
+                  if (Options.DEBUG) {
+                    Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
+                              + newEdge + " produced " + Util.constraintSetToString(produced));
+                  }
+                  // refuted
+                  this.feasible = false;
+                  return null;
               }
             }
           }
-
-          // END DEBUG
+          // end ugliness
            
           for (PointsToEdge removeMe : toRemove)
             Util.Assert(produced.remove(removeMe), "couldn't remove edge " + removeMe);
@@ -589,7 +593,6 @@ public class PointsToQuery implements IQuery {
 
       produced.addAll(toAdd);
     }
-    // constraints.removeAll(toRemove);
     return formalsAssigned;
   }
   
@@ -599,9 +602,7 @@ public class PointsToQuery implements IQuery {
     if (instr instanceof SSAGetInstruction) {
       key = hm.getPointerKeyForLocal(node, instr.getDef());
     } else if (instr instanceof SSAReturnInstruction) {
-      SSAReturnInstruction ret = (SSAReturnInstruction) instr;
       key = hm.getPointerKeyForReturnValue(node);
-      //key = hm.getPointerKeyForLocal(node, ret.getResult());
     }
     if (key != null) {
       PointerVariable var = Util.makePointerVariable(key);
@@ -627,7 +628,9 @@ public class PointsToQuery implements IQuery {
     CGNode caller = currentPath.getCurrentNode(); 
     // need to do this even if there are no rules at the line because the return
     // value may be important (and is not represented in the dependency rules)
-    bindFormalsToActuals(instr, caller, callee);
+    if (bindFormalsToActuals(instr, caller, callee) == null) {
+      return IQuery.INFEASIBLE;
+    }
 
     Util.Debug("PRODUCED " + Util.constraintSetToString(produced));
 

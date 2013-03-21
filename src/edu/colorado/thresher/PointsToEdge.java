@@ -230,14 +230,14 @@ public class PointsToEdge implements Constraint, Comparable {
 
           else if (sub == null && this.source != other.getSource()) {
             // add a case split where we do not bind this edge
-            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
-            toAdd.add(copy);
+            //Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
+            //toAdd.add(copy);
             // add case where we do bind this edge
             if (other.getSource().isSymbolic()) {
               // compute intersection
               Set<InstanceKey> newKeys = Util.deepCopySet(this.source.getPossibleValues());
-              newKeys.retainAll(other.getSource().getPossibleValues());
-              Util.Debug("computing intersected!");
+              if (Options.NARROW_FROM_CONSTRAINTS) newKeys.retainAll(other.getSource().getPossibleValues());
+              if (Options.DEBUG) Util.Debug("computing intersected!");
               subMap.put((SymbolicPointerVariable) this.source, SymbolicPointerVariable.makeSymbolicVar(newKeys));
             } else subMap.put((SymbolicPointerVariable) this.source, other.getSource());
           }
