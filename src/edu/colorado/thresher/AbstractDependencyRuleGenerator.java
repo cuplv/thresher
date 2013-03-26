@@ -398,13 +398,13 @@ public class AbstractDependencyRuleGenerator {
         while (succs.hasNext()) {
           DependencyRule rule = Util.makeUnconditionalDependencyRule(instr, local, (InstanceKey) succs.next(),
               PointerStatement.EdgeType.Assign, lineId, lineNum, node);
-          rules.add(rule);
+          if (rule != null) rules.add(rule);
         }
       } else { // site not null
         // Util.Assert(site != null, "null site for " + instr + " in " + node);
         DependencyRule rule = Util.makeUnconditionalDependencyRule(instr, local, site, PointerStatement.EdgeType.Assign, lineId,
             lineNum, node);
-        rules.add(rule);
+        if (rule != null) rules.add(rule);
       }
     }
 
@@ -707,8 +707,10 @@ public class AbstractDependencyRuleGenerator {
       if (site != null && local != null) {
         DependencyRule rule = Util.makeUnconditionalDependencyRule(instr, local, site, PointerStatement.EdgeType.Assign, lineId,
             lineNum, node);
-        addRule(rule, instr, node);
-        rules.add(rule);
+        if (rule != null) {
+          addRule(rule, instr, node);
+          rules.add(rule);
+        }
       } else {
         if (DEBUG) {
           // System.err.println("Problem finding lhs or rhs while generating dependency rules for SSANewInstruction...exiting");
