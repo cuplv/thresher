@@ -408,8 +408,7 @@ public class PointsToQuery implements IQuery {
         }
         toRemove.clear();
         toAdd.clear();
-        for (PointsToEdge edge1 : aliasedEdges) { // for each edge with the same
-                                                  // LHS
+        for (PointsToEdge edge1 : aliasedEdges) { // for each edge with the same LHS
           for (PointsToEdge edge2 : aliasedEdges) {
             PointerVariable edge1Sink = edge1.getSink(), edge2Sink = edge2.getSink();
             if (edge1Sink.equals(edge2Sink)) {
@@ -418,15 +417,17 @@ public class PointsToQuery implements IQuery {
               continue;
             }
 
-            if (!edge1Sink.isSymbolic() && !edge2Sink.isSymbolic()) { // both
-                                                                      // concrete
+            if (!edge1Sink.isSymbolic() && !edge2Sink.isSymbolic()) { // both concrete
               // they can't be equal; we already checked for equality
               if (Options.DEBUG)
                 Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
               this.feasible = false;
               return formalsAssigned;
-            } else if (edge1Sink.isSymbolic() && edge2Sink.isSymbolic()) { // both
-                                                                           // symbolic
+            } 
+            
+            else if (!Options.NARROW_FROM_CONSTRAINTS) continue; // can't do any of these optimizations
+            
+            else if (edge1Sink.isSymbolic() && edge2Sink.isSymbolic()) { // both symbolic
               // pick the smaller set of abstract locations, remove the other
               // set
               if (edge1Sink.symbContains(edge2Sink))
@@ -438,9 +439,9 @@ public class PointsToQuery implements IQuery {
                 toRemove.add(edge1);
                 toRemove.add(edge2);
                 Set<InstanceKey> intersectedValues = Util.deepCopySet(edge1Sink.getPossibleValues());
-                if (Options.NARROW_FROM_CONSTRAINTS) intersectedValues.retainAll(edge2Sink.getPossibleValues());
-                toAdd.add(new PointsToEdge(edge1.getSource(), SymbolicPointerVariable.makeSymbolicVar(intersectedValues)));// new
-                                                                                                                           // SymbolicPointerVariable(intersectedValues)));
+                intersectedValues.retainAll(edge2Sink.getPossibleValues());
+                toAdd.add(new PointsToEdge(edge1.getSource(), SymbolicPointerVariable.makeSymbolicVar(intersectedValues)));
+                                                                                                                           
               } else {
                 // intersection is empty; refuted
                 if (Options.DEBUG)
@@ -462,11 +463,13 @@ public class PointsToQuery implements IQuery {
               if (edge2Sink.getPossibleValues().contains(edge1Sink.getInstanceKey())) {
                 toRemove.add(edge2); // constraint to concrete value;
               } else {
-                // intersection is empty; refuted
-                if (Options.DEBUG)
-                  Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
-                this.feasible = false;
-                return formalsAssigned;
+                if (Options.NARROW_FROM_CONSTRAINTS) {
+                  // intersection is empty; refuted
+                  if (Options.DEBUG)
+                    Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                  this.feasible = false;
+                  return formalsAssigned;
+                }
               }
             }
           }
@@ -1082,8 +1085,10 @@ public class PointsToQuery implements IQuery {
         if (lhsMatch && fieldsEqualAndNotArrays) {
           boolean rhsEq;
           if (edge.getSink().isSymbolic() && constraint.getSink().isSymbolic()) {
-            rhsEq = Util.intersectionNonEmpty(edge.getSink().getPossibleValues(), 
+            if (Options.NARROW_FROM_CONSTRAINTS) {
+              rhsEq = Util.intersectionNonEmpty(edge.getSink().getPossibleValues(), 
                                                constraint.getSink().getPossibleValues());
+            } else rhsEq = true;
           } else if (edge.getSink().isSymbolic()) {
             rhsEq = edge.getSink().getPossibleValues().contains(constraint.getSink().getInstanceKey());
            } else if (constraint.getSink().isSymbolic()) {
@@ -1092,21 +1097,6 @@ public class PointsToQuery implements IQuery {
             rhsEq = constraint.getSink().equals(edge.getSink());
           }
           if (!rhsEq) {
-	      if (Options.DEBUG) {
-		  Util.Debug("symb refuted: " + edge + " and " + constraint);
-		  Set<InstanceKey> vals0 = edge.getSink().getPossibleValues();
-		  if (vals0 != null) {
-		      Util.Debug("vals for " + edge);
-		      for (InstanceKey key : vals0) Util.Debug(key +"");
-		  }
-
-		  Set<InstanceKey> vals1 = constraint.getSink().getPossibleValues();
-		  if (vals1 != null) {
-		      Util.Debug("vals for " + constraint);
-		      for (InstanceKey key : vals1) Util.Debug(key +"");
-		  }
-
-	      }
             unsatCore.add(constraint);
             return null;
           }
