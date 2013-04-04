@@ -85,15 +85,22 @@ public class Util {
       System.err.println(s);
   }
 
-  public static void Debug(String s) {
+  public static void Debug(Object s) {
     if (Options.DEBUG)
       System.out.println(s);
   }
 
+  public static void Print(Object s) {
+    // if (PRINT) System.out.println(s);
+    System.out.println(s);
+  }
+  
+  /*
   public static void Print(String s) {
     // if (PRINT) System.out.println(s);
     System.out.println(s);
   }
+  */
 
   public static void clear() {
     varIds.clear();

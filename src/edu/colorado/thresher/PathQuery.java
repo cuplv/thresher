@@ -44,6 +44,7 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.ssa.SSAUnaryOpInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -643,8 +644,7 @@ public class PathQuery implements IQuery {
     Set<AtomicPathConstraint> toAdd = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
     List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : constraints) {
-      // AtomicPathConstraints are (almost) pure, so we can't do substitution
-      // in-place
+      // AtomicPathConstraints are (almost) pure, so we can't do substitution in-place
       AtomicPathConstraint newConstraint;
       if (toSub instanceof SimplePathTerm && !toSub.isIntegerConstant())
         newConstraint = constraint.heapSubstitute((SimplePathTerm) toSub, subForTerm);
@@ -816,8 +816,8 @@ public class PathQuery implements IQuery {
 
   @Override
   public boolean foundWitness() {
-    if (fakeWitness)
-      return fakeWitness;
+    if (fakeWitness) return fakeWitness;
+    if (Options.SYNTHESIS) return false;
     return constraints.isEmpty(); // can't have a witness while there are still
                                   // path constraints to produce
   }
@@ -1212,6 +1212,23 @@ public class PathQuery implements IQuery {
     }
     return IQuery.FEASIBLE;
   }
+  
+  public boolean visit(SSAInvokeInstruction instr, CGNode currentNode) {
+    Util.Pre(Options.SYNTHESIS);
+    if (instr.hasDef()) {
+      Util.Assert(!instr.isStatic()); // unimplemented for now
+      HeapModel hm = this.depRuleGenerator.getHeapModel();
+   
+      ConcretePointerVariable receiver = new ConcretePointerVariable(currentNode, instr.getUse(0), hm);
+      // special ghost variable corresponding to the call
+      FieldReference ghost = FieldReference.findOrCreate(instr.getDeclaredTarget().getDeclaringClass().getClassLoader(), 
+                                                         instr.getDeclaredTarget().getDeclaringClass().getName().toString(),
+                                                         instr.getDeclaredTarget().getSelector().toString(),
+                                                         instr.getDeclaredResultType().getName().toString());  
+      substituteExpForVar(new SimplePathTerm(receiver, ghost), new ConcretePointerVariable(currentNode, instr.getDef(), hm));
+    }
+    return true;
+  }
 
   @Override
   public List<IQuery> visit(SSAInstruction instr, IPathInfo currentPath) {
@@ -1261,8 +1278,8 @@ public class PathQuery implements IQuery {
     else if (instr instanceof SSAThrowInstruction)
       result = visit((SSAThrowInstruction) instr, node);
     else if (instr instanceof SSAInvokeInstruction) {
-      Util.Assert(false, "should this happen?");
-      // result = visit((SSAInvokeInstruction) instr, node);
+      //Util.Assert(false, "should this happen?");
+      result = visit((SSAInvokeInstruction) instr, node);
     } else if (instr instanceof SSANewInstruction)
       result = visit((SSANewInstruction) instr, node, tbl);
     else if (instr instanceof SSAReturnInstruction)

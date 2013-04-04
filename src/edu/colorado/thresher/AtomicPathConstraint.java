@@ -115,6 +115,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   }
 
   public AtomicPathConstraint heapSubstitute(SimplePathTerm toSub, SimplePathTerm subFor) {
+    //Util.Debug("heapSub: toSub " + toSub + " subFor " + subFor);
     Util.Pre(!toSub.isIntegerConstant(), "constants should be subsituted using different method");
     PathTerm newLHS = lhs.heapSubstitute(toSub, subFor);
     boolean lhsSubstituted = newLHS.substituted(); // DO NOT MOVE THIS! if lhs

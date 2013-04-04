@@ -141,7 +141,7 @@ public class IBranchPoint {
 
   public SSAConditionalBranchInstruction getInstr() {
     Util.Assert(instr instanceof SSAConditionalBranchInstruction,
-        "should only call this on branch points triggered by conditionals!");
+        "should only call this on branch points triggered by conditionals. instr is " + instr);
     return (SSAConditionalBranchInstruction) instr;
   }
 

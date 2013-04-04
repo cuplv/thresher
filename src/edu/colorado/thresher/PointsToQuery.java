@@ -118,6 +118,9 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public boolean containsStaleConstraints(CGNode node) {
+    
+    //List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>();
+    
     for (PointsToEdge edge : constraints) {
       // do any constraints have a local var from node on the LHS?
       if (edge.getSource().isLocalVar() && edge.getSource().getNode().equals(node)) {
@@ -169,12 +172,12 @@ public class PointsToQuery implements IQuery {
       return IQuery.FEASIBLE;
     }
     List<IQuery> splits = visitInternal(instr, currentPath, matchingRules);
-    if (Options.DEBUG)
-      Util.Debug("after phi visit " + this);
+    
     if (splits == IQuery.INFEASIBLE) {
       this.feasible = false;
       return IQuery.INFEASIBLE;
     }
+    if (Options.DEBUG) Util.Debug("after phi visit " + this);
     // Util.Assert(splits.isEmpty(), "shouldn't have caseSplits for phi's!");
     return splits;
   }
@@ -236,8 +239,7 @@ public class PointsToQuery implements IQuery {
                                 // rules were found
     } else if (applicableRules.size() == 1) {
       DependencyRule rule = applicableRules.get(0);
-      // PointsToQuery copy = this.deepCopy();
-      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+      if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
       applyRule(rule, this);
       return caseSplits;
     } else { // many applicable rules
@@ -251,7 +253,7 @@ public class PointsToQuery implements IQuery {
         for (DependencyRule rule : applicableRules) {
           Util.Debug("rule " + rule);
         }
-      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(copy); // add "rule not applied" path
+      if (!Options.ABSTRACT_DEPENDENCY_RULES) cases.add(copy.deepCopy()); // add "rule not applied" path
       // many applicable rules; case split!
       for (DependencyRule rule : applicableRules) {
         if (first) {
@@ -425,11 +427,14 @@ public class PointsToQuery implements IQuery {
               return formalsAssigned;
             } 
             
-            else if (!Options.NARROW_FROM_CONSTRAINTS) continue; // can't do any of these optimizations
+            else if (!Options.NARROW_FROM_CONSTRAINTS) {
+              toRemove.add(edge1); // can't narrow; just remove both of them
+              toRemove.add(edge2);
+              continue;
+            }
             
             else if (edge1Sink.isSymbolic() && edge2Sink.isSymbolic()) { // both symbolic
-              // pick the smaller set of abstract locations, remove the other
-              // set
+              // pick the smaller set of abstract locations, remove the other set
               if (edge1Sink.symbContains(edge2Sink))
                 toRemove.add(edge1);
               else if (edge2Sink.symbContains(edge1Sink))
@@ -441,7 +446,6 @@ public class PointsToQuery implements IQuery {
                 Set<InstanceKey> intersectedValues = Util.deepCopySet(edge1Sink.getPossibleValues());
                 intersectedValues.retainAll(edge2Sink.getPossibleValues());
                 toAdd.add(new PointsToEdge(edge1.getSource(), SymbolicPointerVariable.makeSymbolicVar(intersectedValues)));
-                                                                                                                           
               } else {
                 // intersection is empty; refuted
                 if (Options.DEBUG)
@@ -463,13 +467,11 @@ public class PointsToQuery implements IQuery {
               if (edge2Sink.getPossibleValues().contains(edge1Sink.getInstanceKey())) {
                 toRemove.add(edge2); // constraint to concrete value;
               } else {
-                if (Options.NARROW_FROM_CONSTRAINTS) {
-                  // intersection is empty; refuted
-                  if (Options.DEBUG)
-                    Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
-                  this.feasible = false;
-                  return formalsAssigned;
-                }
+                // intersection is empty; refuted
+                if (Options.DEBUG)
+                  Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                this.feasible = false;
+                return formalsAssigned;
               }
             }
           }
@@ -480,8 +482,9 @@ public class PointsToQuery implements IQuery {
           if (!removed)
             Util.Assert(removed, "couldn't remove edge " + edge + " from " + Util.printCollection(constraints));
         }
-        for (PointsToEdge edge : toAdd)
+        for (PointsToEdge edge : toAdd) {
           addConstraint(edge);
+        }
       }
     }
 
@@ -534,52 +537,67 @@ public class PointsToQuery implements IQuery {
         if (edge.getSource().equals(arg)) {
           //Util.Debug("binding " + formal + " to " + edge.getSink());
           PointsToEdge newEdge = new PointsToEdge(formal, edge.getSink());
-
+       
           // begin ugliness; should rework this
           for (PointsToEdge prod : produced) {
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
-              // multipe assignments to formal; let's see if they're consistent
+              // multiple assignments to formal; let's see if they're consistent
               if (prod.getSink().isSymbolic() && !newEdge.getSink().isSymbolic()) {
-                SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
-                if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
-                  // new assignment is more precise; remove old one
-                  toRemove.add(prod);
-                } else
-                  if (Options.DEBUG) {
-                    Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
+                
+                if (Options.NARROW_FROM_CONSTRAINTS) {
+                
+                  SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
+                  if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
+                    // new assignment is more precise; remove old one
+                    toRemove.add(prod);
+                  } else
+                    if (Options.DEBUG) {
+                      Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
                               + newEdge + " produced " + Util.constraintSetToString(produced));
-                  }
-                // refuted
-                this.feasible = false;
+                    }
+                    // refuted
+                    this.feasible = false;
+                    return null;
+                } else { // not narrowing
+                  toRemove.add(prod);
+                }
               }
             }
           }
 
           for (PointsToEdge prod : constraints) {
+
             if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
-              // multipe assignments to formal; let's see if they're consistent
+              // multiple assignments to formal; let's see if they're consistent
               if (prod.getSink().isSymbolic() && !newEdge.getSink().isSymbolic()) {
-                SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
-                if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
-                  // new assignment is more precise; remove old one
-                  toRemove.add(prod);
-                } else
-                  if (Options.DEBUG) {
-                    Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
+                
+                if (Options.NARROW_FROM_CONSTRAINTS) {
+                
+                  SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
+                  if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
+                    // new assignment is more precise; remove old one
+                    toRemove.add(prod);
+                  } else
+                    if (Options.DEBUG) {
+                      Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
                               + newEdge + " produced " + Util.constraintSetToString(produced));
-                  }
+                    }
                   // refuted
                   this.feasible = false;
                   return null;
+                } else { // not narrowing
+                  toRemove.add(prod);
+                }
               }
             }
           }
           // end ugliness
            
-          for (PointsToEdge removeMe : toRemove)
+          for (PointsToEdge removeMe : toRemove) {
             Util.Assert(produced.remove(removeMe), "couldn't remove edge " + removeMe);
+          }
           toRemove.clear();
-          produced.add(newEdge);
+          if (!Options.NARROW_FROM_CONSTRAINTS) produced.add(newEdge);
           formalsAssigned.add(formal);
         }
       }
@@ -881,8 +899,6 @@ public class PointsToQuery implements IQuery {
     ruleEdges.add(shown);
     ruleEdges.addAll(rule.getToShow());
 
-    //List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
-
     // first, match edges with local LHS's and concrete RHS's. these are hard constraints
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
@@ -1019,6 +1035,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     
+    
     return false;
   }
 
@@ -1049,6 +1066,10 @@ public class PointsToQuery implements IQuery {
           //lhsMatch = edge.getSource() == constraint.getSource();
           lhsMatch = edge.getSource().getPossibleValues().equals(constraint.getSource().getPossibleValues());
           
+          // can't compare symbolic vars for equality if we can't narrow (only inequality). must soundly say NEQ
+          if (!Options.NARROW_FROM_CONSTRAINTS) lhsMatch = false;
+                                                           
+          
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getFieldRef() == null || !(constraint.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS));
@@ -1062,15 +1083,12 @@ public class PointsToQuery implements IQuery {
            * constraint.getSource()); subMap.put((SymbolicPointerVariable)
            * edge.getSource(), constraint.getSource()); } }
            */
-        } else if (edge.getSource().isSymbolic()) { // rule edge symbolic,
-                                                    // constraint edge concrete
+        } else if (edge.getSource().isSymbolic()) { // rule edge symbolic, constraint edge concrete
           lhsMatch = edge.getSource().getPossibleValues().contains(constraint.getSource().getInstanceKey());
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getField() == null || !(constraint.getField() instanceof ArrayContentsKey));
-         } else if (constraint.getSource().isSymbolic()) { // constraint edge
-                                                          // symbolic, rule edge
-                                                          // concrete
+         } else if (constraint.getSource().isSymbolic()) { // constraint edge symbolic, rule edge concrete
           lhsMatch = constraint.getSource().getPossibleValues().contains(edge.getSource().getInstanceKey());
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (constraint.getFieldRef() == null || !(constraint.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
@@ -1085,10 +1103,10 @@ public class PointsToQuery implements IQuery {
         if (lhsMatch && fieldsEqualAndNotArrays) {
           boolean rhsEq;
           if (edge.getSink().isSymbolic() && constraint.getSink().isSymbolic()) {
-            if (Options.NARROW_FROM_CONSTRAINTS) {
+            //if (Options.NARROW_FROM_CONSTRAINTS) {
               rhsEq = Util.intersectionNonEmpty(edge.getSink().getPossibleValues(), 
                                                constraint.getSink().getPossibleValues());
-            } else rhsEq = true;
+            //} else rhsEq = true; // can't compare for equality without narrowing
           } else if (edge.getSink().isSymbolic()) {
             rhsEq = edge.getSink().getPossibleValues().contains(constraint.getSink().getInstanceKey());
            } else if (constraint.getSink().isSymbolic()) {
@@ -1246,11 +1264,11 @@ public class PointsToQuery implements IQuery {
             && (constraint.getField() == null || !(constraint.getField() instanceof ArrayContentsKey))
             && (edge.getField() == null || !(edge.getField() instanceof ArrayContentsKey));
         boolean rhsesEqual;
-	if (constraint.getSink().isSymbolic()) {
-	    rhsesEqual = constraint.getSink().symbEq(edge.getSink());
-	} else {
-	    rhsesEqual = constraint.getSink().equals(edge.getSink());
-	}
+        if (constraint.getSink().isSymbolic()) {
+          rhsesEqual = constraint.getSink().symbEq(edge.getSink());
+        } else {
+          rhsesEqual = constraint.getSink().equals(edge.getSink());
+        }
 
         if (lhsNameMatch && fieldsEqualAndNotArrays && !rhsesEqual) {
           PointerVariable constraintSrc = constraint.getSource();
@@ -1440,6 +1458,7 @@ public class PointsToQuery implements IQuery {
     }
   }
 
+  // TODO: change this to use the mod/ref instead of generating rules?
   public Set<PointsToEdge> getLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode, boolean earlyRet) {
     Set<PointsToEdge> relevant = HashSetFactory.make();
     Set<DependencyRule> loopRules = new TreeSet<DependencyRule>();

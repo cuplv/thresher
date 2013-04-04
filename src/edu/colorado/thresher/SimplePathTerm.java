@@ -139,23 +139,20 @@ public class SimplePathTerm implements PathTerm {
         }
       } else { // toSub has fields subbing in y.f
         if (subFor.getFields() == null) {
+          Util.Debug("subbin y.f");
           // subbing y.f for x
           if (this.fields == null) {
             newTerm = new SimplePathTerm(toSub.getObject().deepCopy(), Util.deepCopyStackList(toSub.getFieldsAsLinkedList()));
           } else {
             // see if we already have f in our fields
             FieldReference toAdd = toSub.getFieldsAsLinkedList().get(0);
-            if (toAdd.getName().equals(this.fields.getFirst().getName())) { // already
-                                                                            // have
-                                                                            // the
-                                                                            // field;
-                                                                            // don't
-                                                                            // add
-                                                                            // it
-                                                                            // again
+            if (toAdd.getName().equals(this.fields.getFirst().getName())) {
+              Util.Debug("already have field " + toAdd.getName());
+              // already have the field, don't add it again
               LinkedList<FieldReference> newFields = Util.deepCopyStackList(this.fields);
               newTerm = new SimplePathTerm(toSub.getObject().deepCopy(), newFields);
             } else { // don't have this field; add it whole
+              Util.Debug("don't have field");
               LinkedList<FieldReference> newFields = null;
               if (this.fields != null)
                 newFields = Util.deepCopyStackList(this.fields);
@@ -512,6 +509,12 @@ public class SimplePathTerm implements PathTerm {
     Set<SimplePathTerm> singleton = new TreeSet<SimplePathTerm>();
     singleton.add(this);
     return singleton;
+  }
+  
+  // TOOD: make this suck less
+  @Override
+  public int hashCode() {
+    return this.toString().hashCode();
   }
 
   @Override

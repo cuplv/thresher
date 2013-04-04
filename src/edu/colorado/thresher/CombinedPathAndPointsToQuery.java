@@ -130,6 +130,14 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
     this.pointsToQuery = new PointsToQueryWrapper(ptQuery, this);
   }
+  
+  CombinedPathAndPointsToQuery(PathQuery pathQuery) {
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
+    Set<PointsToEdge> ptConstraints = HashSetFactory.make();
+    Set<PointsToEdge> ptProduced = HashSetFactory.make();
+    this.pointsToQuery = new PointsToQueryWrapper(ptConstraints, ptProduced, new ArrayList<DependencyRule>(),
+        pathQuery.depRuleGenerator, this);
+  }
 
   /**
    * @return true if the query has been successfully witnessed, false otherwise

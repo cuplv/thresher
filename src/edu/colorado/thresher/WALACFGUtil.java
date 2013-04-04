@@ -163,7 +163,7 @@ public class WALACFGUtil {
   }
   
   public static ISSABasicBlock findEscapeBlockForDoWhileLoop(SSACFG.BasicBlock loopHead, IR ir) {
-    /*
+    
     SSACFG cfg = ir.getControlFlowGraph();
     Set<ISSABasicBlock> body = getLoopBodyBlocks(loopHead, ir);
     // there is one block in the loop body that has a predecessor outside of the loop. this
@@ -174,9 +174,6 @@ public class WALACFGUtil {
       }
     }
     Util.Unimp("couldn't find escape block for do..while loop headed by " + loopHead + " " + ir);
-    return null;
-    */
-    Util.Unimp("special do while loop case");
     return null;
   }
 
@@ -657,5 +654,36 @@ public class WALACFGUtil {
     Util.Assert(false, "couldn't find call to " + callee + " in caller " + caller);
     return null;
   }
-
+  
+  public static SSAConditionalBranchInstruction getInstrForLoopHead(SSACFG.BasicBlock loopHead, SSACFG cfg) {
+    Util.Debug("finding loop head instr for " + loopHead);
+    if (loopHead.getLastInstructionIndex() != -1) {
+      SSAInstruction instr = loopHead.getLastInstruction();
+      if (instr instanceof SSAConditionalBranchInstruction) return (SSAConditionalBranchInstruction) instr;
+    }
+    // else, have to search backwards until we find it
+    // TODO: should we go forwards to?
+    /*
+    while (cfg.getPredNodeCount(loopHead) == 1) {
+      loopHead = (SSACFG.BasicBlock) cfg.getPredNodes(loopHead).next();
+      Util.Debug("blk " + loopHead);
+      if (loopHead.getLastInstructionIndex() != -1) {
+        SSAInstruction instr = loopHead.getLastInstruction();
+        if (instr instanceof SSAConditionalBranchInstruction) return (SSAConditionalBranchInstruction) instr;
+      }
+    }
+    */
+    Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors(loopHead);
+    while (succs.size() == 1) {
+      ISSABasicBlock succ = succs.iterator().next();
+      if (succ.getLastInstructionIndex() != -1) {
+        SSAInstruction instr = succ.getLastInstruction();
+        if (instr instanceof SSAConditionalBranchInstruction) return (SSAConditionalBranchInstruction) instr;
+      }
+      succs = cfg.getNormalSuccessors(succ); // else, keep looking
+    }
+    
+    Util.Assert(false, "couldn't find it!");
+    return null;
+  }
 }

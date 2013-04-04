@@ -252,14 +252,15 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     if (Options.SYNTHESIS) {
       // add "loop taken" constraint
       for (IPathInfo info : truePaths) {
-        Util.Debug("false paths");
-        SSAInstruction instr = loopHeadBlock.getLastInstruction();
+        SSAInstruction instr = WALACFGUtil.getInstrForLoopHead(loopHeadBlock, info.getCurrentNode().getIR().getControlFlowGraph());
+        Util.Assert(instr instanceof SSAConditionalBranchInstruction);
         String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
         IBranchPoint point = branchPointMap.get(key);
         if (point == null) { // creating new branch point
           point = IBranchPoint.makeBranchPoint(instr, info.getCurrentLineNum(), info.getCurrentBlock(), info.getCurrentNode(), true);
         }    
         info.addConstraintFromBranchPoint(point, false);
+        if (Options.DEBUG) Util.Debug("after added loop taken: " + info);
       }
       // TODO: change stale constraints to retvals of native/unknown functions
     }
@@ -316,11 +317,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * escape block
    */
   List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
-    Util.Debug("executing loop head blk");
+    Util.Debug("executing loop head blk for " + info.getCurrentLineNum());
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
-    int startLine = info.getCurrentLineNum();
+    int startLine = currentBlock.getLastInstructionIndex();//info.getCurrentLineNum();
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
     List<IPathInfo> caseSplits = new LinkedList<IPathInfo>();
@@ -364,7 +365,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             caseSplits.removeAll(toRemove);
           } else if (instr instanceof SSAInvokeInstruction) {
             for (IPathInfo path : caseSplits) {
-              visitCallInLoopHead((SSAInvokeInstruction) instr, path);
+              if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
+              else visitCallInLoopHead((SSAInvokeInstruction) instr, path); 
             }
           } else {
             //if (Options.DEBUG)

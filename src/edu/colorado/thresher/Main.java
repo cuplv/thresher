@@ -43,7 +43,9 @@ import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ModRef;
+import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
@@ -126,7 +128,7 @@ public class Main {
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
         "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute", "DoLoopRefute",
-         "SimpleAliasingNoRefute", };
+         "SimpleAliasingNoRefute" };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -140,7 +142,7 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "TrickyInfiniteLoopRefute" };
+    final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -828,6 +830,7 @@ public class Main {
   }
 
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    Options.MAX_PATH_CONSTRAINT_SIZE = 50;
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     JarFile androidJar = new JarFile(Options.ANDROID_JAR);
     // add Android code
@@ -859,10 +862,11 @@ public class Main {
     AnalysisCache cache = new AnalysisCache();
     CallGraphBuilder builder = 
         com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,cache, cha, scope);
-    if (Options.DEBUG) Util.Debug("building call graph");
+    //if (Options.DEBUG) Util.Debug("building call graph");
+    Util.Print("Building call graph.");
     CallGraph cg = builder.makeCallGraph(options, null);
-    // if (CALLGRAPH_PRUNING) expandedCallgraph = ExpandedCallgraph.make(cg);
-    Util.Print(CallGraphStats.getStats(cg));
+    //Util.Print(CallGraphStats.getStats(cg));
+    
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
     HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
     HeapModel hm = pointerAnalysis.getHeapModel();
@@ -872,13 +876,37 @@ public class Main {
     final MethodReference ASSERT_PT_NULL = 
         MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
                                      "Unmodifiable", "(Ljava/lang/Object;Ljava/lang/String;)V");
+    
+    final MethodReference ASSERT_PURE = 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
+                                     "Assert", "(Z)V");
 
     Logger logger = new Logger();
     AbstractDependencyRuleGenerator depRuleGenerator = 
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
-    
-    // collect assertions
+    Util.Print("Collecting assertions.");
+    // collect pure assertions
+    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForNode(ASSERT_PURE, cg);
+    for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
+      SSAInvokeInstruction invoke = asser.fst;
+      CGNode node = asser.snd;
+      PathQuery query = new PathQuery(depRuleGenerator);
+      // add constraint expressing that assertion *should* fail (we want a counterexample for the synthesizer)
+      query.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(node, invoke.getUse(0), hm)),
+                                                   new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ));
+      ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
+      Util.Assert(blks.length == 1);
+      SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
+      int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+      Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
+      ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+      // start at line BEFORE call
+      Util.Print("Beginning symbolic execution.");
+      boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+    }
+  
+    // collect "unmodifiable" assertions
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(cg);
     Iterator<CGNode> clinits = cg.getSuccNodes(fakeWorldClinit);
     while (clinits.hasNext()) { // for each class initializer
@@ -897,7 +925,7 @@ public class Main {
             Iterator<Object> succs = hg.getSuccNodes(baseLoc);
             Util.Assert(succs.hasNext());
             Object succ = succs.next();
-            Util.Assert(!succs.hasNext(), "only expecting on obj to flow here");
+            Util.Assert(!succs.hasNext(), "only expecting one obj to flow here");
             String fieldName = tbl.getStringValue(callInstrs[i].getUse(1));
             Util.Print(succ + "." + fieldName);
             Iterator<Object> fields = hg.getSuccNodes(succ);
@@ -938,6 +966,7 @@ public class Main {
               PointerStatement snkStmt = producer.getStmt();
               int startLine = snkStmt.getLineNum();
               final IQuery query = new CombinedPathAndPointsToQuery(producer, depRuleGenerator);
+              Util.Print("query is " + query);
               IR ir = producer.getNode().getIR();
               SSACFG cfg = ir.getControlFlowGraph();
               SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);

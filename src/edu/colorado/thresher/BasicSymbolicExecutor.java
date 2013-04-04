@@ -7,9 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import z3.java.Z3AST;
+import z3.java.Z3Context;
+import z3.java.Z3Model;
+
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
@@ -17,6 +23,9 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.Selector;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
@@ -193,7 +202,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   public Iterator<CGNode> getCallers(IPathInfo path, Graph<CGNode> graph) {
     return graph.getPredNodes(path.getCurrentNode());
   }
-
+  
   /**
    * find possible callers for current path and add a new path for each
    * 
@@ -218,7 +227,43 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     // if this is an entrypoint and the only call is FakeRootNode
     if (this.callGraph.getEntrypointNodes().contains(callee) && this.callGraph.getPredNodeCount(callee) == 1) {
       if (Options.DEBUG) Util.Debug("reached entrypoint!");
-      // Util.Print(callers.next().getIR().toString());
+      
+      if (Options.SYNTHESIS) {
+        Util.Print("Symbolic execution complete. Beginning synthesis.");
+        CombinedPathAndPointsToQuery qry = (CombinedPathAndPointsToQuery) path.query;
+        Z3Context ctx = qry.ctx;
+        // map from free variables in our representation to free variables in the theorem prover
+        Map<SimplePathTerm,Z3AST> termVarMap = HashMapFactory.make();
+        
+        Util.Print("Constraints:");
+        for (AtomicPathConstraint constraint : qry.constraints) {
+          Util.Print(constraint);
+          for (SimplePathTerm term : constraint.getTerms()) {
+            if (!term.isIntegerConstant()) termVarMap.put(term, term.toZ3AST(ctx, false));
+          }
+          // give concstraints to the prover
+          Z3AST ast = constraint.toZ3AST(ctx);
+          ctx.assertCnstr(ast);
+        }
+
+        Z3Model model = qry.ctx.mkModel();
+        // get assignments for the free environment variables from the theorem prover
+        if (qry.ctx.checkAndGetModel(model)) { // sat
+          // map from free variables -> the value they should be assigned according to the prover
+          Map<SimplePathTerm,Integer> termValMap = HashMapFactory.make();
+          for (SimplePathTerm term : termVarMap.keySet()) {
+            termValMap.put(term, model.evalAsInt(termVarMap.get(term))); 
+          }
+          
+          IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
+          ClassSynthesizer synth = new ClassSynthesizer(cha);
+          // call synthesizer with method signatures and values to assign
+          synth.synthesize(termValMap);
+        } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat
+
+        return true;
+      }
+      
       CGNode entrypoint = path.getCurrentNode();
 
       IPathInfo easyWitness = path.deepCopy();
@@ -521,6 +566,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   @Override
   public void addPath(IPathInfo path) {
     if (Options.CHECK_ASSERTS) {
+      if (!path.isFeasible()) return; // HACK!
       Util.Pre(path.isFeasible(), "Should not add infeasible paths to paths to explore! " + path + " is infeasible.");
       Util.Pre(!path.atBranchPoint(), "path should not be at branch point");
       for (IPathInfo contained : pathsToExplore) {
@@ -701,19 +747,13 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     Set<CGNode> callees = callGraph.getPossibleTargets(info.getCurrentNode(), instr.getCallSite());
     // we get empty call sites when we don't have stubs for something
     if (callees.isEmpty()) {
-      Util.Debug("callees empty...skipping call");
-      info.skipCall((SSAInvokeInstruction) instr, callGraph, null); 
       if (Options.SYNTHESIS) {
         // replace with <base obj>.<call>
+        info.visit(instr);
+      } else {
+        Util.Debug("callees empty...skipping call");
+        info.skipCall((SSAInvokeInstruction) instr, callGraph, null); 
       }
-      
-      /*
-      // TODO: hack! encode that size returns a value >= 0 and less than max
-      // collection size
-      if (instr.getCallSite().getDeclaredTarget().toString().contains("size()")) {
-        return info.addSizeConstraint((SSAInvokeInstruction) instr, info.getCurrentNode());
-      }
-      */
       return true;
     }
     if (callees.size() == 1) { // normal case

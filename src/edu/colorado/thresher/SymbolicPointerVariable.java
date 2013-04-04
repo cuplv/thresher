@@ -152,6 +152,10 @@ public class SymbolicPointerVariable implements PointerVariable {
    */
   @Override
   public boolean symbContains(PointerVariable other) {
+    if (!Options.NARROW_FROM_CONSTRAINTS) {
+      return false; // can't compare for equality
+    }
+    
     if (other instanceof SymbolicPointerVariable) {
       SymbolicPointerVariable symb = (SymbolicPointerVariable) other;
       return this.getPossibleValues().containsAll(symb.getPossibleValues());
@@ -163,12 +167,15 @@ public class SymbolicPointerVariable implements PointerVariable {
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof SymbolicPointerVariable))
-      return false;
+    if (!(other instanceof SymbolicPointerVariable)) return false;
     SymbolicPointerVariable p = (SymbolicPointerVariable) other;
     Set<InstanceKey> otherPossibleValues = p.possibleValues;
-    if (this.possibleValues.size() != otherPossibleValues.size())
-      return false;
+    
+    if (!Options.NARROW_FROM_CONSTRAINTS) {
+      return Util.intersectionNonEmpty(this.possibleValues, otherPossibleValues);
+    }
+    
+    if (this.possibleValues.size() != otherPossibleValues.size()) return false;
     for (InstanceKey key : this.possibleValues) {
       if (!otherPossibleValues.contains(key))
         return false;

@@ -317,7 +317,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     Set<CGNode> callees = callGraph.getPossibleTargets(path.getCurrentNode(), instr.getCallSite());
     if (callees.isEmpty()) {
       // still need to drop retval
-      path.skipCall(instr, callGraph, null); 
+      path.skipCall(instr, callGraph, null);
     }
     
     for (CGNode callee : callees) {
@@ -353,14 +353,13 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
       List<SSAInstruction> instrs = currentBlock.getAllInstructions();
       for (int i = instrs.size() - 1; i > -1; i--) {
         SSAInstruction instr = instrs.get(i);
-        if (Options.DEBUG)
-          Util.Debug("loop head instr " + instr);
+        if (Options.DEBUG) Util.Debug("loop head instr " + instr);
         if (i <= startLine) {
           if (instr instanceof SSAInvokeInstruction) {
-            if (Options.DEBUG)
-              Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!");
+            if (Options.DEBUG) Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!");
             for (IPathInfo path : cases) {
-              visitCallInLoopHead((SSAInvokeInstruction) instr, path);
+              if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
+              else visitCallInLoopHead((SSAInvokeInstruction) instr, path); 
             }
           } else if (instr instanceof SSAPhiInstruction) {
             // found a phi node; need to do path splitting early in order to

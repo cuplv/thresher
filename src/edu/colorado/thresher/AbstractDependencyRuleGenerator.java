@@ -813,6 +813,7 @@ public class AbstractDependencyRuleGenerator {
           Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
           while (retvalSuccs.hasNext()) {
             PointerVariable succ = Util.makePointerVariable(retvalSuccs.next());
+            if (succ == null) continue; // makePointerVariable() can return null for exception literals
             PointsToEdge shown = new PointsToEdge(lhs, succ);
             TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
             toShow.add(new PointsToEdge(retval, succ));
@@ -832,12 +833,14 @@ public class AbstractDependencyRuleGenerator {
           PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
           PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
           PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
+          if (rhsPointer == null) continue;
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
           Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
 
           while (ptValues.hasNext()) {
             PointerVariable rhs = Util.makePointerVariable(ptValues.next());
+            if (rhs == null) continue;
             if (rhs != null) {
               PointsToEdge shown = new PointsToEdge(lhs, rhs);
               PointsToEdge toShow = new PointsToEdge(rhsPointer, rhs);
@@ -1751,5 +1754,5 @@ public class AbstractDependencyRuleGenerator {
       return null;
     }
   };
-
+  
 }
