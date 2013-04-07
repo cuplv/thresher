@@ -839,6 +839,8 @@ public class Main {
     scope.addToScope(scope.getPrimordialLoader(), androidJar);
     // add application code
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    File exclusionsFile = new File("config/synthesis_exclusions.txt");
+    if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
     
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Iterator<IClass> classes = cha.iterator();
@@ -913,7 +915,7 @@ public class Main {
       String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
       Util.Print("Checking assertion at " + loc);
       boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
-      if (foundWitness) Util.Print("Assertion at " + loc + " may fail.");
+      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   
@@ -1018,7 +1020,7 @@ public class Main {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     if (Options.USE_EXCLUSIONS) {
       File exclusionsFile = new File("config/exclusions.txt");
-      if (exclusionsFile != null) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
     }
     JarFile androidJar = new JarFile(Options.ANDROID_JAR);
     // add Android code

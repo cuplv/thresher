@@ -86,9 +86,8 @@ public class ClassSynthesizer {
     
     // synthesize test class
     String classBody = synthesizeTestMethod(testCode);
-    Util.Print(classBody);
     String classText = synthesizeNewClass(TEST_CLASS_NAME, Collections.singletonList(classBody));
-    Util.Print(classText);
+    //Util.Print("Emitting test " + classText);
     emitClass(classText, TEST_CLASS_NAME, Options.APP);
   }
 

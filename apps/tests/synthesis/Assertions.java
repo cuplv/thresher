@@ -7,8 +7,8 @@ public class Assertions {
 
   static void Assert(boolean bool) {
       //  uncomment to get runtime semantics; commented because it slows callgraph building
-      //System.out.println("Failed assertion!");
-      //Thread.dumpStack();
-      //System.exit(1);
+      System.out.println("Failed assertion!");
+      Thread.dumpStack();
+      System.exit(1);
   }
 }
