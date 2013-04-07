@@ -1,9 +1,10 @@
 package edu.colorado.thresher;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Collection;
-
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -1629,4 +1630,21 @@ public class Util {
     }
     return false;
   }
+  
+ 
+  public static Collection<File> listFilesRec(File startDir) {
+    Util.Pre(startDir.isDirectory());
+    Collection<File> files = new ArrayList<File>();
+        
+    final File[] genFiles = startDir.listFiles();
+    for (File f : genFiles) {
+      if (f.isDirectory()) {
+        files.addAll(listFilesRec(f));
+      } else { // is file
+       files.add(f); 
+      }
+    }
+    return files;
+  }
+  
 }

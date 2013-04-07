@@ -50,6 +50,10 @@ public class AndroidUtils {
       this.buttonStringId = buttonStringId;
     }
     
+    public String toString() {
+      return "ID " + id + ": " + intId + " Handler " + eventHandler + " Label " + label + " stringName " + buttonStringId;
+    }
+    
   }
   
   // TODO: want id -> event handler -> button name mapping
@@ -145,7 +149,6 @@ public class AndroidUtils {
           if (button != null) {
             Util.Assert(button.label == null);
             button.label = el.getTextContent();
-            Util.Debug("adding label " + button.label + " for " + button.id);
           }
         }
       }
@@ -162,11 +165,9 @@ public class AndroidUtils {
     // make sure we've found the labels and int id's for all buttons
     for (AndroidButton button : buttonIdMap.values()) {
       Util.Assert(button.label != null, "No label for button " + button.id);
-      Util.Assert(button.intId != 0);
+      Util.Assert(button.intId != 0, "No id for button " + button);
     }
     
-    Util.Unimp("done");
-
     return buttonIdMap.values();
   }
   
@@ -181,35 +182,42 @@ public class AndroidUtils {
     final String INT_DECL = "public static final int ";
     final String ID_CLASS = "public static final class id";
     final File genDir = new File(appPath + "gen/");
-    final File[] genFiles = genDir.listFiles();
+    Util.Assert(genDir.exists());
+    final Collection<File> genFiles = Util.listFilesRec(genDir);
     
     for (File f : genFiles) {
-      Util.Print("file " + f);
       if (f.getName().equals("R.java")) {
-        Util.Debug("found R.java");
         try {
           FileInputStream stream = new FileInputStream(f);
           BufferedReader br = new BufferedReader(new InputStreamReader(stream));
           String line;
           boolean parsing = false;
           while ((line = br.readLine()) != null) {
+            //Util.Debug("line " + line);
             if (line.contains(ID_CLASS)) {
-              Util.Debug("parsing");
               parsing = true;
             } else if (parsing && line.contains("}")) parsing = false;
             
             if (parsing && line.contains(INT_DECL)) {
               line = line.replace(INT_DECL, "");
+              // strip out spaces, tabs, and semicolons
+              line =  line.replaceAll("[ \t;]", "");
               int eqIndex = line.indexOf("=");
               // get var name; should be between beginning of str and = sign
               String varName = line.substring(0, eqIndex);
-              Util.Debug("varName " + varName);
-              Util.Assert(!varName.endsWith(" ")); // may need to strip out spaces
               AndroidButton button = buttonIdMap.get(varName);
               if (button != null) {
-                // TODO: these names are usually defined in hex... is that ok for parseInt()?
-                // get integer id assigned to button; should be after = sign
-                int intValue = Integer.parseInt(line.substring(eqIndex + 1, line.length()));
+                // parse out RHS of expression (part after = sign)
+                line = line.substring(eqIndex + 1, line.length());
+                int radix = 10;
+                if (line.startsWith("0x")) {
+                  // Java doesn't like parsing hexes that start with 0x. strip it out
+                  line = line.substring(2, line.length());
+                  radix = 16; // indicate that this is a hex value
+                }
+                Util.Assert(!line.contains("0x"));
+                // get integer id assigned to button
+                int intValue = Integer.parseInt(line, radix);
                 button.intId = intValue;
               }
             }

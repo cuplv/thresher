@@ -9,7 +9,9 @@ for dir in $( ls -d */);
 do
     echo 'Building' $dir
     cd $dir 
-    mkdir bin
+    if [ ! -d "bin" ]; then
+	mkdir bin
+    fi
     make
     cd $BASE/apps/tests/regression
 done
@@ -19,7 +21,21 @@ for dir in $( ls -d */);
 do
     echo 'Building' $dir
     cd $dir 
-    mkdir bin
+    if [ ! -d "bin" ]; then
+	mkdir bin
+    fi
     make
     cd $BASE/apps/tests/immutability
+done
+
+cd $BASE/apps/tests/synthesis
+for dir in $( ls -d */);
+do
+    echo 'Building' $dir
+    cd $dir 
+    if [ ! -d "bin" ]; then
+	mkdir bin
+    fi
+    make
+    cd $BASE/apps/tests/synthesis
 done

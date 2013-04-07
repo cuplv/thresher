@@ -229,8 +229,14 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       if (Options.DEBUG) Util.Debug("reached entrypoint!");
       
       if (Options.SYNTHESIS) {
-        Util.Print("Symbolic execution complete. Beginning synthesis.");
         CombinedPathAndPointsToQuery qry = (CombinedPathAndPointsToQuery) path.query;
+        if (qry.constraints.isEmpty()) {
+          // don't need any external constraints for witness; "definite" (up to imprecision) assertion failure
+          // TODO: printsome sort of witness
+          return true;
+        }
+        
+        Util.Print("Beginning synthesis");
         Z3Context ctx = qry.ctx;
         // map from free variables in our representation to free variables in the theorem prover
         Map<SimplePathTerm,Z3AST> termVarMap = HashMapFactory.make();
@@ -373,41 +379,14 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
                                                                                     // instruction
             if (Options.DEBUG)
               Util.Debug("done visiting caller\n" + newPath);
-            if (newPath.foundWitness())
-              return true; // check for witness
-            /*
-             * if (WALACFGUtil.isFakeWorldClinit(caller, this.callGraph)) { if
-             * (handleFakeWorldClinit(newPath)) { // this is not a fake witness.
-             * the problem is that newPath can split into multiple paths and we
-             * can find a witness on a different one
-             * newPath.declareFakeWitness(); return true; // found witness in
-             * fakeWorldClinit; done } continue; // else, path refuted; try
-             * another }
-             */
-
-            /*
-             * // skip to callers of caller if this call can't change the query
-             * if (!path.isCallRelevantToQuery((SSAInvokeInstruction) instr,
-             * callee, this.callGraph)) { Util.Debug("caller " + caller +
-             * " not relevant; skipping to beginning of method");
-             * newPath.setCurrentNode(caller);
-             * newPath.setCurrentBlock(caller.getIR
-             * ().getControlFlowGraph().entry()); newPath.setCurrentLineNum(-1);
-             * addPath(newPath); continue; } // else, caller is potentially
-             * important
-             */
-
+            if (newPath.foundWitness()) return true; // check for witness
+  
             newPath.setCurrentLineNum(callLine - 1); // start from line before
                                                      // the call
             addPath(newPath); // path is feasible, add to paths to explore
           } else if (Options.DEBUG)
-            Util.Debug("visiting caller yielded infeasible path; refuting");// else
-                                                                            // path
-                                                                            // infeasible,
-                                                                            // don't
-                                                                            // copy
-                                                                            // or
-                                                                            // add
+            // else, path infeasible; don't copy or add
+            Util.Debug("visiting caller yielded infeasible path; refuting");
         }
       }
     }
@@ -531,13 +510,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
             // addPath(newPath); // path is feasible, add to paths to explore
             callerCaseSplits.add(newPath);
           } else if (Options.DEBUG)
-            Util.Debug("visiting caller yielded infeasible path; refuting");// else
-                                                                            // path
-                                                                            // infeasible,
-                                                                            // don't
-                                                                            // copy
-                                                                            // or
-                                                                            // add
+            // else, path infeasible; don't copy or add
+            Util.Debug("visiting caller yielded infeasible path; refuting");
         }
       }
     }

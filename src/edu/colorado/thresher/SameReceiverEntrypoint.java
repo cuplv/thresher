@@ -47,10 +47,16 @@ public class SameReceiverEntrypoint extends DefaultEntrypoint {
     Integer result = cachedReceivers.get(ref);
     int receiver;
     if (result == null) {
-      // haven't seen a receiver of type ref yet; allocate a new one
-      SSANewInstruction n = m.addAllocation(ref);
-      receiver = (n == null) ? -1 : n.getDef();
-      cachedReceivers.put(ref, receiver);
+      // hack! needed for when WALA doesn't know how to create an instance of something
+      try {
+        // haven't seen a receiver of type ref yet; allocate a new one
+        SSANewInstruction n = m.addAllocation(ref);
+      //receiver = (n == null) ? -1 : n.getDef();
+        receiver = n.getDef();
+        cachedReceivers.put(ref, receiver);
+      } catch (NullPointerException e) {
+        return -1;
+      }
     } else receiver = result.intValue();
     Util.Post(receiver != -1, "bad receiver");
     return receiver;

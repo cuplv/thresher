@@ -1,14 +1,20 @@
 package edu.colorado.thresher;
 
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
+import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
@@ -20,23 +26,40 @@ public class ClassSynthesizer {
 
   private static final String METHOD_SPACING = "  ";
   private static final String METHOD_BODY_SPACING = "    ";
+  public static final String TEST_CLASS_NAME = "ThresherGeneratedTest";
   private static int counter = 0;
   private final IClassHierarchy cha;
+  
+  Map<IClass,Set<MethodReference>> alreadySynthesized = HashMapFactory.make();
+  Map<IClass,List<String>> methodBodies = HashMapFactory.make();
   
   public ClassSynthesizer(IClassHierarchy cha) {
     this.cha = cha;
   }
   
   public void synthesize(Map<SimplePathTerm,Integer> termValMap) {
-    Map<IClass,Set<MethodReference>> alreadySynthesized = HashMapFactory.make();
-    Map<IClass,List<String>> methodBodies = HashMapFactory.make();
+    // each term is an access path (e.g. x.f.g), where x, f, g are types.
+    // the solver has given us a value of type g (say v) which may be a primitive
+    // value or an instance. our remaining task is then to synthesize an  
+    // an instance o_f of type f such that o_f.g = v, then synthesize an 
+    // instance of_x of type x such that o_x.f = o_f, e.t.c
+    
+    List<String> testCode = new ArrayList<String>();
     for (SimplePathTerm term : termValMap.keySet()) {
       FieldReference fld = term.getFirstField();
+      
+      if (fld == null) {
+        // TODO: can't handle multiple params that need to be passed to same method
+        // this is a constraint on inputs; all we need to do is synthesize a test
+        testCode.add(synthesizeTestForConstraint(term, termValMap.get(term)));
+        continue;
+      }
+      
       IClass clazz = cha.lookupClass(fld.getDeclaringClass());
       MethodReference method = MethodReference.findOrCreate(fld.getDeclaringClass(), 
                                                             Selector.make(fld.getName().toString()));
       // turn integer assignment from prover into String representation of typed object
-      String val = makeTypedValFromInt(termValMap.get(term), method.getReturnType());
+      String val = synthesizeTypedValFromInt(termValMap.get(term), method.getReturnType());
       String methodBody = synthesizeMethod(method, val);
       Set<MethodReference> methodSet = alreadySynthesized.get(clazz);
       if (methodSet == null) {
@@ -56,26 +79,122 @@ public class ClassSynthesizer {
     // have synthesized implementations for all methods that matter. 
     // now, synthesize the rest of the methods and the class itself (needed for compilation)
     for (IClass clazz : methodBodies.keySet()) {
-      String classText = synthesizeClass(clazz, methodBodies.get(clazz), alreadySynthesized.get(clazz));
-      // TODO: emit into .java file
+      String classText = synthesizeImplementsOrExtendsClass(clazz, methodBodies.get(clazz), alreadySynthesized.get(clazz));
       Util.Print("\nSynthesized class:\n" + classText);
     }
+    // TODO: emit into .java file, compile, synthesize test, run test
+    
+    // synthesize test class
+    String classBody = synthesizeTestMethod(testCode);
+    Util.Print(classBody);
+    String classText = synthesizeNewClass(TEST_CLASS_NAME, Collections.singletonList(classBody));
+    Util.Print(classText);
+    emitClass(classText, TEST_CLASS_NAME, Options.APP);
+  }
+
+  public void emitClass(String classText, String className, String path) {
+    String fileName = path + className + ".java";
+    Util.Print("Writing test to " + fileName);
+    PrintWriter out;
+    try {
+      out = new PrintWriter(fileName);
+      out.write(classText);
+      out.close();
+    } catch (FileNotFoundException e) {
+      Util.Print("Err " + e);
+    }
+
   }
   
-  private String synthesizeClass(IClass clazz, List<String> methodBodies, Set<MethodReference> dontSynthesize) {
-    String newClassName = getFreshClassName(clazz.getName().toString());
-    String sig = synthesizeClassSignature(clazz, newClassName);
-    List<String> newMethodBodies = synthesizeClassMethods(clazz.getDeclaredMethods(), dontSynthesize);
-    methodBodies.addAll(newMethodBodies);
+  private String synthesizeTestForConstraint(SimplePathTerm constraint, int val) {
+    PointerKey key = constraint.getPointer();
+    Util.Assert(key instanceof LocalPointerKey);
+    // determine which param our value should be passed as
+    int paramIndex = ((LocalPointerKey) key).getValueNumber() - 1;
+    IMethod method = constraint.getObject().getNode().getMethod();
+    Util.Assert(method.isPublic()); // can't call this method to pass our param unless it's public
+    IClass clazz = method.getDeclaringClass();
     StringBuffer buf = new StringBuffer();
-    buf.append(sig);
+    if (method.isStatic()) {
+      // don't need to create an instance of the class; can call method directly
+      buf.append(synthesizeMethodCall(clazz.getName().toString(), method, paramIndex, val));
+    } else if (method.isInit()) {
+      Util.Unimp("inits");
+    } else {
+      // need to create an instance of the class, then call a method on it
+      String instance = synthesizeInstanceOf(clazz.getReference());
+      buf.append(synthesizeMethodCall(instance, method, paramIndex, val));
+    }
+    return buf.toString();
+  }
+  
+  private String synthesizeMethodCall(String receiver, IMethod method, int valIndex, int val) {
+    StringBuffer buf = new StringBuffer();
+    buf.append(receiver);
+    buf.append('.');
+    buf.append(method.getName());
+    buf.append('(');
+    // skip first parameter; is always the receiver
+    for (int i = 1; i < method.getNumberOfParameters(); i++) {
+      TypeReference type = method.getParameterType(i);
+      if (i == valIndex) { // if this is the value we care about
+        buf.append(synthesizeTypedValFromInt(val, type));
+      } else {
+        if (type.isPrimitiveType()) {
+          buf.append(synthesizeDefaultValue(type));
+        } else {
+          // TODO: should we synthesize default value instead?
+          buf.append(synthesizeInstanceOf(type));
+        }
+      }
+      if (i != method.getNumberOfParameters() - 1) buf.append(", ");
+    }
+    buf.append(");");
+    return buf.toString();
+  }
+  
+  private String synthesizeTestMethod(List<String> testCode) {
+    final String MAIN = METHOD_SPACING + "public static void main(String[] args) {\n";
+    StringBuffer buf = new StringBuffer();
+    buf.append(MAIN);
+    for (String test : testCode) {
+      buf.append(METHOD_BODY_SPACING + test);
+      buf.append("\n");
+    }
+    buf.append(METHOD_SPACING + "}\n");
+    return buf.toString();
+  }
+  
+  private String synthesizeNewClass(String newClassName, List<String> methods) {
+    String signature = synthesizeClassSignature(newClassName);
+    return synthesizeClass(signature, methods);
+  }
+  
+  public String synthesizeClass(String signature, List<String> methods) {
+    StringBuffer buf = new StringBuffer();
+    buf.append(signature);
     buf.append(" {\n\n");
-    for (String body : methodBodies) {
+    for (String body : methods) {
       buf.append(body);
       buf.append("\n");
     }
     buf.append("}\n");
     return buf.toString();
+  }
+  
+  /**
+   * synthesize implementation of interface or class that extends existing class
+   * @param toImplement - interface to implement or class to extend
+   * @param methods - text of methods that have already been synthesized
+   * @param dontSynthesize - list of method bodies that have already been synthesized
+   * @return - ready-to-compile string representation of class
+   */
+  private String synthesizeImplementsOrExtendsClass(IClass toImplement, List<String> methods, Set<MethodReference> dontSynthesize) {
+    String newClassName = getFreshClassName(toImplement.getName().toString());
+    String sig = synthesizeClassSignature(toImplement, newClassName);
+    List<String> newMethods = synthesizeClassMethods(toImplement.getDeclaredMethods(), dontSynthesize);
+    methods.addAll(newMethods);
+    return synthesizeClass(sig, newMethods);
   }
   
   private List<String> synthesizeClassMethods(Collection<IMethod> methods, Set<MethodReference> dontSynthesize) {
@@ -95,18 +214,21 @@ public class ClassSynthesizer {
     return methodBodies;
   }
   
+  private String synthesizeClassSignature(String newClassName) {
+    return synthesizeClassSignature(null, newClassName);
+  }
+  
   private String synthesizeClassSignature(IClass _interface, String newClassName) {
-    // for now, only synthesizing interface implementations
-    Util.Pre(_interface.isInterface()); 
+    // for now, not synthesizing overrides
+    Util.Pre(_interface == null || _interface.isInterface()); 
     StringBuffer buf = new StringBuffer();
-    if (_interface.isPublic()) buf.append("public ");
-    else if (_interface.isPrivate()) buf.append("private ");
+    buf.append("public ");
     buf.append("class ");
     buf.append(newClassName);
-    buf.append(" implements ");
-    // parse away 'L' at front of class name
-    //buf.append(_interface.getName().toString().substring(1));
-    buf.append(makejavaTypeStringFromWALAType(_interface.getReference()));
+    if (_interface != null) {
+      buf.append(" implements ");
+      buf.append(makejavaTypeStringFromWALAType(_interface.getReference()));
+    }
     return buf.toString();
   }
   
@@ -181,7 +303,7 @@ public class ClassSynthesizer {
     return null;
   }
   
-  private String makeTypedValFromInt(int i, TypeReference type) {
+  private String synthesizeTypedValFromInt(int i, TypeReference type) {
     StringBuffer buf = new StringBuffer();
     if (type.isPrimitiveType()) {
       if (type == TypeReference.Int) {
@@ -193,7 +315,7 @@ public class ClassSynthesizer {
     } else if (type.isReferenceType()) { 
       if (i == 0) buf.append("null");
       else {
-        String instance = makeInstanceOf(type);
+        String instance = synthesizeInstanceOf(type);
         Util.Assert(instance != null, "Couldn't make instance of desired type " + type);
         buf.append(instance);
       }
@@ -211,13 +333,33 @@ public class ClassSynthesizer {
     return parsed + "Impl" + counter++;
   }
   
-  private String makeInstanceOf(TypeReference type) {
+  private String synthesizeInstanceOf(TypeReference type) {
     StringBuffer buf = new StringBuffer();
     IClass clazz = cha.lookupClass(type);
+    Util.Assert(clazz != null, "couldn't find class for " + type);
     
     if (clazz.isInterface()) {
-      // need to synthesize our own version of this, or find exisiting implementations of it in scope
-      
+      // need to synthesize our own version of this, or find existing implementations of it in scope
+      Set<IClass> implementors = cha.getImplementors(type);
+      Util.Assert(implementors.size() != 0);  
+      // try to find existing implementation...seems cheaper than synthesizing our own
+      for (IClass impl : implementors) {
+        if (!impl.isPublic()) continue; // TODO: handle protected here
+        // TODO: use search heuristics here?
+        // HACK! choose only application classes or java core library classes
+        if (!impl.getName().toString().contains("java") && 
+            impl.getClassLoader() != ClassLoaderReference.Application) {
+          continue;
+        }
+        String instance = synthesizeInstanceOf(impl.getReference());
+        if (instance != null) {
+          //return makeCast(type, instance);
+          return instance;
+        }
+      }
+      Util.Unimp("synthesizing instance of interface class " + clazz);
+    } else if (clazz.isAbstract()) {
+      Util.Unimp("synthesizing instance abstract class " + clazz);
     }
     
     Util.Assert(clazz != null);
@@ -225,7 +367,8 @@ public class ClassSynthesizer {
     // TODO: consider methods outside of this class as well
     for (IMethod method : clazz.getAllMethods()) {
       // TODO: handle protected correctly as well
-      if (method.isPrivate() || method.isAbstract()) continue; // can't call this method to get our type
+      //if (method.isPrivate() || method.isAbstract()) continue; // can't call this method to get our type
+      if (!method.isPublic()) continue; // can't call this method to get our type
       if (method.isInit()) {
         // we have a constructor. now we must initialize each of its arguments
         buf.append("new ");
@@ -233,9 +376,9 @@ public class ClassSynthesizer {
         buf.append("(");
         // start at index 1 because constructors have an implicit parameter
         for (int i = 1; i < method.getNumberOfParameters(); i++) {
-          TypeReference paramType = method.getParameterType(i); 
+          TypeReference paramType = method.getParameterType(i);
           Util.Assert(paramType != type); // prevent infinite recursion
-          String param = makeInstanceOf(paramType);
+          String param = synthesizeInstanceOf(paramType);
           if (param == null) break; // couldn't construct an instance of this type
           buf.append(param);
           if (i != method.getNumberOfParameters() - 1) buf.append(", ");
@@ -258,6 +401,15 @@ public class ClassSynthesizer {
     // parse out the L at the beginning of the name
     String typeString = type.getName().toString().substring(1);
     return typeString.replace("/", ".");
+  }
+  
+  private String makeCast(TypeReference castType, String castMe) {
+    StringBuffer buf = new StringBuffer();
+    buf.append("(");
+    buf.append(makejavaTypeStringFromWALAType(castType));
+    buf.append(") ");
+    buf.append(castMe);
+    return buf.toString();
   }
   
 }

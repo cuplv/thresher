@@ -15,6 +15,7 @@ import java.util.jar.JarFile;
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
@@ -44,6 +45,7 @@ import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
+import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
@@ -59,7 +61,6 @@ import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
-import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.graph.traverse.DFS;
@@ -359,6 +360,7 @@ public class Main {
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.ANDROID_JAR));
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
     Util.Print("Building class hierarchy");
+    
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Iterator<IClass> classes = cha.iterator();
     
@@ -828,7 +830,7 @@ public class Main {
     }
     return errs;
   }
-
+  
   public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.MAX_PATH_CONSTRAINT_SIZE = 50;
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
@@ -903,7 +905,16 @@ public class Main {
       ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
       // start at line BEFORE call
       Util.Print("Beginning symbolic execution.");
+      
+      IR ir = node.getIR();
+      IBytecodeMethod method = (IBytecodeMethod) ir.getMethod();
+   
+      int sourceLineNum = method.getLineNumber(invoke.getProgramCounter());
+      String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
+      Util.Print("Checking assertion at " + loc);
       boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+      if (foundWitness) Util.Print("Assertion at " + loc + " may fail.");
+      else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   
     // collect "unmodifiable" assertions
@@ -1034,6 +1045,7 @@ public class Main {
           if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) {
             // use same receiver for all method calls
             entryPoints.add(new SameReceiverEntrypoint(m, cha));
+            //entryPoints.add(new DefaultEntrypoint(m, cha));
           }
         }
       }
