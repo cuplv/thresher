@@ -50,6 +50,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   // exploration
   protected final Map<CGNode, Set<IPathInfo>> seenPaths;
   protected final Logger logger;
+  
+  private Collection<String> synthesizedClasses;
 
   public BasicSymbolicExecutor(CallGraph callGraph, Logger logger) {
     this.callGraph = callGraph;
@@ -224,6 +226,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
     CGNode callee = path.getCurrentNode();
 
+    if (Options.DEBUG) Util.Debug(this.callGraph.getPredNodeCount(callee) + " callers.");
+    
     // if this is an entrypoint and the only call is FakeRootNode
     if (this.callGraph.getEntrypointNodes().contains(callee) && this.callGraph.getPredNodeCount(callee) == 1) {
       if (Options.DEBUG) Util.Debug("reached entrypoint!");
@@ -264,7 +268,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
           ClassSynthesizer synth = new ClassSynthesizer(cha);
           // call synthesizer with method signatures and values to assign
-          synth.synthesize(termValMap);
+          this.synthesizedClasses = synth.synthesize(termValMap);
         } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat
 
         return true;
@@ -800,6 +804,14 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
   // should be overriden by fancier symbolic executors
   public void addLoopMergePlaceholder(SSACFG.BasicBlock loopHeadToMerge) {
+  }
+  
+  
+  
+  @Override
+  public Collection<String> getSynthesizedClasses() {
+    if (!Options.SYNTHESIS) return null;
+    else return synthesizedClasses;
   }
 
 }

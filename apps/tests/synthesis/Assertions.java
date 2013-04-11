@@ -6,9 +6,10 @@ public class Assertions {
   static void Unmodifiable(Object base, String field) {}
 
   static void Assert(boolean bool) {
-      //  uncomment to get runtime semantics; commented because it slows callgraph building
-      System.out.println("Failed assertion!");
-      Thread.dumpStack();
-      System.exit(1);
+      if (!bool) {
+	  System.out.println("Failed assertion!");
+	  Thread.dumpStack();
+	  System.exit(1);
+      }
   }
 }

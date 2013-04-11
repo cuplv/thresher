@@ -1,8 +1,13 @@
 package edu.colorado.thresher;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -11,6 +16,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
+
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
@@ -45,11 +56,11 @@ import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
-import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SymbolTable;
@@ -99,6 +110,7 @@ public class Main {
       if (Options.IMMUTABILITY) runImmutabilityCheck(target);
       else if (Options.SYNTHESIS) runSynthesizer(target);
       else if (Options.ANDROID_UI) runAndroidBadMethodCheck(target);
+      else if (Options.CHECK_CASTS) runCastChecker(target);
       else runAnalysisAllStaticFields(target);
   }
 
@@ -110,6 +122,7 @@ public class Main {
     REGRESSIONS = true;
     runAndroidLeakRegressionTests();
     runImmutabilityRegressionTests();
+    runSynthesizerRegressionTests();
   }
   
   
@@ -743,9 +756,88 @@ public class Main {
       InstanceKey key = instancesToExplore.removeFirst();
       Iterator<Object> fields = hg.getSuccNodes(key);
     }
+  }
+  
+  public static void runCastChecker(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    String appName;
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    IClassHierarchy cha;
+    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
     
+    // removing trailing slash if needed
+    if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
+    else appName = appPath;
+    // strip of front of path away from app name
+    appName = appName.substring(appName.lastIndexOf("/") + 1);
+    Util.Print("Running on " + appName);
+    /*
+    JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
+    JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
+    scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+    scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
+    scope.addToScope(scope.getApplicationLoader(), appJar);
+    */
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
     
-
+    final MethodReference DACAPO_MAIN =
+        //MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LTest"), 
+            "main", "([Ljava/lang/String;)V");
+    
+    cha = ClassHierarchy.make(scope);
+    entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
+    
+    AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    HeapModel heapModel = depRuleGenerator.getHeapModel();
+    PointerAnalysis pointerAnalysis = depRuleGenerator.getHeapGraph().getPointerAnalysis();
+    
+    // copied from Manu's DemandCastChecker.java
+    int numSafe = 0, numMightFail = 0;
+    for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
+      CGNode node = nodeIter.next();
+      TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
+      // skip library classes
+      if (declaringClass.getClassLoader().equals(ClassLoaderReference.Primordial)) {
+        continue;
+      }
+      IR ir = node.getIR();
+      if (ir == null)
+        continue;
+      SSAInstruction[] instrs = ir.getInstructions();
+      for (int i = 0; i < instrs.length; i++) {
+        SSAInstruction instruction = instrs[i];
+        if (instruction instanceof SSACheckCastInstruction) {
+          SSACheckCastInstruction castInstr = (SSACheckCastInstruction) instruction;
+          final TypeReference[] declaredResultTypes = castInstr.getDeclaredResultTypes();
+     
+          boolean primOnly = true;
+          for (TypeReference t : declaredResultTypes) {
+            if (! t.isPrimitiveType()) {
+              primOnly = false;
+            }
+          }
+          if (primOnly) {
+            continue;
+          }
+          
+          System.err.println("CHECKING " + castInstr + " in " + node.getMethod());
+          PointerKey castedPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
+          OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castedPk);
+          for (InstanceKey key : keys) {
+            TypeReference ikTypeRef = key.getConcreteType().getReference();
+            for (TypeReference t : declaredResultTypes) {
+              if (cha.isAssignableFrom(cha.lookupClass(t), cha.lookupClass(ikTypeRef))) {
+                numSafe++;
+              } else numMightFail++;
+            }
+          }
+        }
+      }
+    }
+    System.err.println("TOTAL SAFE: " + numSafe);
+    System.err.println("TOTAL MIGHT FAIL: " + numMightFail);
   }
   
   public static boolean checkAllFields(CGNode node, SSAInstruction instr, int callIndex,
@@ -831,8 +923,96 @@ public class Main {
     return errs;
   }
   
-  public static void runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+  public static void runSynthesizerRegressionTests() throws Exception {
+    final String APP_PATH  = "apps/tests/synthesis/";
+    final String GENERATED_TEST_NAME = "ThresherGeneratedTest";
+    final String ASSERTION_FAILURE = "Failed assertion!";
+    String[] tests = new String[] { "InputOnly", "MultiInput", "SimpleInterface", "SimpleInterfaceIrrelevantMethod", 
+                                    "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", "SimpleInterfaceObject", 
+                                    "MixedObjAndInt" };
+    String[] tests0 = new String[] { "SimpleField" };
+    
+    int testNum = 0;
+    int successes = 0;
+    int failures = 0;
+    long start = System.currentTimeMillis();
+    
+    for (String test : tests0) {
+      try {
+        Util.Print("Running test " + testNum + ": " + test);
+        long testStart = System.currentTimeMillis();
+        String filename = APP_PATH + test + "/";
+        Options.APP = filename;
+        // synthesize test program
+        Collection<String> synthesizedClasses = runSynthesizer(filename);
+        
+        // compile test program
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
+        StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
+        Iterable<? extends JavaFileObject> compilationUnits = 
+            fileManager.getJavaFileObjectsFromStrings(Collections.singletonList(filename + GENERATED_TEST_NAME + ".java"));
+        String binDir =  filename + "bin";
+        String[] options = new String[] { "-d", binDir, "-cp", filename + ":" + binDir };
+        JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, Arrays.asList(options),  
+                null, compilationUnits);
+        boolean compiled = task.call();
+        
+        if (compiled) {
+          // compiled successfully; now run the test and make sure the assertion fails
+          Util.Print("compiled generated test.");
+          String s = "java -cp " + binDir + " " + GENERATED_TEST_NAME;
+          Process p = Runtime.getRuntime().exec(s);
+          InputStream stream = p.getInputStream();
+          p.waitFor();
+          BufferedReader reader = new BufferedReader (new InputStreamReader(stream));
+          String output = reader.readLine();
+          if (ASSERTION_FAILURE.equals(output)) {
+            // running generated test triggered assertion failure
+            Util.Print("generated test caused assertion failure!");
+            Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
+            successes++;
+            long testEnd = System.currentTimeMillis();
+            Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds.");
+            WALACFGUtil.clearCaches();
+            removeGeneratedFiles(filename, synthesizedClasses);
+          } else {
+            Util.Print("generated test did not fail assertion for #" + testNum++ + ": "+ test);
+            removeGeneratedFiles(filename, synthesizedClasses);
+            if (Options.EXIT_ON_FAIL) System.exit(1);
+            failures++;
+          }
+        } else {
+          Util.Print("compilation of test failed for #" + testNum++ + ": " + test);
+          if (Options.EXIT_ON_FAIL) System.exit(1);
+          failures++;
+        }
+      } catch(Exception e) {
+        Util.Print("Test " + test + " (#" + (testNum++) + ") failed :( " + e);
+        if (Options.EXIT_ON_FAIL) throw e;
+        failures++;
+      }
+    }
+    long end = System.currentTimeMillis();
+    Util.Print("All synthesizer tests complete in " + ((end - start) / 1000) + " seconds");
+    Util.Print(successes + " tests passed, " + failures + " tests failed.");
+  }
+
+  // delete source and compiled version of the generated test file
+  private static void removeGeneratedFiles(String appPath, Collection<String> generatedFiles) {
+    if (true) return;
+    for (String file : generatedFiles) {
+      File generatedSource = new File(appPath + file + ".java");
+      generatedSource.delete();
+      File generatedCompiled = new File(appPath + "bin/" + file + ".class");
+      generatedCompiled.delete();
+    }
+  }
+  
+  public static Collection<String> runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    Options.SYNTHESIS = true;
     Options.MAX_PATH_CONSTRAINT_SIZE = 50;
+    Collection<String> synthesizedClasses = new ArrayList<String>();
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     JarFile androidJar = new JarFile(Options.ANDROID_JAR);
     // add Android code
@@ -853,7 +1033,6 @@ public class Main {
         // consider public methods to be entrypoints
         if (m.isPublic() || m.isProtected()) {
           entryPoints.add(new DefaultEntrypoint(m, cha));
-          //entryPoints.add(new SameReceiverEntrypoint(m, cha));
         }
       }
     }    
@@ -865,11 +1044,11 @@ public class Main {
     options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
     AnalysisCache cache = new AnalysisCache();
     CallGraphBuilder builder = 
-        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options,cache, cha, scope);
+        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options, cache, cha, scope);
     //if (Options.DEBUG) Util.Debug("building call graph");
     Util.Print("Building call graph.");
     CallGraph cg = builder.makeCallGraph(options, null);
-    //Util.Print(CallGraphStats.getStats(cg));
+    Util.Print(CallGraphStats.getStats(cg));
     
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
     HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
@@ -889,9 +1068,9 @@ public class Main {
     AbstractDependencyRuleGenerator depRuleGenerator = 
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
-    Util.Print("Collecting assertions.");
     // collect pure assertions
     Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForNode(ASSERT_PURE, cg);
+    Util.Print("Collected " + asserts.size() + " assertions.");
     for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
       SSAInvokeInstruction invoke = asser.fst;
       CGNode node = asser.snd;
@@ -915,6 +1094,7 @@ public class Main {
       String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
       Util.Print("Checking assertion at " + loc);
       boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+      synthesizedClasses.addAll(exec.getSynthesizedClasses());
       if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
@@ -992,12 +1172,14 @@ public class Main {
               exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
               // start at line BEFORE snkStmt
               foundWitness = exec.executeBackward(producer.getNode(), startBlk, startLineBlkIndex - 1, query);
+              synthesizedClasses.addAll(exec.getSynthesizedClasses());
               Util.Print("witness? " + foundWitness);
             }
           }
         }
       }
     }
+    return synthesizedClasses;
   }
   
   /**

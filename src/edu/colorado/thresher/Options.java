@@ -67,6 +67,9 @@ public class Options {
   @boolOpt(description = "verification for Android UI components (currently unsupported)", _default = false)
   public static boolean ANDROID_UI = false;
   
+  @boolOpt(description = "check downcasts", _default = false)
+  public static boolean CHECK_CASTS = false;
+  
   @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)
   public static boolean USE_EXCLUSIONS = true;
 

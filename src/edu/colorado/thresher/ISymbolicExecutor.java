@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.Collection;
 import java.util.Iterator;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
@@ -110,4 +111,9 @@ public interface ISymbolicExecutor {
    */
   IPathInfo makePath(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query);
 
+  /**
+   * @return the names of classes we have synthesized during execution
+   */
+  public Collection<String> getSynthesizedClasses();
+  
 }
