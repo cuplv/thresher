@@ -937,7 +937,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    for (String test : tests0) {
+    for (String test : tests) {
       try {
         Util.Print("Running test " + testNum + ": " + test);
         long testStart = System.currentTimeMillis();
@@ -1000,7 +1000,7 @@ public class Main {
 
   // delete source and compiled version of the generated test file
   private static void removeGeneratedFiles(String appPath, Collection<String> generatedFiles) {
-    if (true) return;
+    //if (true) return;
     for (String file : generatedFiles) {
       File generatedSource = new File(appPath + file + ".java");
       generatedSource.delete();
@@ -1094,8 +1094,11 @@ public class Main {
       String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
       Util.Print("Checking assertion at " + loc);
       boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
-      synthesizedClasses.addAll(exec.getSynthesizedClasses());
-      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
+      
+      if (foundWitness)  {
+        Util.Print("Warning: assertion at " + loc + " may fail.");
+        synthesizedClasses.addAll(exec.getSynthesizedClasses());
+      }
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   
