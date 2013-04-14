@@ -4,32 +4,18 @@
 
 BASE=$(pwd)
 
-cd $BASE/apps/tests/regression
-for dir in $( ls -d */);
+cd $BASE/apps/tests/
+for testDir in $( ls -d */);
 do
-    echo 'Building' $dir
-    cd $dir 
-    mkdir -p bin
-    make
-    cd $BASE/apps/tests/regression
+    cd $BASE/apps/tests/$testDir
+    echo 'Building' $testDir 'tests'
+    for dir in $( ls -d */);
+    do
+	echo 'Building' $dir
+	cd $dir 
+	mkdir -p bin
+	make
+	cd $BASE/apps/tests/$testDir
+    done
 done
 
-cd $BASE/apps/tests/immutability
-for dir in $( ls -d */);
-do
-    echo 'Building' $dir
-    cd $dir 
-    mkdir -p bin
-    make
-    cd $BASE/apps/tests/immutability
-done
-
-cd $BASE/apps/tests/synthesis
-for dir in $( ls -d */);
-do
-    echo 'Building' $dir
-    cd $dir 
-    mkdir -p bin
-    make
-    cd $BASE/apps/tests/synthesis
-done
