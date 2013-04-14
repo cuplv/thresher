@@ -620,7 +620,7 @@ public class PathQuery implements IQuery {
     if (pathVars.contains(lhsVar)) {
       // TODO: we don't have enough type information to check this constraint
       // right now, so just drop it
-      dropConstraintsContaining(lhsVar);
+      dropConstraintsContaining(lhsVar);    
     }
     return true;
   }
@@ -664,11 +664,13 @@ public class PathQuery implements IQuery {
       }
     }
     // remove old (pre-substitution) constraints
-    for (AtomicPathConstraint constraint : toRemove)
+    for (AtomicPathConstraint constraint : toRemove) {
       removeConstraint(constraint);
+    }
     // add new (post-substitution) constraints
-    for (AtomicPathConstraint constraint : toAdd)
+    for (AtomicPathConstraint constraint : toAdd) {
       addConstraint(constraint);
+    }
   }
 
   /**
@@ -1238,12 +1240,8 @@ public class PathQuery implements IQuery {
 
     if (instr instanceof SSAArrayStoreInstruction)
       result = visit((SSAArrayStoreInstruction) instr, node, tbl);
-    // else if (instr instanceof SSAAbstractThrowInstruction) return
-    // query.visit((SSAAbstractThrowInstruction) instr);
     else if (instr instanceof SSAUnaryOpInstruction)
       result = visit((SSAUnaryOpInstruction) instr, node);
-    // else if (instr instanceof SSAAddressOfInstruction) return
-    // query.visit((SSAAddressOfInstruction) instr);
     else if (instr instanceof SSAArrayLengthInstruction)
       result = visit((SSAArrayLengthInstruction) instr, node);
     else if (instr instanceof SSAArrayLoadInstruction)
@@ -1252,9 +1250,6 @@ public class PathQuery implements IQuery {
       result = visit((SSABinaryOpInstruction) instr, node, tbl);
     else if (instr instanceof SSACheckCastInstruction)
       result = visit((SSACheckCastInstruction) instr, node);
-
-    // else if (instr instanceof SSAConditionalBranchInstruction) return
-    // query.visit((SSAConditionalBranchInstruction) instr);
     else if (instr instanceof SSAGetInstruction)
       result = visit((SSAGetInstruction) instr, node);
     else if (instr instanceof SSAPutInstruction)
@@ -1426,6 +1421,11 @@ public class PathQuery implements IQuery {
   public List<DependencyRule> getWitnessList() {
     return null;
   }
+  
+  @Override
+  public AbstractDependencyRuleGenerator getDepRuleGenerator() { 
+    return depRuleGenerator;
+  }
 
   @Override
   public boolean containsConstraint(Constraint constraint) {
@@ -1446,32 +1446,6 @@ public class PathQuery implements IQuery {
     PathQuery otherQuery = (PathQuery) other;
     return this.constraints.containsAll(otherQuery.constraints);
   }
-
-  /*
-   * @Override public int compareTo(Object other) { if (!(other instanceof
-   * PathQuery)) Util.Unimp("comparing to non- points-to query"); PathQuery
-   * otherQuery = (PathQuery) other; TreeSet<AtomicPathConstraint>
-   * otherConstraints = otherQuery.constraints; final int ptSize =
-   * constraints.size(), otherPtSize = otherConstraints.size(); if (ptSize >
-   * otherPtSize) return 1; else if (ptSize < otherPtSize) return -1; // sizes
-   * are the same; do constraint-by-constraint comparison final
-   * Iterator<AtomicPathConstraint> ptIter = constraints.descendingIterator();
-   * final Iterator<AtomicPathConstraint> otherPtIter =
-   * otherConstraints.descendingIterator(); while (ptIter.hasNext() &&
-   * otherPtIter.hasNext()) { final AtomicPathConstraint edge0 = ptIter.next();
-   * final AtomicPathConstraint edge1 = otherPtIter.next(); final int comparison
-   * = edge0.compareTo(edge1); if (comparison != 0) return comparison; } return
-   * 0; // all constraints compared equal }
-   */
-
-  /*
-   * @Override public boolean equals(Object other) { if (!(other instanceof
-   * PathQuery)) return false; PathQuery otherQuery = (PathQuery) other; return
-   * constraints.equals(otherQuery.constraints); }
-   * 
-   * @Override public int hashCode() { Util.Unimp("Don't hash this query");
-   * return -1; }
-   */
 
   @Override
   public String toString() {

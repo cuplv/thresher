@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.Collections;
 import java.util.Set;
 
 import com.ibm.wala.classLoader.IMethod;
@@ -171,6 +172,9 @@ public class ConcretePointerVariable implements PointerVariable { // implements
 
   @Override
   public Set<InstanceKey> getPossibleValues() {
+    if (this.instanceKey instanceof InstanceKey) {
+      return Collections.singleton((InstanceKey) this.instanceKey);
+    } 
     return null;
   }
 

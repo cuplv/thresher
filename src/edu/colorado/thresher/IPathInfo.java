@@ -591,7 +591,14 @@ public class IPathInfo { // implements Comparable {
   }
 
   public boolean foundWitness() {
-    return query.foundWitness();
+    if (Options.FULL_WITNESSES) {
+      // only report a witness if our query is true and we have reached the class inits
+      CallGraph cg = query.getDepRuleGenerator().getCallGraph();
+      return this.currentNode.equals(WALACFGUtil.getFakeWorldClinitNode(cg)) && query.foundWitness();
+    } else {
+      // report a witness if the query is true, regardless of where we are in the program
+      return query.foundWitness(); 
+    }
   }
 
   public boolean isCallRelevantToQuery(SSAInvokeInstruction instr, CGNode callee, CallGraph cg) {

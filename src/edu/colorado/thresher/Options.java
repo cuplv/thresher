@@ -119,6 +119,9 @@ public class Options {
                                                                // on to be
                                                                // precise
 
+  @boolOpt (description="if true, only report 'witnessed' if the query is true and we have reached the beginning of the program", _default = false)
+  public static boolean FULL_WITNESSES = false;
+  
   // not currently enabled
   // @boolOpt (description="keep full witness for each path", _default=true)
   public static boolean LOG_WITNESSES = false;

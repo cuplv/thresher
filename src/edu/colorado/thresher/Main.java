@@ -106,12 +106,15 @@ public class Main {
       System.exit(1);
     } else if (target.equals(REGRESSION))
       runRegressionTests();
-    else
+    else {
+      File targetFile = new File(target);
+      Util.Assert(targetFile.exists(), "Target file " + target + " does not exist, exiting");
       if (Options.IMMUTABILITY) runImmutabilityCheck(target);
       else if (Options.SYNTHESIS) runSynthesizer(target);
       else if (Options.ANDROID_UI) runAndroidBadMethodCheck(target);
       else if (Options.CHECK_CASTS) runCastChecker(target);
       else runAnalysisAllStaticFields(target);
+    }
   }
 
   public static void runRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
@@ -120,9 +123,11 @@ public class Main {
     Util.LOG = true;
     Util.PRINT = true;
     REGRESSIONS = true;
+    
     runAndroidLeakRegressionTests();
-    runImmutabilityRegressionTests();
+    runCastCheckingRegressionTests();
     runSynthesizerRegressionTests();
+    runImmutabilityRegressionTests();
   }
   
   
@@ -253,7 +258,7 @@ public class Main {
     // need call stack depth of at least 4 to refute some of these tests
     if (Options.MAX_CALLSTACK_DEPTH < 4) Options.MAX_CALLSTACK_DEPTH = 4;
     
-    String regressionDir = "apps/tests/immutability/";
+    final String regressionDir = "apps/tests/immutability/";
     boolean result;
     int testNum = 0;
     int successes = 0;
@@ -297,6 +302,36 @@ public class Main {
     long end = System.currentTimeMillis();
     Util.Print("All immutability tests complete in " + ((end - start) / 1000) + " seconds");
     Util.Print(successes + " tests passed, " + failures + " tests failed.");
+  }
+  
+  private static void runCastCheckingRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
+    CallGraphBuilderCancelException {
+    Options.FULL_WITNESSES = true;
+    String[] tests = new String[] { "BasicCastRefute", "BasicCastNoRefute", "InstanceOfRefute", "InstanceOfNoRefute", 
+                                    "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute" };
+    //String[] tests = new String[] { "NegatedInstanceOfNoRefute" };
+    
+    final String regressionDir = "apps/tests/casts/";
+
+    int testNum = 0;
+    for (String test : tests) {
+      Util.Print("Running test " + test);
+      long testStart = System.currentTimeMillis();
+      CastCheckingResults results;
+      try {
+         results = runCastChecker(regressionDir + test);
+      } catch (Exception e) {
+        Util.Print("Test " + test + " (#" + (testNum) + ") failed :(");
+        throw e;
+      }
+      Util.Assert(results.numMightFail > 0);
+      if (test.contains("NoRefute")) {
+        Util.Assert(results.numThresherProvedSafe == 0);
+      } else {
+        Util.Assert(results.numThresherProvedSafe == 1);
+      }
+      Util.Print("Test " + test + " (#" + (testNum++) + ") passed!");
+    }
   }
 
   private static boolean isInteresting(IField f) {
@@ -518,6 +553,52 @@ public class Main {
     for (String warning : warnings) Util.Print("Warning: " + warning);
   }
   
+  private static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
+      throws ClassHierarchyException, IOException {
+    IClassHierarchy cha;
+    
+    if (REGRESSIONS || Options.CHECK_CASTS) {
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+      File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      
+      cha = ClassHierarchy.make(scope);
+      
+      final MethodReference MAIN =
+          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LMain"), 
+              "main", "([Ljava/lang/String;)V");
+      entryPoints.add(new DefaultEntrypoint(MAIN, cha));
+    } else if (Options.DACAPO) { // running one of the Dacapo benchmarks
+      String appName;
+      // removing trailing slash if needed
+      if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
+      else appName = appPath;
+      // strip of front of path away from app name
+      appName = appName.substring(appName.lastIndexOf("/") + 1);
+      Util.Print("Running on " + appName);
+      JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
+      JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+      scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
+      scope.addToScope(scope.getApplicationLoader(), appJar);
+      File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      
+      final MethodReference DACAPO_MAIN =
+          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
+              "main", "([Ljava/lang/String;)V");
+      
+      cha = ClassHierarchy.make(scope);
+      entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
+      
+    } else { // running an android app
+      //Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath + "res/");
+      cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, Collections.EMPTY_SET, appPath);
+    }
+    return cha;
+  }
+  
   public static boolean runImmutabilityCheck(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     final MethodReference UNMODIFIABLE_COLLECTION = 
         MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/util/Collections"), 
@@ -549,50 +630,13 @@ public class Main {
     
     // TODO: hack; should get full names. 
     String[] badMethods = new String[] { "add", "addAll", "clear", "remove", "removeAll", "retainAll", "set", "put", "putAll" };
-    
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    IClassHierarchy cha;
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
-    
-    if (REGRESSIONS) {
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
-      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-      cha = ClassHierarchy.make(scope);
-      
-      final MethodReference MAIN =
-          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LMain"), 
-              "main", "([Ljava/lang/String;)V");
-      entryPoints.add(new DefaultEntrypoint(MAIN, cha));
-    } else if (Options.DACAPO) { // running one of the Dacapo benchmarks
-      String appName;
-      // removing trailing slash if needed
-      if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
-      else appName = appPath;
-      // strip of front of path away from app name
-      appName = appName.substring(appName.lastIndexOf("/") + 1);
-      Util.Print("Running on " + appName);
-      JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
-      JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
-      scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
-      scope.addToScope(scope.getApplicationLoader(), appJar);
-      
-      final MethodReference DACAPO_MAIN =
-          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
-              "main", "([Ljava/lang/String;)V");
-      
-      cha = ClassHierarchy.make(scope);
-      entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
-      
-    } else { // running an android app
-      //Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath + "res/");
-      cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, Collections.EMPTY_SET, appPath);
-    }
-
-    int creatorNodes = 0, creatorSites = 0, creatorCalls = 0;
-    
+    IClassHierarchy cha = setupScopeAndEntrypoints(appPath, entryPoints, scope);
     AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
+
+    int creatorNodes = 0, creatorSites = 0, creatorCalls = 0;
     
     Util.Print("Starting immutability check");
     
@@ -758,43 +802,41 @@ public class Main {
     }
   }
   
-  public static void runCastChecker(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+  static class CastCheckingResults {
+    final int numSafe; 
+    final int numMightFail; 
+    final int numThresherProvedSafe;
+
+    public CastCheckingResults(int numSafe, int numMightFail, int numThresherProvedSafe) {
+      this.numSafe = numSafe;
+      this.numMightFail = numMightFail;
+      this.numThresherProvedSafe = numThresherProvedSafe;
+    }
+  }
+  
+  public static CastCheckingResults runCastChecker(String appPath) 
+      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    Options.FULL_WITNESSES = true;
     String appName;
-    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    IClassHierarchy cha;
-    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
-    
+    Util.Print("appPath is " + appPath);
     // removing trailing slash if needed
     if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
     else appName = appPath;
     // strip of front of path away from app name
     appName = appName.substring(appName.lastIndexOf("/") + 1);
-    Util.Print("Running on " + appName);
-    /*
-    JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
-    JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
-    scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
-    scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
-    scope.addToScope(scope.getApplicationLoader(), appJar);
-    */
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-    scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+    Util.Print("Starting on " + appName);
     
-    final MethodReference DACAPO_MAIN =
-        //MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
-        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LTest"), 
-            "main", "([Ljava/lang/String;)V");
-    
-    cha = ClassHierarchy.make(scope);
-    entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
+    IClassHierarchy cha = setupScopeAndEntrypoints(appPath, entryPoints, scope);
     
     AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
     HeapModel heapModel = depRuleGenerator.getHeapModel();
     PointerAnalysis pointerAnalysis = depRuleGenerator.getHeapGraph().getPointerAnalysis();
     
-    // copied from Manu's DemandCastChecker.java
-    int numSafe = 0, numMightFail = 0;
+    // adapted from code in Manu's DemandCastChecker.java
+    int numSafe = 0, numMightFail = 0, numThresherProvedSafe = 0;
     for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
       CGNode node = nodeIter.next();
       TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
@@ -803,15 +845,16 @@ public class Main {
         continue;
       }
       IR ir = node.getIR();
-      if (ir == null)
-        continue;
+      if (ir == null) continue;
       SSAInstruction[] instrs = ir.getInstructions();
       for (int i = 0; i < instrs.length; i++) {
         SSAInstruction instruction = instrs[i];
         if (instruction instanceof SSACheckCastInstruction) {
           SSACheckCastInstruction castInstr = (SSACheckCastInstruction) instruction;
+          if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod().getName());
           final TypeReference[] declaredResultTypes = castInstr.getDeclaredResultTypes();
-     
+          Util.Assert(declaredResultTypes.length == 1, "weird cast " + castInstr + " has " + declaredResultTypes.length + " result types");
+          
           boolean primOnly = true;
           for (TypeReference t : declaredResultTypes) {
             if (! t.isPrimitiveType()) {
@@ -822,22 +865,46 @@ public class Main {
             continue;
           }
           
-          System.err.println("CHECKING " + castInstr + " in " + node.getMethod());
-          PointerKey castedPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
-          OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castedPk);
-          for (InstanceKey key : keys) {
+          if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod());
+          PointerKey castPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
+          OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castPk);
+          Set<InstanceKey> badKeys = HashSetFactory.make();
+          for (InstanceKey key : keys) { // for each instance key in the points-to set
             TypeReference ikTypeRef = key.getConcreteType().getReference();
             for (TypeReference t : declaredResultTypes) {
-              if (cha.isAssignableFrom(cha.lookupClass(t), cha.lookupClass(ikTypeRef))) {
-                numSafe++;
-              } else numMightFail++;
+              if (!cha.isAssignableFrom(cha.lookupClass(t), cha.lookupClass(ikTypeRef))) {
+                badKeys.add(key);
+              }
             }
+          }
+          // only safe if every type that the key may be cast to is safe
+          if (badKeys.isEmpty()) numSafe++;
+          else {
+            numMightFail++;
+            // invoke Thresher, try to show that failure can't happen
+            // query (informally): when cast occurs, local var cast doesn't point to a bad key
+            // for instr v0 = checkcast v1 T, query is v1 -> a && (a from badKeys)
+            PointerVariable src = Util.makePointerVariable(castPk);
+            PointerVariable snk = SymbolicPointerVariable.makeSymbolicVar(badKeys);
+            PointsToEdge startEdge = new PointsToEdge(src, snk);
+            final IQuery query = new CombinedPathAndPointsToQuery(startEdge, depRuleGenerator);
+            SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(castInstr);
+            int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(castInstr, startBlk);
+            Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(castInstr));
+
+            Logger logger = new Logger();
+            ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+            // start at line BEFORE cast statement
+            boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
+            if (!foundWitness) numThresherProvedSafe++;
           }
         }
       }
     }
-    System.err.println("TOTAL SAFE: " + numSafe);
-    System.err.println("TOTAL MIGHT FAIL: " + numMightFail);
+    Util.Debug("Total safe: " + numSafe);
+    Util.Debug("Total might fail: " + numMightFail);
+    Util.Debug("Thresher proved safe: " + numThresherProvedSafe);
+    return new CastCheckingResults(numSafe, numMightFail, numThresherProvedSafe);
   }
   
   public static boolean checkAllFields(CGNode node, SSAInstruction instr, int callIndex,
@@ -937,7 +1004,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    for (String test : tests) {
+    for (String test : tests0) {
       try {
         Util.Print("Running test " + testNum + ": " + test);
         long testStart = System.currentTimeMillis();

@@ -1710,8 +1710,14 @@ public class PointsToQuery implements IQuery {
     return null;
   }
 
+  @Override
   public List<DependencyRule> getWitnessList() {
     return witnessList;
+  }
+  
+  @Override
+  public AbstractDependencyRuleGenerator getDepRuleGenerator() { 
+    return depRuleGenerator;
   }
 
   @Override

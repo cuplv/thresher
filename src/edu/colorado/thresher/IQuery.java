@@ -141,10 +141,7 @@ public interface IQuery { // extends Comparable {
    */
   public void removeAllLocalConstraints();
 
-  /**
-   * @return set of methods that could produce constraints in the query
-   */
-  // public Set<CGNode> getMethodsRelevantToQuery();
+  public AbstractDependencyRuleGenerator getDepRuleGenerator();
 
   /**
    * @return a map of constraint -> methods modifying constraint for each
@@ -227,6 +224,9 @@ public interface IQuery { // extends Comparable {
     
     @Override
     public void dispose() { }
+
+    @Override
+    public AbstractDependencyRuleGenerator getDepRuleGenerator() { return null; }
     
     @Override
     public int hashCode() {

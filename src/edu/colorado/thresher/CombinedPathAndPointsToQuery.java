@@ -22,9 +22,11 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
+import com.ibm.wala.ssa.SSAInstanceofInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
@@ -32,7 +34,7 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.BitVectorIntSet;
@@ -177,6 +179,49 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Util.Debug("CONS " + this.toString());
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
+  
+  @Override
+  public boolean visit(SSAInstanceofInstruction instr, CGNode node) {
+    Util.Print("instance " + instr);
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    if (pathVars.contains(lhsVar)) {
+      // get local whose type we checked
+      PointerVariable checkedVar = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
+      // see what the local var points to
+      PointerVariable rhsVar = this.pointsToQuery.getPointedTo(checkedVar);
+      Util.Assert(rhsVar != null); // can't find var in pts-to constraints
+      Util.Print(rhsVar);
+      
+      IClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
+      // get the class for the type we checked against 
+      TypeReference type = instr.getCheckedType();
+      IClass checkedType = cha.lookupClass(type);
+      // look inside rhsVar and grab the instance keys that are of the required type
+      Set<InstanceKey> newKeys = HashSetFactory.make();
+      Set<InstanceKey> oldKeys = rhsVar.getPossibleValues();
+      for (InstanceKey key : oldKeys) {
+        if (cha.isAssignableFrom(key.getConcreteType(), checkedType)) newKeys.add(key);
+      }
+      
+      if (newKeys.isEmpty()) {
+        // if none of the keys are of the required type, the instanceof evaluates to false  
+        this.substituteExpForVar(new SimplePathTerm(0), lhsVar);
+      } else {
+        // if one or more of the keys is of the required type, the instanceof evaluates to true
+        this.substituteExpForVar(new SimplePathTerm(1), lhsVar);
+      }
+      // check if substitution made path infeasible
+      if (!this.feasible) return false;
+      // this constraint didn't give us any additional information about rhsVar; no nned to narrow
+      if (newKeys.size() == 0 ||
+          newKeys.size() == oldKeys.size()) return true;
+      
+      // else, we have to create a new pts-to constraint based on newKeys
+      Util.Unimp("narrowing pts-to constraint based on instanceof");
+    }
+    return true;
+  }
+  
 
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
