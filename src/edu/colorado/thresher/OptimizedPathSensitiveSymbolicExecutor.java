@@ -321,7 +321,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
-    int startLine = currentBlock.getLastInstructionIndex();//info.getCurrentLineNum();
+    //int startLine = currentBlock.getLastInstructionIndex();//info.getCurrentLineNum();
+    int startLine = info.getCurrentLineNum();
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
     List<IPathInfo> caseSplits = new LinkedList<IPathInfo>();
