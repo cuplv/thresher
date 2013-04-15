@@ -54,6 +54,12 @@ public class AndroidUtils {
       return "ID " + id + ": " + intId + " Handler " + eventHandler + " Label " + label + " stringName " + buttonStringId;
     }
     
+    private final static String DEFAULT_LISTENER = "onClick";
+    
+    public boolean hasDefaultListener() {
+      return DEFAULT_LISTENER.equals(eventHandler);
+    }
+    
   }
   
   // TODO: want id -> event handler -> button name mapping

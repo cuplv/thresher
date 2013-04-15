@@ -92,7 +92,7 @@ public class Main {
   public static String REGRESSION = "__regression";
   
   // absolute path to file containing core JVM components
-  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
+  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -124,10 +124,10 @@ public class Main {
     Util.PRINT = true;
     REGRESSIONS = true;
     
-    runAndroidLeakRegressionTests();
-    runCastCheckingRegressionTests();
+    //runAndroidLeakRegressionTests();
+    //runCastCheckingRegressionTests();
     runSynthesizerRegressionTests();
-    runImmutabilityRegressionTests();
+    //runImmutabilityRegressionTests();
   }
   
   
@@ -407,6 +407,10 @@ public class Main {
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.ANDROID_JAR));
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    //if (Options.USE_EXCLUSIONS) {
+      //File exclusionsFile = new File("config/exclusions.txt");
+      //if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+    //}
     Util.Print("Building class hierarchy");
     
     IClassHierarchy cha = ClassHierarchy.make(scope);
@@ -433,7 +437,8 @@ public class Main {
         }
       }
       
-      for (IMethod m : c.getDeclaredMethods()) { // for each method defined in the class
+//      for (IMethod m : c.getDeclaredMethods()) { // for each method defined in the class
+      for (IMethod m : c.getAllMethods()) { // for each method defined in the class
         // if this method has a name that looks like an event handler...
         if (((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) ||
             handlers.contains(m.getName().toString()) || // ... or this method was declared as a custom handler
@@ -441,8 +446,8 @@ public class Main {
                 m.getDescriptor().toString())) { // or this method is an override of an interface method
           //entryPoints.add(new DefaultEntrypoint(m, cha));
           entryPoints.add(new SameReceiverEntrypoint(m, cha));
-          //Util.Print("adding entrypoint " + m);
-        }
+          Util.Print("adding entrypoint " + m);
+        } else Util.Print("Skipping entrypoint " + m);
       }
     }
     return cha;
@@ -488,6 +493,7 @@ public class Main {
   }
   
   public static void runAndroidBadMethodCheck(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    Options.FULL_WITNESSES = true;
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
     Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
@@ -495,6 +501,7 @@ public class Main {
     // get event handlers that override onClick for each button
     Set<String> handlers = HashSetFactory.make();
     for (AndroidUtils.AndroidButton button : buttons) {
+      Util.Print("Button: " + button);
       handlers.add(button.eventHandler);
     }
     
@@ -511,12 +518,86 @@ public class Main {
         "start", "()V");
     final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1, RECORD_AUDIO };
     
+    final MethodReference FIND_VIEW_BY_ID1 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/view/View"),
+         "findViewById", "(I)Landroid/view/View");
+    
+    final MethodReference FIND_VIEW_BY_ID2 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/app/Activity"),
+        "findViewById", "(I)Landroid/view/View");
+    
+    final MethodReference FIND_VIEW_BY_ID3 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/view/Window"),
+        "findViewById", "(I)Landroid/view/View");
+    
+    final MethodReference SET_ON_CLICK_LISTENER = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, 
+        "Landroid/widget/Button"),
+        "setOnClickListener", "(View.OnClickListener;)V");
+    
+    final Collection<MethodReference> findMethods = new ArrayList<MethodReference>();
+    findMethods.add(FIND_VIEW_BY_ID1);
+    findMethods.add(FIND_VIEW_BY_ID2);
+    findMethods.add(FIND_VIEW_BY_ID3);
     // for each button:
     //   check if an override listener for the button is declared. if so, we're done. 
     //   find the call to findViewById() for the button id corresponding to this button. get the Button object returned from this call
     //   find a call to setOnClickListener() for this button
     //   get the object passed to setOnClickListener(). The CGNode's reachable from the onClick() method of this object represent the
     //   behaviors that can be invoked by this button
+    //   problem: many buttons may share the same listner, with a switch() of if/else if() statement controlling exactly what the listener does
+    
+    for (Iterator<CGNode> iter = cg.iterator(); iter.hasNext();) {
+      CGNode node = iter.next();
+      Util.Print("yprimordial node is " + node);
+      //if (node.getMethod().getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
+      Util.Print("non-primordial node is " + node);
+      IR ir = node.getIR();
+      if (ir == null) continue;
+      for (Iterator<CallSiteReference> callIter = ir.iterateCallSites(); callIter.hasNext();) {
+        CallSiteReference site = callIter.next();
+        if (findMethods.contains(site.getDeclaredTarget())) {
+          Util.Print("found " + site);
+        } else Util.Print("skipping " + site);
+      }
+    }
+    
+    
+    for (MethodReference findMethod : findMethods) {
+      Collection<Pair<SSAInvokeInstruction,CGNode>> finds = WALACallGraphUtil.getCallInstrsForNode(findMethod, cg);
+      for (Pair<SSAInvokeInstruction,CGNode> pair : finds) {
+        SSAInvokeInstruction invoke = pair.fst;
+        CGNode node = pair.snd;
+        // we only care about application code
+        //if (node.getMethod().getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) {
+         // Util.Print("skipping " + node);
+          //continue;
+        //}
+        IR ir = node.getIR();
+
+        int retval = -1;
+        SymbolTable tbl = ir.getSymbolTable();
+        Util.Print("IR " + ir);
+        Util.Print(invoke);
+        if (tbl.isConstant(invoke.getUse(1))) {
+          int buttonId = tbl.getIntValue(invoke.getUse(1));
+          for (AndroidUtils.AndroidButton button : buttons) {
+            if (button.intId == buttonId) {
+              Util.Print("found button " + button);
+              retval = invoke.getDef();
+            }
+          }
+        }
+        
+
+        if (retval != -1) {
+          // find a cast from the return value to Button type
+          for (SSAInstruction instr : ir.getInstructions()) {
+            if (instr instanceof SSACheckCastInstruction && instr.getUse(1) == retval) {
+              Util.Print("found cast " + instr);
+            }
+          }
+        }
+        
+      }
+    }
+    System.exit(1);
     
     // set of all methods that are triggered when a button is clicked
     Set<IMethod> buttonMethods = HashSetFactory.make();
@@ -528,9 +609,39 @@ public class Main {
     }
 
     Set<String> warnings = HashSetFactory.make();
-    
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    Logger logger = new Logger();
     // try to find a corresponding button action for each invocation of a "bad" method
     for (MethodReference badMethod : badMethods) { // for each bad method
+      Collection<Pair<SSAInvokeInstruction,CGNode>> invokes = WALACallGraphUtil.getCallInstrsForNode(badMethod, cg);
+      for (Pair<SSAInvokeInstruction,CGNode> pair : invokes) {
+        SSAInvokeInstruction invoke = pair.fst;
+        CGNode node = pair.snd;
+        PathQuery query = new PathQuery(depRuleGenerator);
+        
+        // add constraint expressing that assertion *should* fail (we want a counterexample for the synthesizer)
+        //query.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(node, invoke.getUse(0), hm)),
+          //                                           new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ));
+        
+        ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
+        Util.Assert(blks.length == 1);
+        SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
+        int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+        Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
+        ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+        // start at line BEFORE call
+        Util.Print("Beginning symbolic execution.");
+        
+        IR ir = node.getIR();
+        IBytecodeMethod method = (IBytecodeMethod) ir.getMethod();
+     
+        int sourceLineNum = method.getLineNumber(invoke.getProgramCounter());
+        String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
+        Util.Print("Checking preconditions for call at " + loc);
+        boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+        
+      }
+      
       Set<CGNode> nodes = cg.getNodes(badMethod);
       for (CGNode badNode : nodes) { // for each node a bad method resolves to
         // see if the bad node can be called from *any* button
@@ -539,9 +650,19 @@ public class Main {
         for (IMethod buttonMethod : buttonMethods) { // for each method that invokes a button
           Set<CGNode> reachable = DFS.getReachableNodes(cg, cg.getNodes(buttonMethod.getReference()));
           if (reachable.contains(badNode)) {
-            String buttonLabel = "";//buttonNamesMap.get(buttonMethod.getName().toString());
-            warnings.add("Sensitive method " + badMethod.getDeclaringClass() + "." + badMethod.getName() + 
-                         " triggered by button with label \"" + buttonLabel + "\"; is this ok?");
+            List<String> labels = new ArrayList<String>();
+            for (AndroidUtils.AndroidButton button : buttons) {
+              if (button.eventHandler.equals(buttonMethod.getName().toString())) {
+                labels.add(button.label);
+              }
+            }
+            
+            Util.Assert(!labels.isEmpty(), "coulnd't find label for " + buttonMethod);
+            
+            for (String buttonLabel : labels) {
+              warnings.add("Sensitive method " + badMethod.getDeclaringClass() + "." + badMethod.getName() + 
+                           " triggered by button with label \"" + buttonLabel + "\"; is this ok?");
+            }
           } else {
             warnings.add("Couldn't find any button that triggers sensitive method " + 
                           badMethod.getDeclaringClass() + "." + badMethod.getName() + "; is this ok?");
@@ -994,9 +1115,9 @@ public class Main {
     final String APP_PATH  = "apps/tests/synthesis/";
     final String GENERATED_TEST_NAME = "ThresherGeneratedTest";
     final String ASSERTION_FAILURE = "Failed assertion!";
-    String[] tests = new String[] { "InputOnly", "MultiInput", "SimpleInterface", "SimpleInterfaceIrrelevantMethod", 
-                                    "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", "SimpleInterfaceObject", 
-                                    "MixedObjAndInt" };
+    String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
+                                    "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
+                                    "SimpleInterfaceObject", "MixedObjAndInt" };
     String[] tests0 = new String[] { "SimpleField" };
     
     int testNum = 0;
@@ -1004,7 +1125,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    for (String test : tests0) {
+    for (String test : tests) {
       try {
         Util.Print("Running test " + testNum + ": " + test);
         long testStart = System.currentTimeMillis();
@@ -1012,7 +1133,17 @@ public class Main {
         Options.APP = filename;
         // synthesize test program
         Collection<String> synthesizedClasses = runSynthesizer(filename);
-        
+        // tests with NoTest contain assertions that cannot fail, so no test should be generated
+        if (test.contains("NoTest")) {
+          Util.Assert(synthesizedClasses == null || synthesizedClasses.isEmpty());
+          Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
+          successes++;
+          long testEnd = System.currentTimeMillis();
+          Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds.");
+          WALACFGUtil.clearCaches();
+          continue;
+        }
+  
         // compile test program
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
@@ -1141,31 +1272,45 @@ public class Main {
     for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
       SSAInvokeInstruction invoke = asser.fst;
       CGNode node = asser.snd;
-      PathQuery query = new PathQuery(depRuleGenerator);
-      // add constraint expressing that assertion *should* fail (we want a counterexample for the synthesizer)
-      query.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(node, invoke.getUse(0), hm)),
-                                                   new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ));
-      ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
-      Util.Assert(blks.length == 1);
-      SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
-      int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
-      Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
-      ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
-      // start at line BEFORE call
-      Util.Print("Beginning symbolic execution.");
-      
       IR ir = node.getIR();
       IBytecodeMethod method = (IBytecodeMethod) ir.getMethod();
    
       int sourceLineNum = method.getLineNumber(invoke.getProgramCounter());
       String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
       Util.Print("Checking assertion at " + loc);
-      boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
       
-      if (foundWitness)  {
-        Util.Print("Warning: assertion at " + loc + " may fail.");
-        synthesizedClasses.addAll(exec.getSynthesizedClasses());
+      boolean foundWitness = true;
+      // handle trivial assert(true), assert(false) cases
+      SymbolTable tbl = ir.getSymbolTable();
+      if (tbl.isConstant(invoke.getUse(0))) {
+        if (tbl.getIntValue(invoke.getUse(0)) == 0) { // assert(false) case
+          foundWitness = true;
+        } else { // assert(true) case
+          foundWitness = false;
+        }
+      } 
+      
+      if (foundWitness) { // if there's a possibility the assertion could fail
+        PathQuery query = new PathQuery(depRuleGenerator);
+        // add constraint expressing that assertion *should* fail (we want a counterexample for the synthesizer)
+        query.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(node, invoke.getUse(0), hm)),
+                                                     new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ));
+        ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
+        Util.Assert(blks.length == 1);
+        SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
+        int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+        Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
+        ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+        // start at line BEFORE call
+        Util.Print("Beginning symbolic execution.");
+        foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+        Collection<String> synthesized = exec.getSynthesizedClasses();
+        if (synthesizedClasses != null) {
+          synthesizedClasses.addAll(synthesized);  
+        }
       }
+      
+      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   
