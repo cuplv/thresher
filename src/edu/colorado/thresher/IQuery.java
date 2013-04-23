@@ -124,7 +124,7 @@ public interface IQuery { // extends Comparable {
    * rather than entering a call, overapproximate its effect by dropping all of
    * the constraints it can produce
    */
-  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee);
+  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints);
 
   /**
    * reflect context-sensitivity of node in query, if applicable
@@ -180,6 +180,7 @@ public interface IQuery { // extends Comparable {
   /**
    * Query that is always refuted (cannot be witnessed)
    */
+  /*
   public class FalseQuery extends AbstractQuery {
     public FalseQuery() {
     }
@@ -252,4 +253,5 @@ public interface IQuery { // extends Comparable {
       return 0;
     }
   }
+  */
 }

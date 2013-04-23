@@ -30,7 +30,6 @@ public final class WALACallGraphUtil {
       Iterator<CGNode> preds = cg.getPredNodes(node);
       while (preds.hasNext()) { // for each CGNode caller that may call callee in some context
         CGNode pred = preds.next();
-        Util.Debug("Pred " + pred);
         IR ir = pred.getIR();
         SSAInstruction[] instrs = ir.getInstructions();
         Iterator<CallSiteReference> sites = cg.getPossibleSites(pred, node);

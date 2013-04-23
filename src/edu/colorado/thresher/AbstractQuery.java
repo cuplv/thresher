@@ -65,7 +65,7 @@ public abstract class AbstractQuery implements IQuery {
   }
 
   @Override
-  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {
   } // do nothing
 
   @Override

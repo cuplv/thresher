@@ -754,11 +754,21 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       return false; 
     } else { // dynamic dispatch case
       Util.Debug("dynamic dispatch!");
+      boolean allRefuted = true;
       for (CGNode callee : callees) { // consider case for each potential callee
-        // heuristic: skip any dynamic dispatch. exploration cost is not worth it
-        info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee); 
+        if (Options.SKIP_DYNAMIC_DISPATCH) {
+          // heuristic: skip any dynamic dispatch. exploration cost is not worth it
+          info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee);
+          allRefuted = false;
+        } else {
+          if (visitCalleeWrapper(instr, callee, info)) {
+            addPath(info);
+            allRefuted = false;
+          } // else, refuted by parameter binding
+        }
       }
-      return true;
+      //return true;
+      return !allRefuted;
     }
   }
 

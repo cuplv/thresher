@@ -620,15 +620,15 @@ public class AbstractDependencyRuleGenerator {
           while (retvalSuccs.hasNext()) {
             possibleRetvals.add((InstanceKey) retvalSuccs.next());
           }
-          if (possibleRetvals.isEmpty())
-            continue;
-          PointerVariable succ = SymbolicPointerVariable.makeSymbolicVar(possibleRetvals);
-          PointsToEdge shown = new PointsToEdge(lhs, succ);
-          TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
-          toShow.add(new PointsToEdge(retval, succ));
-          DependencyRule rule = new DependencyRule(shown, stmt, toShow, node,
-              (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
-          rules.add(rule);
+          if (!possibleRetvals.isEmpty()) {
+            PointerVariable succ = SymbolicPointerVariable.makeSymbolicVar(possibleRetvals);
+            PointsToEdge shown = new PointsToEdge(lhs, succ);
+            TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
+            toShow.add(new PointsToEdge(retval, succ));
+            DependencyRule rule = new DependencyRule(shown, stmt, toShow, node,
+                (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
+            rules.add(rule);
+          }
         }
         
         SymbolTable tbl = ir.getSymbolTable();
@@ -656,6 +656,7 @@ public class AbstractDependencyRuleGenerator {
           if (possibleParamVals.isEmpty()) continue;
           TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
           PointerVariable paramVal = SymbolicPointerVariable.makeSymbolicVar(possibleParamVals);
+
           PointsToEdge shown = new PointsToEdge(lhs, paramVal);
           PointsToEdge toShow = new PointsToEdge(rhsPointer, paramVal);
           toShowSet.add(toShow);
@@ -1120,8 +1121,7 @@ public class AbstractDependencyRuleGenerator {
       Util.Assert(next instanceof InstanceKey, "found non-instance key " + next);
       possibleKeys.add((InstanceKey) next);
     }
-    if (possibleKeys.isEmpty())
-      return rules;
+    if (possibleKeys.isEmpty()) return rules;
     PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(possibleKeys);
     PointsToEdge shown = new PointsToEdge(lhs, rhs, staticLhs);
     PointsToEdge toShow = new PointsToEdge(rhsPointer, rhs, staticRhs);

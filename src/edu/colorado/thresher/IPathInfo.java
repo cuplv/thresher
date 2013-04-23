@@ -399,7 +399,7 @@ public class IPathInfo { // implements Comparable {
         || calleeName.contains("indexOf") || calleeName.contains("Iterator") || 
         calleeName.contains("MessageQueue, next") || !isCallRelevantToQuery(instr, callee, cg)) { 
       // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
-      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
+      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
       if (Options.DEBUG) Util.Debug("skipping call " + instr + " and dropping produced constraints");
       return IPathInfo.FEASIBLE;
     } else if (callee.equals(this.currentNode)) { // is this a recursive call?
@@ -408,7 +408,7 @@ public class IPathInfo { // implements Comparable {
       }
       // this is both a recursive call and relevant. overapproximate its effects by dropping constraints 
       // that it could possibly produce
-      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
+      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
       return IPathInfo.FEASIBLE;
     } else { 
       if (Options.DEBUG) Util.Debug("call stack size is " + callStack.size());
@@ -416,7 +416,7 @@ public class IPathInfo { // implements Comparable {
       if (callStack.size() >= Options.MAX_CALLSTACK_DEPTH) { // is our call stack too deep?
         if (Options.DEBUG)
           Util.Debug("skipping ordinary call " + callee + " due to call stack depth and dropping produced constraints");
-        query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee);
+        query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
         return IPathInfo.FEASIBLE;
       }
     }

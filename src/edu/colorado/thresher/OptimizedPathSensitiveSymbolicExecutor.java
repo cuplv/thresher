@@ -317,10 +317,11 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * escape block
    */
   List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
-    Util.Debug("executing loop head blk for " + info.getCurrentLineNum());
+    if (Options.DEBUG) Util.Debug("executing loop head blk for " + info.getCurrentBlock());
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
+    final SSACFG.BasicBlock loopHead = currentBlock;
     //int startLine = currentBlock.getLastInstructionIndex();//info.getCurrentLineNum();
     int startLine = info.getCurrentLineNum();
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
@@ -422,7 +423,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           }
         }
         // special case (terrible hack) for do...while loops        
-        SSACFG.BasicBlock escapeBlock = (SSACFG.BasicBlock) WALACFGUtil.findEscapeBlockForDoWhileLoop(currentBlock, ir);
+        //SSACFG.BasicBlock escapeBlock = (SSACFG.BasicBlock) WALACFGUtil.findEscapeBlockForDoWhileLoop(currentBlock, ir);
+        SSACFG.BasicBlock escapeBlock = (SSACFG.BasicBlock) WALACFGUtil.findEscapeBlockForDoWhileLoop(loopHead, ir);
         for (IPathInfo path : caseSplits) {
           // Util.Debug("selecting loop escape block " + nextBlock + " for "
           // + path.getPathId());

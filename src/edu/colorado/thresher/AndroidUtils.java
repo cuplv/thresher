@@ -22,6 +22,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.util.collections.HashMapFactory;
 
 public class AndroidUtils {
@@ -39,6 +41,8 @@ public class AndroidUtils {
     int intId;
     // name of the method called when the button is clicked (normally onClick, but can be overridden)
     final String eventHandler;
+    // event handler CGNode
+    CGNode eventHandlerNode;
     // name of the string that holds that button label
     final String buttonStringId;
     // text displayed on the button

@@ -24,8 +24,7 @@ public class SymbolicPointerVariable implements PointerVariable {
     return new SymbolicPointerVariable(possibleValues);
   }
 
-  private SymbolicPointerVariable(Set<InstanceKey> possibleValues) {
-    // this.name = makeNewSymbolicVariable();
+  public SymbolicPointerVariable(Set<InstanceKey> possibleValues) {
     this.id = symbCounter++;
     Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
     this.possibleValues = possibleValues;
@@ -49,8 +48,8 @@ public class SymbolicPointerVariable implements PointerVariable {
   }
 
   public String toString() {
-    if (possibleValues.size() == 1)
-      return "symb: " + possibleValues.iterator().next().toString();
+    //if (possibleValues.size() == 1)
+     // return "symb: " + possibleValues.iterator().next().toString();
     return id + "symb"; // name;
     // return parseToHumanReadable(name) + "<" + id + "-T" + typeId + ">";
     // return name + "<" + id + "-T" + typeId + ">";

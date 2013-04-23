@@ -74,7 +74,7 @@ public class Options {
   public static boolean USE_EXCLUSIONS = true;
 
   @boolOpt(description = "prints end-to-end list of witnessed heap edges for witnessed error", _default = true)
-  public static final boolean DUMP_WITNESSED_ERR_PATHS = true; // prints
+  public static boolean DUMP_WITNESSED_ERR_PATHS = true; // prints
                                                                // end-to-end
                                                                // list of
                                                                // witnessed
@@ -131,6 +131,9 @@ public class Options {
 
   @intOpt(description = "if the call stack is larger than this, we drop constraints that can be produced in callees rather than exploring them", _default = 2)
   public static int MAX_CALLSTACK_DEPTH = 3;
+  
+  @boolOpt(description = "skip all dispatch callees and drop related constraints", _default = true)
+  public static boolean SKIP_DYNAMIC_DISPATCH = true;
 
   @intOpt(description = "if the path constraints are larger than this, we (soundly) refuse to collect new constraints", _default = 2)
   // how large do we allow the path constraints to grow?
@@ -142,7 +145,7 @@ public class Options {
   @stringOpt(description = "usage: -app <path to directory of .class files to analyze>", _default = "")
   public static String APP;
 
-  @stringOpt(description = "usage: -android_jar <path to jar file for version of android libraries>", _default = "android-2.3_annotated.jar")
+  @stringOpt(description = "usage: -android_jar <path to jar file for version of android libraries>", _default = "android/android-2.3_annotated.jar")
   public static String ANDROID_JAR = "android/android-2.3_annotated.jar";
 
   @stringOpt(description = "run regression tests", _default = "")
@@ -159,6 +162,26 @@ public class Options {
   // private static final boolean GEN_FLOW_INSENSITIVE_WITNESS = false; //
   // insist on generating flow-insensitive witness before doing symbolic
   // execution (TODO: doesn't work)
+  
+  public static void restoreDefaults() {
+    try {
+      for (Field field : Options.class.getFields()) {
+        if (field.isAnnotationPresent(intOpt.class)) {
+          intOpt opt = field.getAnnotation(intOpt.class);
+          field.setInt(Options.class, opt._default());
+        } else if (field.isAnnotationPresent(boolOpt.class)) {
+          boolOpt opt = field.getAnnotation(boolOpt.class);
+          field.setBoolean(Options.class, opt._default());
+        } else if (field.isAnnotationPresent(stringOpt.class)) {
+          stringOpt opt = field.getAnnotation(stringOpt.class);
+          field.set(Options.class, opt._default());
+        }
+      }
+    } catch (IllegalAccessException e) {
+      Util.Print(e);
+      System.exit(1);
+    }
+  }
 
   // return path to dir to perform analyis on or _REGRESSION if regressions
   public static String parseArgs(String[] args) {

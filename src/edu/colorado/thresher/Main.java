@@ -66,6 +66,7 @@ import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.HashMapFactory;
@@ -92,7 +93,8 @@ public class Main {
   public static String REGRESSION = "__regression";
   
   // absolute path to file containing core JVM components
-  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
+  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
+  //private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -124,10 +126,13 @@ public class Main {
     Util.PRINT = true;
     REGRESSIONS = true;
     
-    //runAndroidLeakRegressionTests();
-    //runCastCheckingRegressionTests();
+    runAndroidLeakRegressionTests();
+    Options.restoreDefaults();
+    runCastCheckingRegressionTests();
+    Options.restoreDefaults();
     runSynthesizerRegressionTests();
-    //runImmutabilityRegressionTests();
+    Options.restoreDefaults();
+    runImmutabilityRegressionTests();
   }
   
   
@@ -161,7 +166,8 @@ public class Main {
         "ContainsKeyNoRefute" };
     
     //final String[] fakeMapTests0 = new String[] {};
-    final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
+    //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "DoLoopLabeledBreakRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -246,7 +252,7 @@ public class Main {
   
   public static void runImmutabilityRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
     CallGraphBuilderCancelException {
-    Options.DACAPO = true;
+    //Options.DACAPO = true;
 
     final String[] weakImmutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
@@ -265,7 +271,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    final String[] tests0 = { "MapRefute" };
+    final String[] tests0 = { "ArrayRefute" };
 
     for (String test : weakImmutabilityTests) {
     //for (String test : tests0) {
@@ -308,7 +314,8 @@ public class Main {
     CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;
     String[] tests = new String[] { "BasicCastRefute", "BasicCastNoRefute", "InstanceOfRefute", "InstanceOfNoRefute", 
-                                    "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute" };
+                                    "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute", "FieldCastRefute", "FieldCastNoRefute",
+                                    "ArrayListRefute", "ArrayListNoRefute" };
     //String[] tests = new String[] { "NegatedInstanceOfNoRefute" };
     
     final String regressionDir = "apps/tests/casts/";
@@ -316,7 +323,7 @@ public class Main {
     int testNum = 0;
     for (String test : tests) {
       Util.Print("Running test " + test);
-      long testStart = System.currentTimeMillis();
+      //long testStart = System.currentTimeMillis();
       CastCheckingResults results;
       try {
          results = runCastChecker(regressionDir + test);
@@ -437,17 +444,18 @@ public class Main {
         }
       }
       
-//      for (IMethod m : c.getDeclaredMethods()) { // for each method defined in the class
-      for (IMethod m : c.getAllMethods()) { // for each method defined in the class
+      for (IMethod m : c.getDeclaredMethods()) { // for each method defined in the class
+      //for (IMethod m : c.getAllMethods()) { // for each method defined in the class
         // if this method has a name that looks like an event handler...
         if (((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) ||
             handlers.contains(m.getName().toString()) || // ... or this method was declared as a custom handler
             possibleOverrides.contains(m.getName().toString() +
                 m.getDescriptor().toString())) { // or this method is an override of an interface method
-          //entryPoints.add(new DefaultEntrypoint(m, cha));
-          entryPoints.add(new SameReceiverEntrypoint(m, cha));
+          Util.Assert(c.getClassLoader().getReference().equals(ClassLoaderReference.Application));
           Util.Print("adding entrypoint " + m);
-        } else Util.Print("Skipping entrypoint " + m);
+          entryPoints.add(new DefaultEntrypoint(m, cha));
+          //entryPoints.add(new SameReceiverEntrypoint(m, cha));
+        }
       }
     }
     return cha;
@@ -492,6 +500,43 @@ public class Main {
     return new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
   }
   
+  static class UIQuery extends CombinedPathAndPointsToQuery {
+    static int buttonId = -1;
+    final Collection<MethodReference> stopMethods;
+    
+    public UIQuery(PointsToEdge startEdge, AbstractDependencyRuleGenerator depRuleGenerator, Collection<MethodReference> stopMethods) {
+      super(startEdge, depRuleGenerator);
+      this.stopMethods = stopMethods;
+    }
+    
+    private UIQuery(CombinedPathAndPointsToQuery query, Collection<MethodReference> stopMethods) {
+      super(query);
+      this.stopMethods = stopMethods;
+    }
+    
+    @Override
+    public UIQuery deepCopy() {
+      return new UIQuery(super.deepCopy(), stopMethods);
+    }
+    
+    @Override
+    public boolean foundWitness() {
+      return buttonId != -1;
+    }
+    
+    @Override
+    public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+      if (stopMethods.contains(instr.getDeclaredTarget())) {
+        // get the button id #
+        SymbolTable tbl = currentPath.getCurrentNode().getIR().getSymbolTable();
+        Util.Assert(tbl.isIntegerConstant(instr.getUse(1)));
+        //buttonId = tbl.getIntValue(instr.getUse(1));
+        //return IQuery.INFEASIBLE;
+      }
+      return super.enterCall(instr, callee, currentPath);
+    }
+  }
+  
   public static void runAndroidBadMethodCheck(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
@@ -514,27 +559,41 @@ public class Main {
         "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
     final MethodReference TAKE_PIC1 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/hardware/Camera"),
         "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
-    final MethodReference RECORD_AUDIO = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/media/MediaRecorder"),
+    final MethodReference RECORD_AUDIO0 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/media/MediaRecorder"),
         "start", "()V");
-    final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1, RECORD_AUDIO };
+    final MethodReference TAKE_PIC2 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/hardware/Camera"),
+        "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
+    final MethodReference TAKE_PIC3 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/hardware/Camera"),
+        "takePicture", "(Landroid/hardware/Camera$ShutterCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;Landroid/hardware/Camera$PictureCallback;)V");
+    final MethodReference RECORD_AUDIO1 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/media/MediaRecorder"),
+        "start", "()V");
+    final MethodReference[] badMethods = new MethodReference[] { TAKE_PIC0, TAKE_PIC1, TAKE_PIC2, TAKE_PIC3, RECORD_AUDIO0, RECORD_AUDIO1 };
     
     final MethodReference FIND_VIEW_BY_ID1 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/view/View"),
          "findViewById", "(I)Landroid/view/View");
-    
     final MethodReference FIND_VIEW_BY_ID2 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/app/Activity"),
         "findViewById", "(I)Landroid/view/View");
-    
     final MethodReference FIND_VIEW_BY_ID3 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Landroid/view/Window"),
         "findViewById", "(I)Landroid/view/View");
+    final MethodReference FIND_VIEW_BY_ID4 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/view/View"),
+         "findViewById", "(I)Landroid/view/View");
+    final MethodReference FIND_VIEW_BY_ID5 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/app/Activity"),
+        "findViewById", "(I)Landroid/view/View");
+    final MethodReference FIND_VIEW_BY_ID6 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/view/Window"),
+        "findViewById", "(I)Landroid/view/View");
     
-    final MethodReference SET_ON_CLICK_LISTENER = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Primordial, 
+    
+    final MethodReference SET_ON_CLICK_LISTENER = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, 
         "Landroid/widget/Button"),
-        "setOnClickListener", "(View.OnClickListener;)V");
+        "setOnClickListener", "(Landroid/view/View$OnClickListener;)V");
     
-    final Collection<MethodReference> findMethods = new ArrayList<MethodReference>();
+    final Collection<MethodReference> findMethods = HashSetFactory.make();
     findMethods.add(FIND_VIEW_BY_ID1);
     findMethods.add(FIND_VIEW_BY_ID2);
     findMethods.add(FIND_VIEW_BY_ID3);
+    findMethods.add(FIND_VIEW_BY_ID4);
+    findMethods.add(FIND_VIEW_BY_ID5);
+    findMethods.add(FIND_VIEW_BY_ID6);
     // for each button:
     //   check if an override listener for the button is declared. if so, we're done. 
     //   find the call to findViewById() for the button id corresponding to this button. get the Button object returned from this call
@@ -543,61 +602,138 @@ public class Main {
     //   behaviors that can be invoked by this button
     //   problem: many buttons may share the same listner, with a switch() of if/else if() statement controlling exactly what the listener does
     
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    Logger logger = new Logger();
+    
     for (Iterator<CGNode> iter = cg.iterator(); iter.hasNext();) {
       CGNode node = iter.next();
-      Util.Print("yprimordial node is " + node);
-      //if (node.getMethod().getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
-      Util.Print("non-primordial node is " + node);
+      IClass clazz = node.getMethod().getDeclaringClass();
+      if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
       IR ir = node.getIR();
       if (ir == null) continue;
-      for (Iterator<CallSiteReference> callIter = ir.iterateCallSites(); callIter.hasNext();) {
+      for (Iterator<CallSiteReference> callIter = ir.iterateCallSites(); callIter.hasNext();) { // for each call site
         CallSiteReference site = callIter.next();
-        if (findMethods.contains(site.getDeclaredTarget())) {
-          Util.Print("found " + site);
-        } else Util.Print("skipping " + site);
+        if (site.getDeclaredTarget().equals(SET_ON_CLICK_LISTENER)) {
+          // find call to v1.setOnClickListener(v2)
+          // run Thresher until we find v1 (the button whose listener was set) 
+          // query: v1 -> {whatever the points-to graph says it points to}     
+          for (SSAAbstractInvokeInstruction invoke : ir.getCalls(site)) { 
+            PointerKey local = hm.getPointerKeyForLocal(node, invoke.getUse(0));
+            PointerVariable lhs = Util.makePointerVariable(local);
+              
+            CGNode listener = null;
+            if (invoke.getUse(1) == 1) {
+              // call is castRetval.setOnClickListener(this). the method to consider is this.onClick()
+              IMethod listenerMethod = ir.getMethod().getDeclaringClass().
+                                       getMethod(Selector.make("onClick(Landroid/view/View;)V"));
+              // find the CGNode associated with the listener for this particular class
+              for (CGNode listenerNode : cg.getNodes(listenerMethod.getReference())) {
+                if (clazz.equals(listenerNode.getMethod().getDeclaringClass())) {
+                  listener = listenerNode;
+                  break;
+                }
+              }
+              Util.Assert(listener != null); // couldn't find listener
+            } else {
+              Util.Unimp("anonymous listener function " + invoke + " " + ir);
+            }
+            Set<InstanceKey> keys = HashSetFactory.make();
+            for (Iterator<Object> succIter = hg.getSuccNodes(local); succIter.hasNext();) {
+              keys.add((InstanceKey) succIter.next());
+            }
+            PointerVariable rhs;
+            if (keys.isEmpty()) {
+              // TODO: find a solution for this
+              // WALA can't see the allocation due to reflection, XML parsing, or some other reason
+              rhs = null;
+              Util.Unimp("no keys!");
+            } else  rhs = SymbolicPointerVariable.makeSymbolicVar(keys);
+  
+            PointsToEdge startEdge = new PointsToEdge(lhs, rhs);
+            UIQuery.buttonId = -1; // reset static button id so we don't get confused
+            UIQuery query = new UIQuery(startEdge, depRuleGenerator, findMethods);
+            ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
+            Util.Assert(blks.length == 1);
+            SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
+            int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+            Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
+            ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+            // start at line BEFORE call
+            exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
+            // make sure we found the button id
+            Util.Assert(UIQuery.buttonId != -1);
+            for (AndroidUtils.AndroidButton button : buttons) {
+              if (button.intId == UIQuery.buttonId) {
+                Util.Print("found button " + button + "; setting event handler to " + listener);
+                button.eventHandlerNode = listener;
+                // TODO: add path constraint that says the button has this id
+                break;
+              }
+            }
+          }
+        }
       }
     }
     
+    Set<String> warnings = HashSetFactory.make();
+    for (MethodReference badMethod : badMethods) {
+      Set<CGNode> badNodes = cg.getNodes(badMethod);
+      for (AndroidUtils.AndroidButton button : buttons) {
+        // make sure we got all the event handlers
+        CGNode eventHandlerNode = button.eventHandlerNode;
+        Util.Assert(eventHandlerNode != null, "no event handler for button " + button);
+        BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(cg, eventHandlerNode, badNodes.iterator());
+        List<CGNode> path = finder.find();
+        if (path != null) {
+          Util.Print("found path");
+          //for (CGNode pathNode : path) Util.Print(pathNode);
+          // explore one level down in the call graph... (that is, do symbolic execution bw from all relevant call sites in eventHandlerMethod)
+          // TODO: this is a hack; we should get a call graph path, convert it to a call stack, and make it part of the query
+          IR ir = eventHandlerNode.getIR();
+          // get successor node of the event handler
+          CGNode callee = path.get(path.size() - 2);
+          SSAInvokeInstruction invoke = WALACFGUtil.getCallInstructionFor(callee, eventHandlerNode, cg);
+          // query {listener-v2 -> button instance}
+          SymbolTable tbl = ir.getSymbolTable();
+          Util.Assert(ir.getMethod().getNumberOfParameters() > 1);
+          int paramNum = tbl.getParameter(1);
+          PointerKey paramKey = hm.getPointerKeyForLocal(eventHandlerNode, paramNum);
+          PointerVariable lhs = Util.makePointerVariable(paramKey);
+          PointerVariable rhs;
+          
+        }
+        
+        /*
+        //Set<CGNode> reachable = DFS.getReachableNodes(cg, Collections.singleton(eventHandlerNode));
+        for (CGNode badNode : badNodes) {
+          if (reachable.contains(badNode)) {
+              
+              
+              warnings.add("Sensitive method " + badMethod.getDeclaringClass() + "." + badMethod.getName() + 
+                " triggered by button with label \"" + button.label + "\"; is this ok?");
+          }
+        }
+        */
+      }
+    }
     
+    for (String warning : warnings) Util.Print("Warning: " + warning);
+
+    
+    /*
     for (MethodReference findMethod : findMethods) {
       Collection<Pair<SSAInvokeInstruction,CGNode>> finds = WALACallGraphUtil.getCallInstrsForNode(findMethod, cg);
       for (Pair<SSAInvokeInstruction,CGNode> pair : finds) {
         SSAInvokeInstruction invoke = pair.fst;
         CGNode node = pair.snd;
         // we only care about application code
-        //if (node.getMethod().getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) {
-         // Util.Print("skipping " + node);
-          //continue;
-        //}
-        IR ir = node.getIR();
-
-        int retval = -1;
-        SymbolTable tbl = ir.getSymbolTable();
-        Util.Print("IR " + ir);
-        Util.Print(invoke);
-        if (tbl.isConstant(invoke.getUse(1))) {
-          int buttonId = tbl.getIntValue(invoke.getUse(1));
-          for (AndroidUtils.AndroidButton button : buttons) {
-            if (button.intId == buttonId) {
-              Util.Print("found button " + button);
-              retval = invoke.getDef();
-            }
-          }
+        if (node.getMethod().getDeclaringClass().getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) {
+          continue;
         }
-        
-
-        if (retval != -1) {
-          // find a cast from the return value to Button type
-          for (SSAInstruction instr : ir.getInstructions()) {
-            if (instr instanceof SSACheckCastInstruction && instr.getUse(1) == retval) {
-              Util.Print("found cast " + instr);
-            }
-          }
-        }
-        
+        Util.Print("found caller of find method " + findMethod + ": " + node);
       }
     }
-    System.exit(1);
     
     // set of all methods that are triggered when a button is clicked
     Set<IMethod> buttonMethods = HashSetFactory.make();
@@ -608,9 +744,6 @@ public class Main {
       }
     }
 
-    Set<String> warnings = HashSetFactory.make();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-    Logger logger = new Logger();
     // try to find a corresponding button action for each invocation of a "bad" method
     for (MethodReference badMethod : badMethods) { // for each bad method
       Collection<Pair<SSAInvokeInstruction,CGNode>> invokes = WALACallGraphUtil.getCallInstrsForNode(badMethod, cg);
@@ -671,33 +804,21 @@ public class Main {
       }
     }
     
-    for (String warning : warnings) Util.Print("Warning: " + warning);
+    */
   }
   
   private static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
       throws ClassHierarchyException, IOException {
     IClassHierarchy cha;
     
-    if (REGRESSIONS || Options.CHECK_CASTS) {
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
-      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-      File exclusionsFile = new File("config/synthesis_exclusions.txt");
-      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
-      
-      cha = ClassHierarchy.make(scope);
-      
-      final MethodReference MAIN =
-          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LMain"), 
-              "main", "([Ljava/lang/String;)V");
-      entryPoints.add(new DefaultEntrypoint(MAIN, cha));
-    } else if (Options.DACAPO) { // running one of the Dacapo benchmarks
+    if (Options.DACAPO) { // running one of the Dacapo benchmarks
       String appName;
       // removing trailing slash if needed
       if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
       else appName = appPath;
       // strip of front of path away from app name
       appName = appName.substring(appName.lastIndexOf("/") + 1);
-      Util.Print("Running on " + appName);
+      Util.Print("Running on dacapo bench " + appName);
       JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
       JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
@@ -713,6 +834,18 @@ public class Main {
       cha = ClassHierarchy.make(scope);
       entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
       
+    } else if (REGRESSIONS || Options.CHECK_CASTS) {
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+      File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      
+      cha = ClassHierarchy.make(scope);
+      
+      final MethodReference MAIN =
+          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LMain"), 
+              "main", "([Ljava/lang/String;)V");
+      entryPoints.add(new DefaultEntrypoint(MAIN, cha));
     } else { // running an android app
       //Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath + "res/");
       cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, Collections.EMPTY_SET, appPath);
@@ -939,7 +1072,6 @@ public class Main {
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;
     String appName;
-    Util.Print("appPath is " + appPath);
     // removing trailing slash if needed
     if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
     else appName = appPath;
@@ -957,7 +1089,7 @@ public class Main {
     PointerAnalysis pointerAnalysis = depRuleGenerator.getHeapGraph().getPointerAnalysis();
     
     // adapted from code in Manu's DemandCastChecker.java
-    int numSafe = 0, numMightFail = 0, numThresherProvedSafe = 0;
+    int numSafe = 0, numMightFail = 0, numThresherProvedSafe = 0, total = 0;
     for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
       CGNode node = nodeIter.next();
       TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
@@ -972,7 +1104,6 @@ public class Main {
         SSAInstruction instruction = instrs[i];
         if (instruction instanceof SSACheckCastInstruction) {
           SSACheckCastInstruction castInstr = (SSACheckCastInstruction) instruction;
-          if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod().getName());
           final TypeReference[] declaredResultTypes = castInstr.getDeclaredResultTypes();
           Util.Assert(declaredResultTypes.length == 1, "weird cast " + castInstr + " has " + declaredResultTypes.length + " result types");
           
@@ -985,7 +1116,7 @@ public class Main {
           if (primOnly) {
             continue;
           }
-          
+          Util.Print("checking cast #" + ++total);
           if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod());
           PointerKey castPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
           OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castPk);
@@ -999,9 +1130,14 @@ public class Main {
             }
           }
           // only safe if every type that the key may be cast to is safe
-          if (badKeys.isEmpty()) numSafe++;
+          if (badKeys.isEmpty()) {
+            Util.Print("Points-to analysis proved cast #" + total + " safe.");
+            numSafe++;
+          }
           else {
+            Util.Print("According to point-to analysis, cast #" + total + " may fail.");
             numMightFail++;
+            if (Options.FLOW_INSENSITIVE_ONLY) continue;
             // invoke Thresher, try to show that failure can't happen
             // query (informally): when cast occurs, local var cast doesn't point to a bad key
             // for instr v0 = checkcast v1 T, query is v1 -> a && (a from badKeys)
@@ -1014,10 +1150,19 @@ public class Main {
             Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(castInstr));
 
             Logger logger = new Logger();
-            ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+            boolean foundWitness = true, fail = false;
+            try {
+              ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+              foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
+            } catch (Exception e) {
+              Util.Print("Thresher failed on cast #" + total);
+              fail = true;
+            }
             // start at line BEFORE cast statement
-            boolean foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
-            if (!foundWitness) numThresherProvedSafe++;
+            if (!foundWitness) {
+              Util.Print("Thresher proved cast #" + total + " safe.");
+              numThresherProvedSafe++; 
+            } else Util.Print("Thresher cannot prove cast #" + total + " safe. Fail? " + fail);
           }
         }
       }

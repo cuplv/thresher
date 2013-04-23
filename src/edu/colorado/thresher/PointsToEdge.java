@@ -248,9 +248,6 @@ public class PointsToEdge implements Constraint, Comparable {
         toAdd.clear();
       }
 
-      // Util.Debug("trying symbolic sink " + this.sink);
-      // Util.Debug("symbolic? " + this.sink.isSymbolic() + " symb eq " +
-      // other.getSink() + "? " + this.sink.symbEq(other.getSink()));
       if (this.sink.isSymbolic() && this.sink.symbEq(other.getSink()) && !alreadySubbed.contains(this.sink)) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
           PointerVariable sub = subMap.get(this.sink);
@@ -303,7 +300,7 @@ public class PointsToEdge implements Constraint, Comparable {
   }
 
   private int makeHash() {
-    String hashStr = source.hashCode() + "_" + fieldId + "_" + sink.hashCode();
+    final String hashStr = source.hashCode() + "_" + fieldId + "_" + sink.hashCode();
     return hashStr.hashCode();
   }
 

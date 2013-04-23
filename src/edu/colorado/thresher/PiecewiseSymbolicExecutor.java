@@ -50,7 +50,6 @@ public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {
     }
     
     CGNode fakeWorldClinit = WALACFGUtil.getFakeWorldClinitNode(callGraph);
-
     
     Map<Constraint,Set<CGNode>> constraintModMap = copy.getModifiersForQuery();
     boolean tryFakeWorldClinit = true;

@@ -55,7 +55,6 @@ public class FakeMapContextSelector implements ContextSelector {
     }
     com.ibm.wala.ipa.callgraph.impl.Util.addDefaultSelectors(options, cha);
     com.ibm.wala.ipa.callgraph.impl.Util.addDefaultBypassLogic(options, scope, Util.class.getClassLoader(), cha);
-    // addDefaultBypassLogic(options, scope, Util.class.getClassLoader(), cha);
     ContextSelector appSelector = null;
     SSAContextInterpreter appInterpreter = null;
 

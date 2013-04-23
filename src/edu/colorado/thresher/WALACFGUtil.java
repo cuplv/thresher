@@ -163,10 +163,9 @@ public class WALACFGUtil {
   }
   
   public static ISSABasicBlock findEscapeBlockForDoWhileLoop(SSACFG.BasicBlock loopHead, IR ir) {
-    
     SSACFG cfg = ir.getControlFlowGraph();
     Set<ISSABasicBlock> body = getLoopBodyBlocks(loopHead, ir);
-    // there is one block in the loop body that has a predecessor outside of the loop. this
+    // there should be one block in the loop body that has a predecessor outside of the loop. this
     // predecessor will be our escape block
     for (ISSABasicBlock bodyBlock : body) {
       for (ISSABasicBlock pred : cfg.getNormalPredecessors(bodyBlock)) {
@@ -635,8 +634,6 @@ public class WALACFGUtil {
 
   public static SSAInvokeInstruction getCallInstructionFor(CGNode callee, CGNode caller, CallGraph cg) {
     Set<CallSiteReference> siteRefs = Util.iteratorToSet(cg.getPossibleSites(caller, callee));
-
-    MethodReference calleeMethod = callee.getMethod().getReference();
     Iterator<SSAInstruction> instrs = caller.getIR().iterateAllInstructions();
     while (instrs.hasNext()) {
       SSAInstruction instr = instrs.next();

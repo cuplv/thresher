@@ -2,6 +2,7 @@ package edu.colorado.thresher;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -22,6 +23,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
@@ -140,6 +142,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     this.pointsToQuery = new PointsToQueryWrapper(ptConstraints, ptProduced, new ArrayList<DependencyRule>(),
         pathQuery.depRuleGenerator, this);
   }
+  
+  CombinedPathAndPointsToQuery(CombinedPathAndPointsToQuery query) {
+    super(query.constraints, query.pathVars, query.witnessList, query.depRuleGenerator, query.ctx);
+    this.pointsToQuery = query.pointsToQuery;
+  }
 
   /**
    * @return true if the query has been successfully witnessed, false otherwise
@@ -182,23 +189,38 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   
   @Override
   public boolean visit(SSAInstanceofInstruction instr, CGNode node) {
-    Util.Print("instance " + instr);
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
+      ClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
+      // instruction is lhsVar = instanceof checkedVar
       // get local whose type we checked
       PointerVariable checkedVar = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
-      // see what the local var points to
+      // see what the local var points to according to the points-to query
       PointerVariable rhsVar = this.pointsToQuery.getPointedTo(checkedVar);
-      Util.Assert(rhsVar != null); // can't find var in pts-to constraints
-      Util.Print(rhsVar);
       
-      IClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
+      Set<InstanceKey> oldKeys;
+      if (rhsVar == null) {
+        // checkedVar not in the points-to query; find it in the pointer analysis and get its possible values
+        oldKeys = HashSetFactory.make();
+        Iterator<Object> succs = this.getDepRuleGenerator().getHeapGraph().getSuccNodes(checkedVar.getInstanceKey());
+        while (succs.hasNext()) {
+          Object key = succs.next();
+          Util.Assert(key instanceof InstanceKey);
+          oldKeys.add((InstanceKey) key);
+        }
+        Util.Assert(!oldKeys.isEmpty());
+        // add checkedVar -> possibleValues edge to points-to constraints.
+        // no need to check feasability here. since we know checkedVar wasn't an lhs before, this can't cause a refutation
+        this.pointsToQuery.constraints.add(new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(oldKeys)));
+      } else {
+        // look inside rhsVar and grab the instance keys that are of the required type
+        oldKeys = rhsVar.getPossibleValues();
+      }
+      
       // get the class for the type we checked against 
       TypeReference type = instr.getCheckedType();
       IClass checkedType = cha.lookupClass(type);
-      // look inside rhsVar and grab the instance keys that are of the required type
       Set<InstanceKey> newKeys = HashSetFactory.make();
-      Set<InstanceKey> oldKeys = rhsVar.getPossibleValues();
       for (InstanceKey key : oldKeys) {
         if (cha.isAssignableFrom(key.getConcreteType(), checkedType)) newKeys.add(key);
       }
@@ -212,12 +234,21 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
       // check if substitution made path infeasible
       if (!this.feasible) return false;
-      // this constraint didn't give us any additional information about rhsVar; no nned to narrow
+      // this constraint didn't give us any additional information about rhsVar; no need to narrow
       if (newKeys.size() == 0 ||
           newKeys.size() == oldKeys.size()) return true;
       
       // else, we have to create a new pts-to constraint based on newKeys
-      Util.Unimp("narrowing pts-to constraint based on instanceof");
+      Set<PointsToEdge> ptConstraints = this.pointsToQuery.constraints;
+      PointsToEdge toRemove = null;
+      for (PointsToEdge edge : ptConstraints) {
+        if (edge.getSource().equals(checkedVar)) {
+          toRemove = edge;
+          break;
+        }
+      }
+      if (toRemove != null) ptConstraints.remove(toRemove);
+      ptConstraints.add(new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(newKeys)));
     }
     return true;
   }
@@ -430,8 +461,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   @Override
-  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
-    this.pointsToQuery.dropConstraintsProduceableInCall(instr, caller, callee);
+  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {
+    if (dropPtConstraints) this.pointsToQuery.dropConstraintsProduceableInCall(instr, caller, callee, dropPtConstraints);
     this.dropPathConstraintsProduceableByCall(instr, caller, callee);
     if (this.foundWitness()) Util.Debug("dropping constraints led to FAKE witness!");
   }
@@ -484,7 +515,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       if (instr instanceof SSAInvokeInstruction) {
         SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
         for (CGNode callee : cg.getPossibleTargets(node, invoke.getCallSite())) {
-          dropConstraintsProduceableInCall(invoke, node, callee);
+          // seems to slow things down?
+          //dropConstraintsProduceableInCall(invoke, node, callee, false);
+          dropConstraintsProduceableInCall(invoke, node, callee, true);
         }
       } else if (instr instanceof SSAPutInstruction) {
         SSAPutInstruction put = (SSAPutInstruction) instr;
@@ -511,67 +544,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
     }
-    /*
-    Set<DependencyRule> loopRules = HashSetFactory.make(); 
-    // get all rules for node
-    Set<DependencyRule> rules = depRuleGenerator.getRulesForNode(node);
-
-    if (rules != null) {
-      for (DependencyRule rule : rules) { // keep only rules produced in loop
-        Util.Assert(rule.getBlock() != null, "no basic block for rule " + rule);
-        if (WALACFGUtil.isInLoopBody(rule.getBlock(), loopHead, node.getIR())) {
-          loopRules.add(rule);
-        }
-      }
-      // remove all constraints produceable by one of these rules
-      dropConstraintsProuceableByRuleSet(loopRules); 
-    }
-
-    // check for additional relevant keys by consulting the points-to analysis
-    ClassHierarchy cha = depRuleGenerator.getClassHierarchy();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-
-    // the loop may also contain callees. drop any constraint containing vars
-    // that these callees can write to
-    Set<CGNode> targets = WALACFGUtil.getCallTargetsInLoop(loopHead, node, depRuleGenerator.getCallGraph());
-    Set<AtomicPathConstraint> toDrop = HashSetFactory.make(); //new HashSet<AtomicPathConstraint>();
-    // drop all vars that can be written by a call in the loop body
-    for (CGNode callNode : targets) { 
-      OrdinalSet<PointerKey> callKeys = depRuleGenerator.getModRef().get(callNode);
-
-      for (AtomicPathConstraint constraint : constraints) {
-        for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
-          if (callKeys.contains(key)) {
-            toDrop.add(constraint);
-            break;
-          }
-          // else, check for refs in pts-to constraints
-          Set<SimplePathTerm> terms = constraint.getTerms();
-          for (SimplePathTerm term : terms) {
-            if (term.getObject() != null && term.getFields() != null) {
-              PointerVariable pointedTo = this.pointsToQuery.getPointedTo(term.getObject());
-              if (pointedTo != null && pointedTo.getInstanceKey() instanceof InstanceKey) {
-                FieldReference fieldRef = term.getFirstField();
-                if (fieldRef == null) continue;
-                IField fld = cha.resolveField(fieldRef);
-                if (fld == null) continue;
-                PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) pointedTo.getInstanceKey(), fld);
-                if (fieldKey == null) continue;
-                if (callKeys.contains(fieldKey)) {
-                  toDrop.add(constraint);
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    for (AtomicPathConstraint dropMe : toDrop) {
-      if (Options.DEBUG) Util.Debug("dropping loop constraint " + dropMe);
-      removeConstraint(dropMe);
-    }
-    */
   }
 
   void dropPathConstraintsProduceableByCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {

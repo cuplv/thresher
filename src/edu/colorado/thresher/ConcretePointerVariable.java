@@ -19,11 +19,6 @@ public class ConcretePointerVariable implements PointerVariable { // implements
                                                                   // Comparable
                                                                   // {
 
-  // special concrete pointer variable representing null value
-  public final static ConcretePointerVariable NULL = new ConcretePointerVariable();
-  // special concrete pointer variable representing all non-null values
-  // public final static ConcretePointerVariable NON_NULL = new
-  // ConcretePointerVariable(-2);
   public final static ConcretePointerVariable NEVER_EQ = new ConcretePointerVariable();
 
   private final String name;
