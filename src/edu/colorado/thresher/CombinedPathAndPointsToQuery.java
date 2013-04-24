@@ -222,7 +222,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       IClass checkedType = cha.lookupClass(type);
       Set<InstanceKey> newKeys = HashSetFactory.make();
       for (InstanceKey key : oldKeys) {
-        if (cha.isAssignableFrom(key.getConcreteType(), checkedType)) newKeys.add(key);
+        if (cha.isAssignableFrom(checkedType, key.getConcreteType())) newKeys.add(key);
       }
       
       if (newKeys.isEmpty()) {

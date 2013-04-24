@@ -5,14 +5,16 @@ import java.util.List;
 class Main {
 
     public static void main(String[] args) {
-	SimpleInterface i;
+	Object i;
 
 	Foo fs = new Foo();
 	
 	if (getBool()) {
 	    i = new Foo();
-	} else {
+	} else if (getBool1()) {
 	    i = new Bar();
+	} else {
+	    i = new Object();
 	}
 
 	if (i instanceof Foo) {
@@ -22,5 +24,9 @@ class Main {
 
     public static boolean getBool() {
 	return false;
+    }
+
+    public static boolean getBool1() {
+     return false;
     }
 }
