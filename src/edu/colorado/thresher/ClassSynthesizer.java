@@ -23,6 +23,7 @@ import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.collections.Pair;
 
 public class ClassSynthesizer {
 
@@ -45,22 +46,26 @@ public class ClassSynthesizer {
    * @param termValMap - input list of constraints 
    * @return - list of synthesized classes
    */
-  public Collection<String> synthesize(Map<SimplePathTerm,Integer> termValMap) {
+  public Collection<String> synthesize(Map<SimplePathTerm,String> termValMap) {
     // each term is an access path (e.g. x.f.g), where x, f, g are types.
     // the solver has given us a value of type g (say v) which may be a primitive
     // value or an instance. our remaining task is then to synthesize an  
     // an instance o_f of type f such that o_f.g = v, then synthesize an 
     // instance of_x of type x such that o_x.f = o_f, e.t.c
     
+    // list of statements in generated test method that will call the user code
     List<String> testCode = new ArrayList<String>();
     
     // map from method -> {param index -> param value} map for that method
-    Map<IMethod,Map<Integer,Integer>> methodParamsMap = HashMapFactory.make();
+    //Map<IMethod,Map<Integer,Integer>> methodParamsMap = HashMapFactory.make();
+    Map<IMethod,Map<Integer,String>> methodParamsMap = HashMapFactory.make();
     
     for (SimplePathTerm term : termValMap.keySet()) {
       // do we need to synthesize some method or field returning the value given in the map, or just pass the value?
       boolean synthesizeMethodOrField = false;
       List<FieldReference> fields = term.getFields();
+      String instanceWithWrittenField = null;
+      String extraMethodBody = null;
       if (fields != null) {
         for (int i = fields.size() - 1; i >= 0; i--) { // for each field from back to front
           FieldReference fld = fields.get(i);
@@ -70,22 +75,50 @@ public class ClassSynthesizer {
             // is this a field or a method of the class?
             IField classField = clazz.getField(fld.getName());
             if (classField == null) {
-              synthesizeInterface(clazz, fld, term, termValMap);
+              MethodReference method = MethodReference.findOrCreate(fld.getDeclaringClass(), 
+                  Selector.make(fld.getName().toString()));
+              
+              String returnValue = termValMap.get(term);
+              // typify the return value
+              try {
+                returnValue = synthesizeTypedValFromInt(Integer.parseInt(returnValue), method.getReturnType());
+              } catch (NumberFormatException e) {
+                // do nothing... this just means it was an instance
+              }
+              //if (returnValue.equals("0") && method.getReturnType().isReferenceType()) returnValue = "null";
+              
+              //String methodBody = synthesizeMethod(method, extraMethodBody, termValMap.get(term));
+              String methodBody = synthesizeMethod(method, extraMethodBody, returnValue);
+              synthesizeInterfaceMethod(methodBody, clazz, fld, term, termValMap);
+              termValMap.put(term, synthesizeTypedValFromInt(1, method.getDeclaringClass()));
+              // we're done with these variables now
+              instanceWithWrittenField = null;
+              extraMethodBody = null;
             } else {
               // need to synthesize field          
               // (1) synthesize an instance of this type
               // (2) find some way to write to the field
-              if (!classField.isPrivate()) {
+              if (!classField.isFinal() && !classField.isPrivate()) {
                 // easy. just construct an instance, then write to the field directly
                 String instance = synthesizeInstanceOf(clazz.getReference());
-                String fieldWrite = synthesizeFieldWrite(instance, classField, termValMap.get(term));
-                Util.Print("made " + fieldWrite);
+                if (Options.DEBUG) Util.Debug("made " + instance);
+                Pair<String,String> pair = synthesizeAssignment(clazz.getReference(), instance);
+                String fieldWrite = synthesizeFieldWrite(pair.fst, classField, termValMap.get(term));
+                if (i == 0) {
+                  // if we're writing a field of the base object (not a nested field)
+                  testCode.add(pair.snd);
+                  testCode.add(fieldWrite);
+                }
+                termValMap.put(term, pair.fst);
+                // save the name of this instance and the code for the field write--we will need to synthesize a method that uses these 
+                instanceWithWrittenField = pair.fst;
+                extraMethodBody = METHOD_BODY_SPACING + pair.snd + '\n' + METHOD_BODY_SPACING + fieldWrite;
               } else {
                 // perhaps not so easy...
                 // just override the type and write the field there? this should work unless class in question is final
                 // otherwise, kick off symbolic execution for each potential write to the field and figure out preconditions for the write
+                Util.Unimp("field is private and/or final... not so obvious how to assign to it");
               }
-              Util.Unimp("fields");
             }
             synthesizeMethodOrField = true;
           }
@@ -99,17 +132,20 @@ public class ClassSynthesizer {
       int paramIndex = ((LocalPointerKey) key).getValueNumber() - 1;
       IMethod termMethod = term.getObject().getNode().getMethod();
       Util.Assert(termMethod.isPublic()); // can't call this method to pass our param unless it's public
-      Map<Integer,Integer> indexMap = methodParamsMap.get(termMethod);
+      //Map<Integer,Integer> indexMap = methodParamsMap.get(termMethod);
+      Map<Integer,String> indexMap = methodParamsMap.get(termMethod);
       if (indexMap == null) {
         indexMap = HashMapFactory.make();
         methodParamsMap.put(termMethod, indexMap);
       }
       // can't assign multiple values to same param
-      Util.Assert(!indexMap.containsKey(paramIndex) || ((synthesizeMethodOrField && indexMap.get(paramIndex) == 1) || 
-                                                        (!synthesizeMethodOrField && indexMap.get(paramIndex) == termValMap.get(term))));
+      //Util.Assert(!indexMap.containsKey(paramIndex) || ((synthesizeMethodOrField && indexMap.get(paramIndex) == 1) || 
+                                                        //(!synthesizeMethodOrField && indexMap.get(paramIndex) == termValMap.get(term))));
       // bind the param index to the value of the term or to an instance of the synthesized class
-      if (!synthesizeMethodOrField) indexMap.put(paramIndex, termValMap.get(term));
-      else indexMap.put(paramIndex, 1); // bind to instance of synthesized class
+      if (instanceWithWrittenField != null) indexMap.put(paramIndex, instanceWithWrittenField); // we created some instance and wrote to its field--pass that
+      else if (!synthesizeMethodOrField) indexMap.put(paramIndex, termValMap.get(term) + ""); // convert int to string
+      else indexMap.put(paramIndex, synthesizeTypedValFromInt(1, termMethod.getParameterType(paramIndex))); // create instance of synthesized class and bind
+      // bind to already-created instance of synthesized class
     }
     
     Collection<String> synthesizedClasses = new ArrayList<String>();
@@ -132,27 +168,32 @@ public class ClassSynthesizer {
     return synthesizedClasses;
   }
   
-  public void synthesizeInterface(IClass clazz, FieldReference fld, SimplePathTerm term, Map<SimplePathTerm,Integer> termValMap) {
+  private void synthesizeInterfaceMethod(String body, IClass clazz, FieldReference fld, SimplePathTerm term, 
+                                        Map<SimplePathTerm,String> termValMap) {
     MethodReference method = MethodReference.findOrCreate(fld.getDeclaringClass(), 
         Selector.make(fld.getName().toString()));
-      
-    // turn integer assignment from prover into String representation of typed object
-    String val = synthesizeTypedValFromInt(termValMap.get(term), method.getReturnType());
-    String methodBody = synthesizeMethod(method, val);
+    
     Set<MethodReference> methodSet = alreadySynthesized.get(clazz);
     if (methodSet == null) {
       methodSet = HashSetFactory.make();
       alreadySynthesized.put(clazz, methodSet);
     }
-    methodSet.add(method);
+    // have we already synthesized this method?
+    if (!methodSet.add(method)) return;
       
+    // turn integer assignment from prover into String representation of typed object
+    //String val = synthesizeTypedValFromInt(termValMap.get(term), method.getReturnType());
+    String val = termValMap.get(term);
+    if (body == null) body = synthesizeMethod(method, val);
+    if (Options.DEBUG) Util.Debug("method body is " + body);
+    
     List<String> methodBodiesForClass = methodBodies.get(clazz);
     if (methodBodiesForClass == null) {
       methodBodiesForClass = new ArrayList<String>();
       methodBodies.put(clazz, methodBodiesForClass);
     }
-    methodBodiesForClass.add(methodBody);
-    if (Options.DEBUG) Util.Debug("method body is " + methodBody);
+    methodBodiesForClass.add(body);
+
     if (!implementedInstances.containsKey(clazz.getReference())) {
       String newClassName = getFreshClassName(clazz.getName().toString());
       implementedInstances.put(clazz.getReference(), newClassName);  
@@ -164,6 +205,7 @@ public class ClassSynthesizer {
     // make sure we're not overwriting something
     Util.Assert(!new File(fileName).exists(), "Can't emit " + fileName + "; file already exists");
     Util.Print("Writing synthesized code to " + fileName);
+    if (Options.DEBUG) Util.Debug("synthesized " + classText);
     PrintWriter out;
     try {
       out = new PrintWriter(fileName);
@@ -174,7 +216,7 @@ public class ClassSynthesizer {
     }
   }
 
-  private String synthesizeTestForConstraints(Map<IMethod,Map<Integer,Integer>> methodParamsMap) {
+  private String synthesizeTestForConstraints(Map<IMethod,Map<Integer,String>> methodParamsMap) {
     StringBuffer buf = new StringBuffer();
     for (IMethod method : methodParamsMap.keySet()) {
       IClass clazz = method.getDeclaringClass();
@@ -193,7 +235,7 @@ public class ClassSynthesizer {
     return buf.toString();
   }
   
-  private String synthesizeMethodCall(String receiver, IMethod method, Map<Integer,Integer> indexValMap) {
+  private String synthesizeMethodCall(String receiver, IMethod method, Map<Integer,String> indexValMap) {
     StringBuffer buf = new StringBuffer();
     buf.append(receiver);
     buf.append('.');
@@ -207,14 +249,15 @@ public class ClassSynthesizer {
     return synthesizeParamBinding(method, Collections.EMPTY_MAP);
   }
   
-  private String synthesizeParamBinding(IMethod method, Map<Integer,Integer> indexValMap) {
+  private String synthesizeParamBinding(IMethod method, Map<Integer,String> indexValMap) {
     StringBuffer buf = new StringBuffer();
     buf.append('(');
     // skip first parameter; is always the receiver
     for (int i = 1; i < method.getNumberOfParameters(); i++) {
       TypeReference type = method.getParameterType(i);
       if (indexValMap.containsKey(i)) {
-        buf.append(synthesizeTypedValFromInt(indexValMap.get(i), type));
+        //buf.append(synthesizeTypedValFromInt(indexValMap.get(i), type));
+        buf.append(indexValMap.get(i));
       } else {
         if (type.isPrimitiveType()) {
           buf.append(synthesizeDefaultValue(type));
@@ -229,10 +272,10 @@ public class ClassSynthesizer {
     return buf.toString();
   }
   
-  private String synthesizeConstructorCall(IMethod method, Map<Integer,Integer> indexValMap) {
+  private String synthesizeConstructorCall(IMethod method, Map<Integer,String> indexValMap) {
     StringBuffer buf = new StringBuffer();
     buf.append("new ");
-    buf.append(makejavaTypeStringFromWALAType(method.getDeclaringClass().getReference()));
+    buf.append(makeJavaTypeStringFromWALAType(method.getDeclaringClass().getReference()));
     buf.append(synthesizeParamBinding(method, indexValMap));
     buf.append(';');
     return buf.toString();
@@ -321,17 +364,27 @@ public class ClassSynthesizer {
     buf.append(newClassName);
     if (_interface != null) {
       buf.append(" implements ");
-      buf.append(makejavaTypeStringFromWALAType(_interface.getReference()));
+      buf.append(makeJavaTypeStringFromWALAType(_interface.getReference()));
     }
     return buf.toString();
   }
   
   private String synthesizeMethod(MethodReference method, String retval) {
+    return synthesizeMethod(method, null, retval);
+  }
+  
+  private String synthesizeMethod(MethodReference method, String body, String retval) {
     String sig = synthesizeMethodSignature(method);
-    String body = synthesizeMethodBody(method, retval);
+    String _return = synthesizeMethodReturn(method, retval);
     StringBuffer buf = new StringBuffer();
-    buf.append(sig + " {\n");
-    buf.append(body + "\n");
+    buf.append(sig);
+    buf.append(" {\n");
+    if (body != null) {
+      buf.append(body);
+      buf.append('\n');
+    }
+    buf.append(_return);
+    buf.append('\n');
     buf.append(METHOD_SPACING);
     buf.append("}\n");
     return buf.toString();
@@ -354,7 +407,7 @@ public class ClassSynthesizer {
     return buf.toString();
   }
   
-  private String synthesizeMethodBody(MethodReference method, String retval) {
+  private String synthesizeMethodReturn(MethodReference method, String retval) {
     StringBuffer buf = new StringBuffer();
     if (retval != null) { // null return value means this is a void method
       buf.append(METHOD_BODY_SPACING);
@@ -367,7 +420,7 @@ public class ClassSynthesizer {
   
   private String synthesizeType(TypeReference type) {
     if (type.isPrimitiveType()) return synthesizePrimitiveType(type);
-    return makejavaTypeStringFromWALAType(type);
+    return makeJavaTypeStringFromWALAType(type);
   }
   
   private String synthesizePrimitiveType(TypeReference type) {
@@ -474,7 +527,7 @@ public class ClassSynthesizer {
       if (method.isInit()) {
         // we have a constructor. now we must initialize each of its arguments
         buf.append("new ");
-        buf.append(makejavaTypeStringFromWALAType(type));
+        buf.append(makeJavaTypeStringFromWALAType(type));
         buf.append(synthesizeParamBinding(method));
         found = true;
         break;
@@ -489,18 +542,39 @@ public class ClassSynthesizer {
     return null; // couldn't find a way to construct this type
   }
   
-  private String synthesizeFieldWrite(String instance, IField field, int value) {
+  // synthesize 'type name = rhs' assignment
+  // returns var name, assignment code pair 
+  private Pair<String,String> synthesizeAssignment(TypeReference type, String rhs) {
+    StringBuffer buf = new StringBuffer();
+    String name = makeFreshVarName(type);
+    buf.append(makeJavaTypeStringFromWALAType(type)); 
+    buf.append(' ');
+    buf.append(name);
+    buf.append(" = ");
+    buf.append(rhs);
+    buf.append(';');
+    return Pair.make(name, buf.toString());
+  }
+  
+  int varNameCounter = 0;
+  private String makeFreshVarName(TypeReference type) {
+    return type.getName().toString() + varNameCounter++;
+  }
+  
+  // synthesize 'instance.field = value' field write
+  private String synthesizeFieldWrite(String instance, IField field, String value) {
     StringBuffer buf = new StringBuffer();
     buf.append(instance);
     buf.append('.');
     buf.append(field.getName().toString());
     buf.append(" = ");
-    buf.append(synthesizeTypedValFromInt(value, field.getFieldTypeReference()));
+    //buf.append(synthesizeTypedValFromInt(value, field.getFieldTypeReference()));
+    buf.append(value);
     buf.append(";");
     return buf.toString();
   }
   
-  private String makejavaTypeStringFromWALAType(TypeReference type) {
+  private String makeJavaTypeStringFromWALAType(TypeReference type) {
     // parse out the L at the beginning of the name
     String typeString = type.getName().toString().substring(1);
     return typeString.replace("/", ".");
@@ -509,7 +583,7 @@ public class ClassSynthesizer {
   private String makeCast(TypeReference castType, String castMe) {
     StringBuffer buf = new StringBuffer();
     buf.append("(");
-    buf.append(makejavaTypeStringFromWALAType(castType));
+    buf.append(makeJavaTypeStringFromWALAType(castType));
     buf.append(") ");
     buf.append(castMe);
     return buf.toString();

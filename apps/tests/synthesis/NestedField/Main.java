@@ -1,6 +1,6 @@
 public class Main {
 
     public Main(SimpleInterface2 f) {
-	Assertions.Assert(f.returnInter().getInt() == 0);
+	Assertions.Assert(f.returnInter().getFoo().f == 0);
     }
 }

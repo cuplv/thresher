@@ -1268,7 +1268,7 @@ public class Main {
     final String ASSERTION_FAILURE = "Failed assertion!";
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
-                                    "SimpleInterfaceObject", "MixedObjAndInt", "Nested" };
+                                    "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField" };
     String[] tests0 = new String[] { "SimpleField" };
     
     int testNum = 0;

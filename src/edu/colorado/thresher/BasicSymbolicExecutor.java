@@ -251,7 +251,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           for (SimplePathTerm term : constraint.getTerms()) {
             if (!term.isIntegerConstant()) termVarMap.put(term, term.toZ3AST(ctx, false));
           }
-          // give concstraints to the prover
+          // give constraints to the prover
           Z3AST ast = constraint.toZ3AST(ctx);
           ctx.assertCnstr(ast);
         }
@@ -260,13 +260,14 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         // get assignments for the free environment variables from the theorem prover
         if (qry.ctx.checkAndGetModel(model)) { // sat
           // map from free variables -> the value they should be assigned according to the prover
-          Map<SimplePathTerm,Integer> termValMap = HashMapFactory.make();
+          Map<SimplePathTerm,String> termValMap = HashMapFactory.make();
           for (SimplePathTerm term : termVarMap.keySet()) {
-            termValMap.put(term, model.evalAsInt(termVarMap.get(term))); 
+            termValMap.put(term, "" + model.evalAsInt(termVarMap.get(term))); // convert to string 
           }
           
           IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
           ClassSynthesizer synth = new ClassSynthesizer(cha);
+
           // call synthesizer with method signatures and values to assign
           this.synthesizedClasses = synth.synthesize(termValMap);
         } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat

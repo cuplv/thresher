@@ -1,6 +1,6 @@
 public class Main {
 
     public Main(Foo f) {
-	Assertions.Assert(f.i > 7);
+	Assertions.Assert(f.i == 0);
     }
 }
