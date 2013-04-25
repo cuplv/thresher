@@ -106,9 +106,12 @@ public class Main {
     if (target == null) {
       System.out.println("No analysis targets given...exiting.");
       System.exit(1);
-    } else if (target.equals(REGRESSION))
-      runRegressionTests();
-    else {
+    } else if (target.equals(REGRESSION)) {
+      if (Options.IMMUTABILITY) runImmutabilityRegressionTests();
+      else if (Options.SYNTHESIS) runSynthesizerRegressionTests();
+      else if (Options.CHECK_CASTS) runCastCheckingRegressionTests();
+      else runAllRegressionTests();
+    } else {
       File targetFile = new File(target);
       Util.Assert(targetFile.exists(), "Target file " + target + " does not exist, exiting");
       if (Options.IMMUTABILITY) runImmutabilityCheck(target);
@@ -119,7 +122,7 @@ public class Main {
     }
   }
 
-  public static void runRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
+  public static void runAllRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
     CallGraphBuilderCancelException {
     Util.DEBUG = true;
     Util.LOG = true;
@@ -1268,7 +1271,8 @@ public class Main {
     final String ASSERTION_FAILURE = "Failed assertion!";
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
-                                    "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField" };
+                                    "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField",
+                                    "FakeMap" };
     String[] tests0 = new String[] { "SimpleField" };
     
     int testNum = 0;

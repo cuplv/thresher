@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,10 +21,12 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
+import com.ibm.wala.types.TypeName;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.strings.Atom;
 
 public class ClassSynthesizer {
 
@@ -33,10 +36,13 @@ public class ClassSynthesizer {
   private static int counter = 0;
   private final IClassHierarchy cha;
   
-  private final Map<IClass,Set<MethodReference>> alreadySynthesized = HashMapFactory.make();
+  private final Map<IClass,Set<Atom>> alreadySynthesized = HashMapFactory.make();
   private final Map<IClass,List<String>> methodBodies = HashMapFactory.make();
   // map from type -> class name for our implementation of that type
-  private final Map<TypeReference,String> implementedInstances = HashMapFactory.make();
+  //private final Map<TypeReference,String> implementedInstances = HashMapFactory.make();
+  private final Map<TypeName,String> implementedInstances = HashMapFactory.make();
+  private final Collection<String> synthesizedClasses = new ArrayList<String>();
+
   
   public ClassSynthesizer(IClassHierarchy cha) {
     this.cha = cha;
@@ -101,7 +107,6 @@ public class ClassSynthesizer {
               if (!classField.isFinal() && !classField.isPrivate()) {
                 // easy. just construct an instance, then write to the field directly
                 String instance = synthesizeInstanceOf(clazz.getReference());
-                if (Options.DEBUG) Util.Debug("made " + instance);
                 Pair<String,String> pair = synthesizeAssignment(clazz.getReference(), instance);
                 String fieldWrite = synthesizeFieldWrite(pair.fst, classField, termValMap.get(term));
                 if (i == 0) {
@@ -148,14 +153,13 @@ public class ClassSynthesizer {
       // bind to already-created instance of synthesized class
     }
     
-    Collection<String> synthesizedClasses = new ArrayList<String>();
     // have synthesized implementations for all methods that matter. 
     // now, synthesize the rest of the methods and the class itself (needed for compilation)
     for (IClass clazz : methodBodies.keySet()) {
-      //String newClassName = getFreshClassName(clazz.getName().toString());
-      String newClassName = implementedInstances.get(clazz.getReference());
+      //String newClassName = implementedInstances.get(clazz.getReference());
+      String newClassName = implementedInstances.get(clazz.getReference().getName());
       Util.Assert(newClassName != null);
-      String classText = synthesizeImplementsOrExtendsClass(newClassName, clazz, methodBodies.get(clazz), alreadySynthesized.get(clazz));
+      String classText = synthesizeImplementsOrExtendsClass(newClassName, clazz);
       emitClass(classText, newClassName, Options.APP);
       synthesizedClasses.add(newClassName);
     }
@@ -172,14 +176,15 @@ public class ClassSynthesizer {
                                         Map<SimplePathTerm,String> termValMap) {
     MethodReference method = MethodReference.findOrCreate(fld.getDeclaringClass(), 
         Selector.make(fld.getName().toString()));
+    if (Options.DEBUG) Util.Debug("synthesizing interface method " + method + " for " + clazz);
     
-    Set<MethodReference> methodSet = alreadySynthesized.get(clazz);
+    Set<Atom> methodSet = alreadySynthesized.get(clazz);
     if (methodSet == null) {
       methodSet = HashSetFactory.make();
       alreadySynthesized.put(clazz, methodSet);
     }
     // have we already synthesized this method?
-    if (!methodSet.add(method)) return;
+    if (!methodSet.add(method.getName())) return;
       
     // turn integer assignment from prover into String representation of typed object
     //String val = synthesizeTypedValFromInt(termValMap.get(term), method.getReturnType());
@@ -194,9 +199,9 @@ public class ClassSynthesizer {
     }
     methodBodiesForClass.add(body);
 
-    if (!implementedInstances.containsKey(clazz.getReference())) {
+    if (!implementedInstances.containsKey(clazz.getReference().getName())) {
       String newClassName = getFreshClassName(clazz.getName().toString());
-      implementedInstances.put(clazz.getReference(), newClassName);  
+      implementedInstances.put(clazz.getReference().getName(), newClassName);  
     }
   }
 
@@ -318,20 +323,37 @@ public class ClassSynthesizer {
    * @return - ready-to-compile string representation of class
    */
   private String synthesizeImplementsOrExtendsClass(String newClassName, IClass toImplement, 
-                                                    List<String> methods, Set<MethodReference> dontSynthesize) {
+                                                    List<String> methods, Set<Atom> dontSynthesize) {
     String sig = synthesizeClassSignature(toImplement, newClassName);
     List<String> newMethods = synthesizeClassMethods(toImplement.getDeclaredMethods(), dontSynthesize);
-    methods.addAll(newMethods);
-    methods.add(synthesizeEmptyConstructor(newClassName));
-    return synthesizeClass(sig, methods);
+    newMethods.addAll(methods);
+    newMethods.add(synthesizeEmptyConstructor(newClassName));
+    TypeName type = toImplement.getReference().getName();
+    //Util.Assert(!implementedInstances.containsKey(type), 
+      //  "already have instance of type " + type + ": " + implementedInstances.get(type));
+    if (!implementedInstances.containsKey(type)) {
+      implementedInstances.put(type, newClassName);
+    }
+    return synthesizeClass(sig, newMethods);
   }
   
-  private List<String> synthesizeClassMethods(Collection<IMethod> methods, Set<MethodReference> dontSynthesize) {
+  private String synthesizeImplementsOrExtendsClass(String newClassName, IClass toImplement) {
+    List<String> methods = methodBodies.get(toImplement);
+    if (methods == null) methods = Collections.EMPTY_LIST;
+    Set<Atom> dontSynthesize = alreadySynthesized.get(toImplement);
+        if (dontSynthesize == null) dontSynthesize = Collections.EMPTY_SET;
+    return synthesizeImplementsOrExtendsClass(newClassName, toImplement, methods, dontSynthesize);
+  }
+  
+  private List<String> synthesizeClassMethods(Collection<IMethod> methods, Set<Atom> dontSynthesize) {
     List<String> methodBodies = new ArrayList<String>();
     for (IMethod method : methods) {
       MethodReference ref = method.getReference();
-      if (dontSynthesize.contains(ref)) continue;
+      if (dontSynthesize.contains(ref.getName())) continue;
       
+      if (Options.DEBUG) {
+        Util.Debug("synthesizing " + method);
+      }
       String val = null;
       if (method.getReturnType() != TypeReference.Void) {
         // get default value of return type
@@ -486,33 +508,48 @@ public class ClassSynthesizer {
     Util.Assert(clazz != null, "couldn't find class for " + type);
     
     if (clazz.isInterface()) {
+      Util.Debug("have synthesized instance of " + type.getName() + "?");
       // first, check if we've synthesized some version of this. use that one if so.
-      String implemented = implementedInstances.get(type);
+      //String implemented = implementedInstances.get(type);
+      String implemented = implementedInstances.get(type.getName());
       if (implemented != null) {
         // found our implementation; can create an instance using the empty constructor
         // this is safe because we always define the empty constructor for our synthesized classes
         return "new " + implemented + "()";
       }
+      Util.Debug("false");
       
       // else, find existing implementations of it in scope
       Set<IClass> implementors = cha.getImplementors(type);
       Util.Assert(implementors.size() != 0, "Couldn't find implementor of " + type);  
       // try to find existing implementation...seems cheaper than synthesizing our own
       for (IClass impl : implementors) {
-        if (!impl.isPublic()) continue; // TODO: handle protected here
+        if (!impl.isPublic()) {
+          continue; // TODO: handle protected here
+        }
         // TODO: use search heuristics here?
         // HACK! choose only application classes or java core library classes
         if (!impl.getName().toString().contains("java") && 
             impl.getClassLoader() != ClassLoaderReference.Application) {
           continue;
         }
+        // avoid infinite recursion
+        Util.Assert(!impl.getReference().equals(type));
         String instance = synthesizeInstanceOf(impl.getReference());
         if (instance != null) {
           //return makeCast(type, instance);
           return instance;
         }
       }
-      Util.Unimp("synthesizing instance of interface class " + clazz);
+      // no implementations in scope; need to synthesize our own
+      String newClassName = getFreshClassName(clazz.getName().toString());
+      String classText = synthesizeImplementsOrExtendsClass(newClassName, clazz);
+      emitClass(classText, newClassName, Options.APP);
+      synthesizedClasses.add(newClassName);
+      implementedInstances.put(type.getName(), newClassName);
+      return "new " + newClassName + "()";
+      // this call should now succeed
+     // return synthesizeInstanceOf(type);
     } else if (clazz.isAbstract()) {
       Util.Unimp("synthesizing instance abstract class " + clazz);
     }
@@ -575,9 +612,17 @@ public class ClassSynthesizer {
   }
   
   private String makeJavaTypeStringFromWALAType(TypeReference type) {
+    String typeName = type.getName().toString();
+    if (type.isArrayType()) {
+      // parse out [ at the beginning of the name
+      typeName = typeName.substring(1);
+      // add brackets to end of name
+      typeName += "[]";
+    }
     // parse out the L at the beginning of the name
-    String typeString = type.getName().toString().substring(1);
-    return typeString.replace("/", ".");
+    String typeString = typeName.substring(1);
+    typeString = typeString.replace("/", ".");
+    return typeString.replace("$", ".");
   }
   
   private String makeCast(TypeReference castType, String castMe) {
