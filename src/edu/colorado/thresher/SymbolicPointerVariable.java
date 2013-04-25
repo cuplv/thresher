@@ -28,10 +28,12 @@ public class SymbolicPointerVariable implements PointerVariable {
     this.id = symbCounter++;
     Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
     this.possibleValues = possibleValues;
+    /*
     if (Options.DEBUG) {
       Util.Debug("Possible values for " + id + "symb:");
       Util.Debug(Util.printCollection(possibleValues));
     }
+    */
   }
 
   public CGNode getNode() {

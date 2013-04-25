@@ -845,6 +845,12 @@ public class Main {
       final MethodReference MAIN =
           MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LMain"), 
               "main", "([Ljava/lang/String;)V");
+            
+      //final MethodReference MAIN =
+        //  MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Lorg/junit/runner/JUnitCore"), 
+          //    "main", "([Ljava/lang/String;)V");      
+      
+      
       entryPoints.add(new DefaultEntrypoint(MAIN, cha));
     } else { // running an android app
       //Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath + "res/");
@@ -1262,7 +1268,7 @@ public class Main {
     final String ASSERTION_FAILURE = "Failed assertion!";
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
-                                    "SimpleInterfaceObject", "MixedObjAndInt" };
+                                    "SimpleInterfaceObject", "MixedObjAndInt", "Nested" };
     String[] tests0 = new String[] { "SimpleField" };
     
     int testNum = 0;

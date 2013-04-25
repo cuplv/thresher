@@ -319,7 +319,7 @@ public class WALACFGUtil {
     Set<ISSABasicBlock> loopBody = loopBodyCache.get(key);
     
     if (loopBody == null) {
-      if (Options.DEBUG) Util.Print("getting loop body blocks for " + loopHead + " in " + ir);
+      //if (Options.DEBUG) Util.Debug("getting loop body blocks for " + loopHead + " in " + ir);
       // loop head is the sink of a back edge, so just follow predecessors from the back edge
       // until we hit the loop head again
       List<ISSABasicBlock> toExplore = new LinkedList<ISSABasicBlock>();

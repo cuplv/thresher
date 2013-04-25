@@ -58,34 +58,40 @@ public class ClassSynthesizer {
     Map<IMethod,Map<Integer,Integer>> methodParamsMap = HashMapFactory.make();
     
     for (SimplePathTerm term : termValMap.keySet()) {
-      FieldReference fld = term.getFirstField();
       // do we need to synthesize some method or field returning the value given in the map, or just pass the value?
       boolean synthesizeMethodOrField = false;
-      if (fld != null) {
-        IClass clazz = cha.lookupClass(fld.getDeclaringClass());
-        // is this a field or a method of the class?
-        IField classField = clazz.getField(fld.getName());
-        if (classField == null) synthesizeInterface(clazz, fld, term, termValMap);
-        else {
-          // need to synthesize field
-          
-          // (1) synthesize an instance of this type
-          // (2) find some way to write to the field
-          if (!classField.isPrivate()) {
-            // easy. just construct an instance, then write to the field directly
-            String instance = synthesizeInstanceOf(clazz.getReference());
-            String fieldWrite = synthesizeFieldWrite(instance, classField, termValMap.get(term));
-            Util.Print("made " + fieldWrite);
-          } else {
-            // perhaps not so easy...
-            // just override the type and write the field there? this should work unless class in question is final
-            // otherwise, kick off symbolic execution for each potential write to the field and figure out preconditions for the write
+      List<FieldReference> fields = term.getFields();
+      if (fields != null) {
+        for (int i = fields.size() - 1; i >= 0; i--) { // for each field from back to front
+          FieldReference fld = fields.get(i);
+
+          if (fld != null) {
+            IClass clazz = cha.lookupClass(fld.getDeclaringClass());
+            // is this a field or a method of the class?
+            IField classField = clazz.getField(fld.getName());
+            if (classField == null) {
+              synthesizeInterface(clazz, fld, term, termValMap);
+            } else {
+              // need to synthesize field          
+              // (1) synthesize an instance of this type
+              // (2) find some way to write to the field
+              if (!classField.isPrivate()) {
+                // easy. just construct an instance, then write to the field directly
+                String instance = synthesizeInstanceOf(clazz.getReference());
+                String fieldWrite = synthesizeFieldWrite(instance, classField, termValMap.get(term));
+                Util.Print("made " + fieldWrite);
+              } else {
+                // perhaps not so easy...
+                // just override the type and write the field there? this should work unless class in question is final
+                // otherwise, kick off symbolic execution for each potential write to the field and figure out preconditions for the write
+              }
+              Util.Unimp("fields");
+            }
+            synthesizeMethodOrField = true;
           }
-          Util.Unimp("fields");
         }
-        synthesizeMethodOrField = true;
       }
-   
+      // we've worked all the way backward from the access path to the base pointer;
       // need to synthesize a test calling some method with this term passed as some param
       PointerKey key = term.getPointer();
       Util.Assert(key instanceof LocalPointerKey);
@@ -146,6 +152,7 @@ public class ClassSynthesizer {
       methodBodies.put(clazz, methodBodiesForClass);
     }
     methodBodiesForClass.add(methodBody);
+    if (Options.DEBUG) Util.Debug("method body is " + methodBody);
     if (!implementedInstances.containsKey(clazz.getReference())) {
       String newClassName = getFreshClassName(clazz.getName().toString());
       implementedInstances.put(clazz.getReference(), newClassName);  
@@ -155,7 +162,7 @@ public class ClassSynthesizer {
   public void emitClass(String classText, String className, String path) {
     String fileName = path + className + ".java";
     // make sure we're not overwriting something
-    Util.Assert(!new File(fileName).exists());
+    Util.Assert(!new File(fileName).exists(), "Can't emit " + fileName + "; file already exists");
     Util.Print("Writing synthesized code to " + fileName);
     PrintWriter out;
     try {
@@ -436,7 +443,7 @@ public class ClassSynthesizer {
       
       // else, find existing implementations of it in scope
       Set<IClass> implementors = cha.getImplementors(type);
-      Util.Assert(implementors.size() != 0);  
+      Util.Assert(implementors.size() != 0, "Couldn't find implementor of " + type);  
       // try to find existing implementation...seems cheaper than synthesizing our own
       for (IClass impl : implementors) {
         if (!impl.isPublic()) continue; // TODO: handle protected here

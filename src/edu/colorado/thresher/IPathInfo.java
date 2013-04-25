@@ -305,7 +305,6 @@ public class IPathInfo { // implements Comparable {
   public boolean seenLoopHead(SSACFG.BasicBlock loopHead) {
     Pair<CGNode, SSACFG.BasicBlock> pair = Pair.make(this.currentNode, loopHead);
     return !loopHeadSet.add(pair);
-    // return !loopHeadSet.add(loopHead);
   }
 
   /**
@@ -422,7 +421,8 @@ public class IPathInfo { // implements Comparable {
     }
 
     if (Options.DEBUG) {
-      Util.Debug("entering call " + callee.getMethod().toString() + " from " + currentNode.getMethod().toString());
+      Util.Debug("entering call " + callee.getMethod().getName() +  " " + callee.getMethod() + 
+          " from " + currentNode.getMethod().toString());
     }
     // push caller onto call stack and set current node to callee for the
     // current path
