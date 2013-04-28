@@ -1007,7 +1007,7 @@ public class Util {
     if (!assertion) {
       Util.Print("FAILED PRECONDITION: " + msg);
       Util.Debug("FAILED PRECONDITION: " + msg);
-      // Thread.dumpStack();
+      Thread.dumpStack();
       throw new NullPointerException();
       // System.exit(1);
     }
@@ -1021,7 +1021,7 @@ public class Util {
     if (!assertion) {
       Util.Print("FAILED POSTCONDITION: " + msg);
       Util.Debug("FAILED POSTCONDITION: " + msg);
-      // Thread.dumpStack();
+      Thread.dumpStack();
       // System.exit(1);
       throw new NullPointerException();
     }
@@ -1035,7 +1035,7 @@ public class Util {
     if (!assertion) {
       Util.Print("FAILED ASSERTION: " + msg);
       //Util.Debug("FAILED ASSERTION: " + msg);
-      // Thread.dumpStack();
+      Thread.dumpStack();
       // System.exit(1);
       throw new NullPointerException();
     }
@@ -1476,6 +1476,16 @@ public class Util {
     return s;
   }
 
+  public static <T> String printIterable(Iterable<T> c) {
+    Iterator<T> iter = c.iterator();
+    StringBuffer s = new StringBuffer();
+    while (iter.hasNext()) {
+      s.append(iter.next());
+      s.append("\n");
+    }
+    return s.toString();
+  }
+  
   public static <T> String printCollection(Collection<T> c) {
     Iterator<T> iter = c.iterator();
     StringBuffer s = new StringBuffer();

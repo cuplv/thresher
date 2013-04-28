@@ -2,13 +2,18 @@ package edu.colorado.thresher;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Set;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
+import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class SymbolicPointerVariable implements PointerVariable { 
   private static int symbCounter = 0;
@@ -33,7 +38,7 @@ public class SymbolicPointerVariable implements PointerVariable {
       Util.Debug("Possible values for " + id + "symb:");
       Util.Debug(Util.printCollection(possibleValues));
     }
-    */
+    */  
   }
 
   public CGNode getNode() {
@@ -82,6 +87,66 @@ public class SymbolicPointerVariable implements PointerVariable {
       }
     }    
     return possibleFields;
+  }
+  
+  /**
+   * @return instance keys that may point through field fld to this symbolic variable 
+   */
+  @Override
+  public Set<InstanceKey> getPointsAtSet(HeapGraph hg, IField fld) {
+    Util.Pre(!fld.isStatic());
+    Set<InstanceKey> pointsAtSet = HashSetFactory.make();
+    boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+    for (InstanceKey key : possibleValues) {
+      for (Iterator<Object> fldIter = hg.getPredNodes(key); fldIter.hasNext();) {
+        Object fldKey = fldIter.next();
+        boolean match = false;
+        if (arrayFld) match = fldKey instanceof ArrayContentsKey;
+        else if (fldKey instanceof InstanceFieldKey) {
+          // instance field
+          InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
+          match = ifk.getField().equals(fld);
+        }
+        if (match) {
+          for (Iterator<Object> keyIter = hg.getPredNodes(fldKey); keyIter.hasNext();) {
+            pointsAtSet.add((InstanceKey) keyIter.next());
+          }
+        }
+      }
+    }
+    // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
+    Util.Post(!pointsAtSet.isEmpty()); 
+    return pointsAtSet;
+  }
+  
+  /**
+   * @return instance keys that this symbolic variable may point to through field fld 
+   */
+  @Override
+  public Set<InstanceKey> getPointsToSet(HeapGraph hg, IField fld) {
+    Util.Pre(!fld.isStatic());
+    Set<InstanceKey> pointsToSet = HashSetFactory.make();
+    boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+    for (InstanceKey key : possibleValues) {
+      for (Iterator<Object> fldIter = hg.getSuccNodes(key); fldIter.hasNext();) {
+        Object fldKey = fldIter.next();
+        boolean match = false;
+        if (arrayFld) match = fldKey instanceof ArrayContentsKey;
+        else {
+          // instance field
+          InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
+          match = ifk.getField().equals(fld);
+        }
+        if (match) {
+          for (Iterator<Object> keyIter = hg.getSuccNodes(fldKey); keyIter.hasNext();) {
+            pointsToSet.add((InstanceKey) keyIter.next());
+          }
+        }
+      }
+    }
+    // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
+    Util.Post(!pointsToSet.isEmpty()); 
+    return pointsToSet;
   }
 
   public String getName() {

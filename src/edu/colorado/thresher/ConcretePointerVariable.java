@@ -1,19 +1,24 @@
 package edu.colorado.thresher;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSite;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.ReturnValueKey;
 import com.ibm.wala.ipa.callgraph.propagation.SmushedAllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class ConcretePointerVariable implements PointerVariable { // implements
                                                                   // Comparable
@@ -172,7 +177,66 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     } 
     return null;
   }
+  
+  /**
+   * @return instance keys that may point through field @param fld to this symbolic variable 
+   */
+  @Override
+  public Set<InstanceKey> getPointsAtSet(HeapGraph hg, IField fld) {
+    Set<InstanceKey> pointsAtSet = HashSetFactory.make();
+    Util.Pre(!fld.isStatic(), "what to do here?");
+    boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+    for (Iterator<Object> fldIter = hg.getPredNodes(this.instanceKey); fldIter.hasNext();) {
+      Object fldKey = fldIter.next();
+      boolean match = false;
+      if (arrayFld) match = fldKey instanceof ArrayContentsKey;
+      else {
+        if (fldKey instanceof InstanceFieldKey) {
+          InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
+          match = ifk.getField().equals(fld);
+        }
+      }
+      if (match) {
+        for (Iterator<Object> keyIter = hg.getPredNodes(fldKey); keyIter.hasNext();) {
+          pointsAtSet.add((InstanceKey) keyIter.next());
+        }
+      }
+    }
+    // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
+    Util.Post(!pointsAtSet.isEmpty(), "empty points-at set for " + fld); 
+    return pointsAtSet;
+  }
 
+  /**
+   * @return instance keys that may point through field @param fld to this symbolic variable 
+   */
+  @Override
+  public Set<InstanceKey> getPointsToSet(HeapGraph hg, IField fld) {
+    Set<InstanceKey> pointsToSet = HashSetFactory.make();
+    boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+    boolean staticFld = fld.isStatic();
+    for (Iterator<Object> fldIter = hg.getSuccNodes(this.instanceKey); fldIter.hasNext();) {
+      Object fldKey = fldIter.next();
+      boolean match = false;
+      if (arrayFld) match = fldKey instanceof ArrayContentsKey;
+      else if (staticFld) pointsToSet.add((InstanceKey) fldKey);
+      else {
+        // instance field key
+        InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
+        match = ifk.getField().equals(fld);
+      }
+      if (!staticFld && match) {
+        for (Iterator<Object> keyIter = hg.getSuccNodes(fldKey); keyIter.hasNext();) {
+          pointsToSet.add((InstanceKey) keyIter.next());
+        }
+      }
+    }
+    // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
+    Util.Post(!pointsToSet.isEmpty()); 
+    return pointsToSet;
+  }
+
+  
   public String toString() {
     // note than changing between forms doesn't affect the correctness of the
     // program; only the readability of the error reports!
@@ -230,7 +294,9 @@ public class ConcretePointerVariable implements PointerVariable { // implements
   public boolean symbContains(PointerVariable other) {
     if (other instanceof SymbolicPointerVariable) {
       SymbolicPointerVariable symb = (SymbolicPointerVariable) other;
-      return symb.getPossibleValues().size() == 1 && symb.getPossibleValues().contains(this.instanceKey);
+      // symbolic pointer variables always represent at least two values; can't possibly contain
+      return false;
+      //return symb.getPossibleValues().size() == 1 && symb.getPossibleValues().contains(this.instanceKey);
     } else if (other instanceof ConcretePointerVariable) {
       return this.equals(other);
     }

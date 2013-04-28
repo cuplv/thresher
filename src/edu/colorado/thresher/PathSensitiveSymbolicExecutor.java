@@ -176,7 +176,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
       // false return => (path infeasible || path split)
       // TODO: this doesn't work because we'll sometimes get a false return for a feasible path
       Util.Post(result || (!path.isFeasible() || split), " post failure on  path " + path + " blk " + path.getCurrentBlock()
-          + "IR " + path.getCurrentNode().getIR());
+          + "IR " + path.getCurrentNode().getIR() + "result? " + result + "feasible? " + path.isFeasible());
       split = false;
       return result;
     }

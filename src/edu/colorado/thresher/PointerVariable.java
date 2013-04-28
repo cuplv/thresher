@@ -2,6 +2,8 @@ package edu.colorado.thresher;
 
 import java.util.Set;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 
@@ -52,6 +54,10 @@ public interface PointerVariable extends Comparable {
   public CGNode getNode();
 
   public Set<InstanceKey> getPossibleValues();
+  
+  public Set<InstanceKey> getPointsToSet(HeapGraph hg, IField fld);
+  
+  public Set<InstanceKey> getPointsAtSet(HeapGraph hg, IField fld); 
 
   // unconstrained instance num
   public static final int ANY_INSTANCE_NUM = -1;

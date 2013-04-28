@@ -191,6 +191,25 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   public boolean visit(SSAInstanceofInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
+      boolean negated = false, found = false;
+      // find the constraint and see if it's negated or not
+      for (AtomicPathConstraint constraint : this.constraints) {
+        if (constraint.getVars().contains(lhsVar) && constraint.getLhs() instanceof SimplePathTerm &&
+            constraint.getRhs() instanceof SimplePathTerm && (constraint.getLhs().isIntegerConstant() ||
+            constraint.getRhs().isIntegerConstant())) {
+            if (constraint.getOp() == ConditionalBranchInstruction.Operator.EQ) {
+              // constraint is "!(checkedVar instanceof type)"
+              negated = true;
+            } else if (constraint.getOp() == ConditionalBranchInstruction.Operator.NE) {
+              // constraint is "checkedVar instanceof type"
+              negated = false;
+            } else Util.Unimp("bad case");
+            found = true;
+            break;
+        }
+      }
+      Util.Assert(found, "couldn't find relevant constraint!");
+      
       ClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
       // instruction is lhsVar = instanceof checkedVar
       // get local whose type we checked
@@ -200,6 +219,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       
       Set<InstanceKey> oldKeys;
       if (rhsVar == null) {
+        Util.Debug("var " + checkedVar + " not in pts-to constraints... looking it up");
         // checkedVar not in the points-to query; find it in the pointer analysis and get its possible values
         oldKeys = HashSetFactory.make();
         Iterator<Object> succs = this.getDepRuleGenerator().getHeapGraph().getSuccNodes(checkedVar.getInstanceKey());
@@ -222,15 +242,27 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       IClass checkedType = cha.lookupClass(type);
       Set<InstanceKey> newKeys = HashSetFactory.make();
       for (InstanceKey key : oldKeys) {
-        if (cha.isAssignableFrom(checkedType, key.getConcreteType())) newKeys.add(key);
+        Util.Debug("key " + key);
+        if (cha.isAssignableFrom(checkedType, key.getConcreteType())) {
+          if (!negated) {
+            newKeys.add(key);
+          }
+        } else {
+          if (negated) {
+            Util.Debug("adding key " + key);
+            newKeys.add(key);
+          }
+        }
       }
       
       if (newKeys.isEmpty()) {
         // if none of the keys are of the required type, the instanceof evaluates to false  
-        this.substituteExpForVar(new SimplePathTerm(0), lhsVar);
+        if (negated) this.substituteExpForVar(new SimplePathTerm(1), lhsVar);
+        else this.substituteExpForVar(new SimplePathTerm(0), lhsVar);
       } else {
         // if one or more of the keys is of the required type, the instanceof evaluates to true
-        this.substituteExpForVar(new SimplePathTerm(1), lhsVar);
+        if (negated) this.substituteExpForVar(new SimplePathTerm(0), lhsVar);
+        else this.substituteExpForVar(new SimplePathTerm(1), lhsVar);
       }
       // check if substitution made path infeasible
       if (!this.feasible) return false;
@@ -382,6 +414,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+    Util.Print("returning from call; query is " + this);
     Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;

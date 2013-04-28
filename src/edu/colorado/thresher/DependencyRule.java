@@ -1,5 +1,7 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -243,6 +245,13 @@ public class DependencyRule implements Comparable {
       symbolicVars.addAll(edge.getSymbolicVars());
     }
     return symbolicVars;
+  }
+  
+  public Collection<PointsToEdge> getAllEdges() {
+    Collection<PointsToEdge> edges = new ArrayList<PointsToEdge>();
+    edges.add(shown);
+    edges.addAll(toShow);
+    return edges;
   }
 
   /*

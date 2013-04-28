@@ -16,6 +16,7 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSACFG.BasicBlock;
 import com.ibm.wala.ssa.SSACFG.ExceptionHandlerBasicBlock;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
@@ -90,6 +91,7 @@ public class WALACFGUtil {
   public static boolean isLoopHead(SSACFG.BasicBlock suspectedHead, IR ir) {
     MutableIntSet loopHeaders = getLoopHeaders(ir);
     SSACFG cfg = ir.getControlFlowGraph();
+    //Util.Print("Is " + suspectedHead + " a loop head in " + ir + " " + loopHeaders.contains(cfg.getNumber(suspectedHead)));
     return loopHeaders.contains(cfg.getNumber(suspectedHead));
   }
 
@@ -336,7 +338,7 @@ public class WALACFGUtil {
           toExplore.addAll(cfg.getNormalPredecessors(blk));
         }
       }
-      if (Options.DEBUG) Util.Debug("loop body blocks for " + loopHead + "\n: " + Util.printCollection(loopBody));
+      //if (Options.DEBUG) Util.Debug("loop body blocks for " + loopHead + "\n: " + Util.printCollection(loopBody));
       loopBodyCache.put(key, loopBody);
     }
     
@@ -484,6 +486,18 @@ public class WALACFGUtil {
     return callees;
   }
 
+  public static boolean isDirectlyReachableFromLoopHead(SSACFG.BasicBlock dstBlk, IR ir) {
+    Util.Debug("checking if " + dstBlk + " is reachable from loop head");
+    MutableIntSet headers = getLoopHeaders(ir);
+    SSACFG cfg = ir.getControlFlowGraph();
+    for (IntIterator iter = headers.intIterator(); iter.hasNext();) {
+      SSACFG.BasicBlock loopHead = cfg.getBasicBlock(iter.next());
+      if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) return true;
+    }
+    Util.Debug("false");
+    return false; 
+  }
+  
   /**
    * @param srcBlk
    *          - block to search forward from
@@ -501,9 +515,9 @@ public class WALACFGUtil {
     final Set<SSACFG.BasicBlock> loopHeadsSeen = HashSetFactory.make();
     while (!toExplore.isEmpty()) {
       SSACFG.BasicBlock blk = (SSACFG.BasicBlock) toExplore.remove();
-      if (blk.equals(dstBlk))
+      if (blk.equals(dstBlk)) {
         return true;
-      else if (!isLoopHead(blk, ir) || loopHeadsSeen.add(blk)) { // avoid
+      } else if (!isLoopHead(blk, ir) || loopHeadsSeen.add(blk)) { // avoid
                                                                  // infinite
                                                                  // loops
         toExplore.addAll(cfg.getNormalSuccessors(blk));
@@ -576,6 +590,17 @@ public class WALACFGUtil {
     return -1;
   }
 
+  public static boolean isDirectlyReachableFrom(SSACFG.BasicBlock src, SSACFG.BasicBlock dst, SSACFG cfg) {
+    Collection<ISSABasicBlock> succs = null;
+    do {
+      if (src.equals(dst)) return true;
+      succs = cfg.getNormalSuccessors(src);
+      src = (SSACFG.BasicBlock) succs.iterator().next();
+    } while (succs.size() == 1);
+    Util.Debug("false");
+    return false;
+  }
+  
   /**
    * @param blk
    *          - block to begin execution from

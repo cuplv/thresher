@@ -91,10 +91,6 @@ public class Main {
   private static boolean REGRESSIONS = false; 
 
   public static String REGRESSION = "__regression";
-  
-  // absolute path to file containing core JVM components
-  private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar";
-  //private static final String JVM_PATH = "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar";
 
   // field errors we see in almost every app and do not want to repeatedly re-refute
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
@@ -107,6 +103,7 @@ public class Main {
       System.out.println("No analysis targets given...exiting.");
       System.exit(1);
     } else if (target.equals(REGRESSION)) {
+      REGRESSIONS = true;
       if (Options.IMMUTABILITY) runImmutabilityRegressionTests();
       else if (Options.SYNTHESIS) runSynthesizerRegressionTests();
       else if (Options.CHECK_CASTS) runCastCheckingRegressionTests();
@@ -127,16 +124,15 @@ public class Main {
     Util.DEBUG = true;
     Util.LOG = true;
     Util.PRINT = true;
-    REGRESSIONS = true;
     
     runAndroidLeakRegressionTests();
     Options.restoreDefaults();
-    runCastCheckingRegressionTests();
+     runCastCheckingRegressionTests();
     Options.restoreDefaults();
     runSynthesizerRegressionTests();
     Options.restoreDefaults();
     runImmutabilityRegressionTests();
-  }
+   }
   
   
   public static void runAndroidLeakRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
@@ -170,7 +166,7 @@ public class Main {
     
     //final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
-    final String[] fakeMapTests0 = new String[] { "DoLoopLabeledBreakRefute" };
+    final String[] fakeMapTests0 = new String[] { "SimpleAliasingNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -365,8 +361,6 @@ public class Main {
         Collection<IField> fields = c.getAllStaticFields();
         for (IField f : fields) { // for each static field in the class
           if (isInteresting(f)) {
-            if (Options.DEBUG)
-              Util.Debug("Found static field " + f.toString());
             staticFields.add(f);
           }
         }
@@ -414,7 +408,7 @@ public class Main {
                                                                  final Set<String> handlers,
                                                                  String appPath) 
       throws IOException, ClassHierarchyException {
-    scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+    scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.ANDROID_JAR));
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
     //if (Options.USE_EXCLUSIONS) {
@@ -824,7 +818,7 @@ public class Main {
       Util.Print("Running on dacapo bench " + appName);
       JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
       JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
       scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
       scope.addToScope(scope.getApplicationLoader(), appJar);
       File exclusionsFile = new File("config/synthesis_exclusions.txt");
@@ -837,8 +831,8 @@ public class Main {
       cha = ClassHierarchy.make(scope);
       entryPoints.add(new DefaultEntrypoint(DACAPO_MAIN, cha));
       
-    } else if (REGRESSIONS || Options.CHECK_CASTS) {
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(JVM_PATH));
+    } else if (REGRESSIONS || Options.CHECK_CASTS || Options.IMMUTABILITY) {
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
       scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
       File exclusionsFile = new File("config/synthesis_exclusions.txt");
       if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
@@ -969,6 +963,7 @@ public class Main {
     
     // get local ptr to the unmodifiable container
     PointerKey unmodifiableLocal = hm.getPointerKeyForLocal(node, instr.getDef());
+    Util.Print("succ nodes " + hg.getSuccNodeCount(unmodifiableLocal));
     Iterator<Object> unmodifiableHeapLocs = hg.getSuccNodes(unmodifiableLocal);
     
     Set<PointsToEdge> toWitness = HashSetFactory.make();
@@ -1078,7 +1073,7 @@ public class Main {
   }
   
   public static CastCheckingResults runCastChecker(String appPath) 
-      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException, Exception {
     Options.FULL_WITNESSES = true;
     String appName;
     // removing trailing slash if needed
@@ -1164,6 +1159,8 @@ public class Main {
               ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
               foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
             } catch (Exception e) {
+              if (Options.EXIT_ON_FAIL) throw e;
+              Util.Print("FAILED " + e + " " + Util.printArray(e.getStackTrace()));
               Util.Print("Thresher failed on cast #" + total);
               fail = true;
             }
@@ -2013,5 +2010,18 @@ public class Main {
       // snk.toString().contains("WeakReference");
     }
     return false;
+  }
+  
+  private static File getJVMLibFile() {
+    // path to JAR file containing core Java libraries
+    String[] knownPaths = new String[] { "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar",  
+                                         "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar" };
+    
+    for (String path : knownPaths) {
+      File file = new File(path);
+      if (file.exists()) return file;
+    }
+    Util.Assert(false, "Can't find path to Java core libraries--please add it to the known paths list.");
+    return null;
   }
 }

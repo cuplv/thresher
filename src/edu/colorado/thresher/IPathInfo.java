@@ -336,11 +336,12 @@ public class IPathInfo { // implements Comparable {
   }
 
   List<IPathInfo> handleQueryCaseSplitReturn(List<IQuery> caseSplits) {
-    if (caseSplits == IQuery.INFEASIBLE)
+    if (caseSplits == IQuery.INFEASIBLE) {
+      this.externallyRefuted = true; // this path and all case splits infeasible
       return IPathInfo.INFEASIBLE;
-    else if (caseSplits.equals(IQuery.FEASIBLE))
+    } else if (caseSplits.equals(IQuery.FEASIBLE)) {
       return IPathInfo.FEASIBLE;
-    else {
+    } else {
       List<IPathInfo> paths = new LinkedList<IPathInfo>();
       for (IQuery query : caseSplits) {
         if (query != initialQuery) {
@@ -622,9 +623,7 @@ public class IPathInfo { // implements Comparable {
 
   // has query been refuted?
   public boolean isFeasible() {
-    if (externallyRefuted)
-      return false; // refutation by external forces takes precedence over query
-                    // feasability
+    if (externallyRefuted) return false; // refutation by external forces takes precedence over query feasability
     return query != null && // null query means that this is a dummy path (i.e.
                             // branch placeholder)
         query.isFeasible();
@@ -685,6 +684,7 @@ public class IPathInfo { // implements Comparable {
    * @return
    */
   public static boolean mergePathWithPathSet(IPathInfo info, Set<IPathInfo> pathSet) {
+    Util.Debug("merging " + info);
     if (Options.USE_SUMMARIES) {
       List<IPathInfo> toRemove = new ArrayList<IPathInfo>(pathSet.size());
       for (IPathInfo path : pathSet) {

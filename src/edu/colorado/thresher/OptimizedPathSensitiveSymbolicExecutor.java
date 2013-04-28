@@ -49,7 +49,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   @Override
   boolean handleLoopHead(IPathInfo info, SSAInstruction instr) {
     Util.Pre(WALACFGUtil.isLoopHead(info.getCurrentBlock(), info.getCurrentNode().getIR()), "only call this on paths at loop head!");
-    if (Options.DEBUG) Util.Debug("at loop head on path " + info.getPathId() + " " + info.getCurrentBlock() + "\n" + info.getCurrentNode().getIR());
+    if (Options.DEBUG) Util.Debug("at loop head on path " + info.getPathId() + " " + info.getCurrentBlock());// + "\n" + info.getCurrentNode().getIR());
     final String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
     IBranchPoint point = branchPointMap.get(key);
     final SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
@@ -95,8 +95,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
     int pathCount = this.pathsToExplore.size();
     if (!executeAllInstructionsInLoopHeadSequence(info, splitPaths)) {
-      if (Options.CHECK_ASSERTS)
-        split = true; // split in loop head sequence
+      if (Options.CHECK_ASSERTS) split = true; // split in loop head sequence
       return false;
     }
     if (Options.DEBUG) {
@@ -140,11 +139,25 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   @Override
   boolean visitConditional(SSAConditionalBranchInstruction instr, IPathInfo info) {
     final SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
-    if (Options.DEBUG)
-      Util.Debug("visiting cond " + instr + " current block is " + currentBlock);
-    if (WALACFGUtil.isLoopHead(currentBlock, info.getCurrentNode().getIR())) {
+    if (Options.DEBUG) Util.Debug("visiting cond " + instr + " current block is " + currentBlock);
+    IR ir = info.getCurrentNode().getIR();
+    if (WALACFGUtil.isLoopHead(currentBlock, ir)) {
       return handleLoopHead(info, instr);
-    } // else, is not a loop head
+    } else if (WALACFGUtil.isDirectlyReachableFromLoopHead(currentBlock, ir)) {
+      // continue backward execution until we hit the loop head
+      LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
+      executeAllInstructionsInLoopHeadSequence(info, splitPaths);
+      for (IPathInfo path : splitPaths) {
+        handleLoopHead(info, instr);
+      }
+      return false;
+      //Util.Assert(splitPaths.isEmpty());
+      //return handleLoopHead(info, instr);
+      //Thread.dumpStack();
+      //return true;
+    }
+    
+    // else, is not a loop head
     String key = IBranchPoint.makeBranchPointKey(instr, info.getCurrentBlock(), info.getCurrentNode());
     IBranchPoint point = branchPointMap.get(key);
     CGNode node = info.getCurrentNode();
@@ -156,8 +169,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       pushBranchStack(point);
     }
     point.addNewPath(info);
-    if (Options.CHECK_ASSERTS)
-      split = true;
+    if (Options.CHECK_ASSERTS) split = true;
     return false; // never want to continue execution after a conditional branch
                   // instruction - only after branch point is merged
   }
@@ -250,6 +262,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     if (Options.DEBUG) Util.Debug("merging loop");
     
     if (Options.SYNTHESIS) {
+      Util.Debug("adding loop taken constraint");
       // add "loop taken" constraint
       for (IPathInfo info : truePaths) {
         SSAInstruction instr = WALACFGUtil.getInstrForLoopHead(loopHeadBlock, info.getCurrentNode().getIR().getControlFlowGraph());
@@ -284,8 +297,15 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
     for (IPathInfo info : truePaths) {
       info.setCurrentBlock(loopHeadBlock);
-      // start before the branch instr
-      info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2); 
+      // if the block contains a branch instr, start before it
+      if (loopHeadBlock.getLastInstructionIndex() != -1 && 
+          loopHeadBlock.getLastInstruction() instanceof SSAConditionalBranchInstruction) {
+        info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2);   
+      } else {
+        //  start before the branch instr
+        info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 1);         
+      }
+
       List<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info);
       if (cases == IPathInfo.INFEASIBLE) toRemove.add(info);
     }
@@ -317,7 +337,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    * escape block
    */
   List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
-    if (Options.DEBUG) Util.Debug("executing loop head blk for " + info.getCurrentBlock());
+    if (Options.DEBUG) Util.Debug("executing loop head blk for " + info.getCurrentBlock() + " line " + info.getCurrentLineNum());
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();

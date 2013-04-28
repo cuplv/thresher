@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Context;
@@ -240,8 +241,8 @@ public class PointsToQuery implements IQuery {
     } else if (applicableRules.size() == 1) {
       DependencyRule rule = applicableRules.get(0);
       if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
-      applyRule(rule, this);
-      return caseSplits;
+      if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return caseSplits;
+      return IQuery.INFEASIBLE; // else, refuted
     } else { // many applicable rules
       LinkedList<IQuery> cases = new LinkedList<IQuery>();
       boolean first = true;
@@ -257,15 +258,22 @@ public class PointsToQuery implements IQuery {
       // many applicable rules; case split!
       for (DependencyRule rule : applicableRules) {
         if (first) {
-          applyRule(rule, this);
-          first = false;
-          continue; // first query will be the path we continue on (not added to
+          if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) {
+            first = false;
+            continue; // first query will be the path we continue on (not added to
                     // case split array)
+          }
         }
         // create copy for this case and add it to the case split array
         PointsToQuery curQuery = copy.deepCopy(); 
-        applyRule(rule, curQuery);
-        cases.addLast(curQuery);
+        if (applyRule(rule, curQuery, this.depRuleGenerator.getHeapGraph())) {
+          cases.addLast(curQuery);
+        }
+      }
+      if (first) {
+        // never found feasible path
+        Util.Assert(cases.isEmpty());
+        return IQuery.INFEASIBLE;
       }
       if (Options.DEBUG)
         Util.Debug("returning " + cases.size() + " cases.");
@@ -734,7 +742,7 @@ public class PointsToQuery implements IQuery {
     }
 
     for (DependencyRule rule : applicableRules) { // apply each rule
-      applyRule(rule, this);
+      if (!applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return IQuery.INFEASIBLE;
     }
     return IQuery.FEASIBLE;
   }
@@ -768,7 +776,7 @@ public class PointsToQuery implements IQuery {
     }
   }
 
-  static void applyRule(DependencyRule rule, PointsToQuery query) {
+  static boolean applyRule(DependencyRule rule, PointsToQuery query, HeapGraph hg) {
     // TODO: this is a giant mess that's impossible to reason about. clean it up
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     // special case for when the constraints contain a symbolic edge that
@@ -860,6 +868,7 @@ public class PointsToQuery implements IQuery {
         //boolean lhsSymbolic = edge.getSource().isSymbolic();
         //boolean rhsSymbolic = edge.getSink().isSymbolic();
         for (PointsToEdge queryEdge : query.constraints) {
+          
           if (edge.symbContains(queryEdge)) {
             // query edge is already more specific
             add = false;
@@ -887,8 +896,84 @@ public class PointsToQuery implements IQuery {
     if (rule.getShown().getSource().isLocalVar() && !WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) {
       query.produced.add(rule.getShown());
     }
+ 
+    return simplifyQuery(query, hg);
+    //return true;
+  }
+  
+  /**
+   * further constraint symbolic variables according to the pts-to and pts-at sets of vars they share an edge with
+   */
+  // TODO: what if the symbolic variables occur in the path query?
+  private static boolean simplifyQuery(PointsToQuery qry, HeapGraph hg) {
+    Map<PointerVariable,PointerVariable> subMap = HashMapFactory.make(qry.constraints.size());
+    for (PointsToEdge edge : qry.constraints) {
+      if (!edge.isSymbolic()) continue; // no symbolic vars; impossible to constraint this more      
+      IField field = edge.getFieldRef();
+      if (field != null) {
+        PointerVariable src = edge.getSource();
+        PointerVariable snk = edge.getSink();
+        Set<InstanceKey> srcVals = src.getPossibleValues();
+        Set<InstanceKey> snkVals = snk.getPossibleValues();
 
-    // Util.Debug("after " + query);
+        //Util.Debug("snkVals " + Util.printCollection(snkVals));
+        Set<InstanceKey> srcPtsTo = src.getPointsToSet(hg, field);
+        //Util.Debug("src pts-to " + Util.printCollection(srcPtsTo));
+        srcPtsTo.retainAll(snkVals);
+        //Util.Debug("after inter " + Util.printCollection(srcPtsTo));
+        if (srcPtsTo.isEmpty()) {
+          if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+          return false;
+        }
+        
+        // ptsTo(src) \cap vals(sink) == vals(sink)? 
+        if (!srcPtsTo.equals(snkVals)) {
+          // if not, vals(sink) is not precise; create new symbolic var containing the intersection
+          PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(srcPtsTo);
+          PointerVariable mapping = subMap.get(snk);
+          if (mapping == null) subMap.put(snk, newVar); // no sub for this yet
+          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+        }
+        
+       
+        Util.Debug("srcVals " + Util.printCollection(srcVals));
+        Set<InstanceKey> snkPtsAt = snk.getPointsAtSet(hg, field);
+        Util.Debug("snk pts-at " + Util.printCollection(snkPtsAt));
+        snkPtsAt.retainAll(srcVals);
+        Util.Debug("after inter " + Util.printCollection(snkPtsAt));
+        
+        if (snkPtsAt.isEmpty()) {
+          if (Options.DEBUG) Util.Debug("refuted by intersection of pts-at set and symbolic var on " + edge);
+          return false;
+        }
+        
+        // ptsAt(snk) \cap vals(src) == vals(src)? 
+        if (!snkPtsAt.equals(srcVals)) {
+          // if not, vals(src) is not precise; create new symbolic var containing the intersection
+          PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(snkPtsAt);
+          PointerVariable mapping = subMap.get(src);
+          if (mapping == null) subMap.put(src, newVar); // no sub for this yet
+          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+        }           
+      }
+    }
+    
+    List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>(qry.constraints.size());
+    List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>(qry.constraints.size());
+
+    if (Options.DEBUG && !subMap.isEmpty()) Util.Debug("simplifying query");
+    
+    // iterate through edges and perform necessary substitutions
+    for (PointsToEdge edge : qry.constraints) {
+      PointsToEdge subbed = edge.substitute(subMap);
+      if (subbed != edge) {
+        toRemove.add(edge);
+        toAdd.add(subbed);
+      }
+    }
+    for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
+    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);  
+    return true;
   }
 
   /**
@@ -999,7 +1084,6 @@ public class PointsToQuery implements IQuery {
       aliasMap.clear();
     }
     rules.addAll(toAdd);
-    // Util.Debug("returning " + rules.size() + " rules.");
     return rules;
   }
 
@@ -1373,8 +1457,7 @@ public class PointsToQuery implements IQuery {
    */
   PointerVariable getPointedTo(PointerVariable var) {
     PointerVariable pointed = getPointedTo(var, constraints);
-    if (pointed != null)
-      return pointed;
+    if (pointed != null) return pointed;
     return getPointedTo(var, produced);
   }
 
@@ -1523,6 +1606,7 @@ public class PointsToQuery implements IQuery {
    */
   @Override
   public boolean contains(IQuery other) {
+    Util.Debug("comparing " + this + " and " + other);
     if (!(other instanceof PointsToQuery))
       return false;
     PointsToQuery otherQuery = (PointsToQuery) other;
@@ -1542,11 +1626,12 @@ public class PointsToQuery implements IQuery {
       boolean contained = false;
       for (PointsToEdge constraint2 : this.constraints) { // for each constraint
                                                           // in this
-        // Util.Debug("eq " + constraint1 + " and " + constraint2);
-        if (constraint2.symbContains(constraint1)) { // if this contains the
-                                                     // constraint from other
+        Util.Debug(constraint2 + " contains? " + constraint1);
+        // if the concretization of the other edge \supset eq concretization of our edge
+        if (constraint1.symbContains(constraint2)) { 
+        //if (constraint2.symbContains(constraint1)) { 
           // if (constraint1.symbEq(constraint2)) {
-          // Util.Debug("true");
+          Util.Debug("true");
           contained = true;
           break;
         }
@@ -1556,7 +1641,7 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    // Util.Debug("contains query " + other + "?" + contains);
+    //Util.Debug("contains query " + other + "?" + contained);
     return true;
   }
 

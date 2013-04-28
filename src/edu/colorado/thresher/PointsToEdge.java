@@ -89,6 +89,23 @@ public class PointsToEdge implements Constraint, Comparable {
     }
     return null;
   }
+  
+  public PointsToEdge substitute(Map<PointerVariable,PointerVariable> subMap) {
+    PointerVariable newSrc = source, newSnk = sink;
+    if (subMap.containsKey(this.source)) {
+      newSrc = subMap.get(this.source);
+    }
+    
+    if (subMap.containsKey(this.sink)) {
+      newSnk = subMap.get(this.sink);
+    }
+    
+    if (newSrc != this.source || newSnk != this.sink) {
+      return new PointsToEdge(newSrc, newSnk, this.fieldRef);
+    }
+    // otherwise, no substitution
+    return this;
+  }
 
   public PointsToEdge deepCopy() {
     PointerVariable newSource = source.deepCopy();
@@ -127,9 +144,13 @@ public class PointsToEdge implements Constraint, Comparable {
     return this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && this.sink.symbEq(other.getSink());
   }
 
+  /**
+   * does the concretization of this edge contain the concretization of the other edge? 
+   */
   public boolean symbContains(PointsToEdge other) {
     return this.source.symbContains(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)
         && this.sink.symbContains(other.getSink());
+        //&& other.sink.symbContains(this.sink); //this.sink.symbContains(other.getSink());
   }
 
   /**
@@ -141,78 +162,6 @@ public class PointsToEdge implements Constraint, Comparable {
    *          - mappings produced here are hard constraints -- add them to
    *          alreadySubbed
    */
-  /*
-  public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
-      Set<PointerVariable> alreadySubbed, boolean hard) {
-    // Util.Debug("getting subs for " + this + " and " + other);
-    List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
-    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
-      if (this.source.isSymbolic()) {
-        for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
-          PointerVariable sub = subMap.get(this.source);
-          // more than one instantiation choice. must do a case split
-          if (sub != null && !sub.equals(other.getSource())) { 
-            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
-            // the original map already has a value here; make a different choice
-            copy.put((SymbolicPointerVariable) this.source, other.getSource());
-            toAdd.add(copy);
-          }
-
-          // Util.Assert(sub == null || sub.equals(other.getSource()),
-          // "more than one instantiation choice for " + this.source + ": " +
-          // sub + " and " + other.getSource());
-          else if (sub == null && this.source != other.getSource()) {
-            // add a case split where we do not bind this edge
-            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
-            // Util.Debug("adding case split where " + this.source +
-            // " not bound to " + other.getSource());
-            toAdd.add(copy);
-
-            // Util.Debug("adding sub relationship " + this.source + " " +
-            // other.getSource());
-            subMap.put((SymbolicPointerVariable) this.source, other.getSource());
-          }
-        }
-
-        subMaps.addAll(toAdd);
-        toAdd.clear();
-      }
-
-      // Util.Debug("trying symbolic sink " + this.sink);
-      // Util.Debug("symbolic? " + this.sink.isSymbolic() + " symb eq " +
-      // other.getSink() + "? " + this.sink.symbEq(other.getSink()));
-      if (this.sink.isSymbolic() && this.sink.symbEq(other.getSink()) && !alreadySubbed.contains(this.sink)) {
-        for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
-          PointerVariable sub = subMap.get(this.sink);
-
-          // more than one instantiation choice. must do a case split
-          if (sub != null && !sub.equals(other.getSink())) { 
-            Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
-            // Util.Debug("adding case split sub relationship " + this.sink +
-            // " " + other.getSink());
-            // the original map already has a value here; make a different
-            // choice
-            copy.put((SymbolicPointerVariable) this.sink, other.getSink());
-            toAdd.add(copy);
-          }
-
-          // Util.Assert(sub == null || sub.equals(other.getSink()),
-          // "more than one instantiation choice for " + this.sink + ": " + sub
-          // + " and " + other.getSink());
-          else if (sub == null && this.sink != other.getSink()) {
-            // Util.Debug("adding sub relationship " + this.sink + " " +
-            // other.getSink());
-            subMap.put((SymbolicPointerVariable) this.sink, other.getSink());
-            // hard constraints should not be mapped twice
-            if (hard) alreadySubbed.add(this.sink); 
-          }
-        }
-        subMaps.addAll(toAdd);
-      }
-    }
-  }
-   */
-  
   public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
       Set<PointerVariable> alreadySubbed, boolean hard) {
     List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
