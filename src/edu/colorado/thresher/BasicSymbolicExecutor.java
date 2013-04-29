@@ -245,6 +245,16 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         // map from free variables in our representation to free variables in the theorem prover
         Map<SimplePathTerm,Z3AST> termVarMap = HashMapFactory.make();
         
+        // prune irrelevant constraints
+        // TODO: handle this in a more principled way
+        for (AtomicPathConstraint constraint : qry.constraints) {
+          if (!constraint.getLhs().isIntegerConstant() && 
+              !constraint.getRhs().isIntegerConstant()) {
+            // nothing for the SMT solver to generate a model for;
+            // likely a constraint on heap locations. drop it.
+          }
+        }
+        
         Util.Print("Constraints:");
         for (AtomicPathConstraint constraint : qry.constraints) {
           Util.Print(constraint);

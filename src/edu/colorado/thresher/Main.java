@@ -166,7 +166,7 @@ public class Main {
     
     //final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
-    final String[] fakeMapTests0 = new String[] { "SimpleAliasingNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "SingletonNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };

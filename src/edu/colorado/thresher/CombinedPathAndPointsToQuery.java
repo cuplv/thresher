@@ -24,10 +24,10 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
-import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
+import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstanceofInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
@@ -188,6 +188,75 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   @Override
+  boolean visitStaticPut(SSAPutInstruction instr, CGNode node, SymbolTable tbl) {
+    if (!super.visitStaticPut(instr, node, tbl)) return false;
+    PointerVariable localVar = new ConcretePointerVariable(node, instr.getUse(0), depRuleGenerator.getHeapModel());
+    PointerVariable heapVal = this.pointsToQuery.getPointedTo(localVar, false);
+    if (pathVars.contains(heapVal)) {
+      // do substitution
+      substituteExpForVar(new SimplePathTerm(localVar), heapVal);
+      return isFeasible();
+    }
+    return true;
+  }
+  
+  @Override
+  boolean visit(SSAGetInstruction instr, CGNode node) {
+    Util.Assert(instr.getNumberOfDefs() == 1, "Expecting only 1 def!");
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    if (pathVars.contains(varName)) {
+      SimplePathTerm toSub = null;
+      if (instr.isStatic()) { // static field get
+        IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(instr.getDeclaredField());
+        PointerKey key = depRuleGenerator.getHeapModel().getPointerKeyForStaticField(staticField);
+        PointerVariable var = Util.makePointerVariable(key);
+        
+        PointerVariable pointedTo = this.pointsToQuery.getPointedTo(var, false);
+        if (pointedTo != null) {
+          toSub = new SimplePathTerm(pointedTo);  
+        } else {
+          toSub = new SimplePathTerm(var);  
+        }
+      } else { // non-static get
+        PointerVariable objRead = makeVarFromUse(node, instr.getUse(0));
+        //PointerVariable pointedTo = this.pointsToQuery.getPointedTo(objRead);
+        //if (pointedTo != null) {
+          //toSub = new SimplePathTerm(pointedTo, instr.getDeclaredField());  
+        //} else {
+          toSub = new SimplePathTerm(objRead, instr.getDeclaredField());  
+        //}
+      }
+      substituteExpForVar(toSub, varName);
+      if (isFeasible()) {
+        List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
+        // look through the constraints and see if we just added a constraint that can be converted to a points-to constraint
+        for (AtomicPathConstraint constraint : this.constraints) {
+          if (constraint.isPointsToConstraint()) {
+            toRemove.add(constraint);
+          }
+        }
+        for (AtomicPathConstraint removeMe : toRemove) {
+          PointsToEdge edge = removeMe.makePointsToEdge();
+          DependencyRule rule = 
+              Util.makeUnconditionalDependencyRule(edge, instr, PointerStatement.EdgeType.GetField, -1, -1, node);
+          // remove this constraint from the path constraints and add it to the points-to constraints.
+          if (pointsToQuery.isRuleConsistent(rule, Collections.EMPTY_LIST, node) != null) {
+            if (Options.DEBUG) Util.Debug("adding edge " + edge + " from path constraints");
+            this.pointsToQuery.constraints.add(edge);
+            this.constraints.remove(removeMe);
+          } else {
+            if (Options.DEBUG) Util.Debug("refuting by merging pts-to and path constraints!");
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    }
+    return true; // didn't add any constraints, can't be infeasible
+  }
+  
+  @Override
   public boolean visit(SSAInstanceofInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
@@ -289,7 +358,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
-    if (pathVars.contains(local)) {
+    PointerVariable allocated = Util.makePointerVariable(this.depRuleGenerator.getHeapModel()
+                                                              .getInstanceKeyForAllocation(node, instr.getNewSite()));
+    PointerVariable subFor = null;
+    if (pathVars.contains(local)) subFor = local;
+    else if (pathVars.contains(allocated)) subFor = allocated;
+    if (subFor != null) {
       // special case for arrays
       if (instr.getNewSite().getDeclaredType().isArrayType()) { 
         // may need to update path constraints with the length of this array
@@ -299,7 +373,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         } else {
           arrLength = new SimplePathTerm(new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()));
         }
-        substituteExpForFieldRead(arrLength, local, SimplePathTerm.LENGTH);
+        substituteExpForFieldRead(arrLength, subFor, SimplePathTerm.LENGTH);
       }
 
       InstanceKey key = depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
@@ -344,6 +418,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    */
   @Override
   public void enterCallFromJump(CGNode callee) { 
+    this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
     int[] params = callee.getIR().getParameterValueNumbers();
     HeapModel hm = this.depRuleGenerator.getHeapModel();
     HeapGraph hg = this.depRuleGenerator.getHeapGraph();
@@ -395,7 +470,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     for (PointsToEdge constraint : pointsToQuery.produced) {
       if (this.pathVars.contains(constraint.getSink())) {
         Util.Debug("doing sub for " + constraint.getSink());
-        substituteExpForVar(new SimplePathTerm(constraint.getSource()), constraint.getSink());
+        if (constraint.getSource().isLocalVar()) {
+          substituteExpForVar(new SimplePathTerm(constraint.getSource()), constraint.getSink());
+        }
       }
     }
   }
@@ -414,7 +491,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
   @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    Util.Print("returning from call; query is " + this);
     Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;

@@ -905,7 +905,7 @@ public class PointsToQuery implements IQuery {
    * further constraint symbolic variables according to the pts-to and pts-at sets of vars they share an edge with
    */
   // TODO: what if the symbolic variables occur in the path query?
-  private static boolean simplifyQuery(PointsToQuery qry, HeapGraph hg) {
+  public static boolean simplifyQuery(PointsToQuery qry, HeapGraph hg) {
     Map<PointerVariable,PointerVariable> subMap = HashMapFactory.make(qry.constraints.size());
     for (PointsToEdge edge : qry.constraints) {
       if (!edge.isSymbolic()) continue; // no symbolic vars; impossible to constraint this more      
@@ -935,12 +935,11 @@ public class PointsToQuery implements IQuery {
           else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
         }
         
-       
-        Util.Debug("srcVals " + Util.printCollection(srcVals));
+        //Util.Debug("srcVals " + Util.printCollection(srcVals));
         Set<InstanceKey> snkPtsAt = snk.getPointsAtSet(hg, field);
-        Util.Debug("snk pts-at " + Util.printCollection(snkPtsAt));
+        //Util.Debug("snk pts-at " + Util.printCollection(snkPtsAt));
         snkPtsAt.retainAll(srcVals);
-        Util.Debug("after inter " + Util.printCollection(snkPtsAt));
+        //Util.Debug("after inter " + Util.printCollection(snkPtsAt));
         
         if (snkPtsAt.isEmpty()) {
           if (Options.DEBUG) Util.Debug("refuted by intersection of pts-at set and symbolic var on " + edge);
@@ -1447,6 +1446,9 @@ public class PointsToQuery implements IQuery {
    * instanceNumSet; }
    */
 
+  PointerVariable getPointedTo(PointerVariable var) {
+    return getPointedTo(var, true);
+  }
   /**
    * find the var pointed to by the given var in our consraints
    * 
@@ -1455,10 +1457,13 @@ public class PointsToQuery implements IQuery {
    * @return return the location pointed to by var, or null if var is not found
    *         on the LHS of any constraint in the set
    */
-  PointerVariable getPointedTo(PointerVariable var) {
+  PointerVariable getPointedTo(PointerVariable var, boolean checkProduced) {
     PointerVariable pointed = getPointedTo(var, constraints);
     if (pointed != null) return pointed;
-    return getPointedTo(var, produced);
+    if (checkProduced) {
+      return getPointedTo(var, produced);
+    }
+    return null;
   }
 
   /**

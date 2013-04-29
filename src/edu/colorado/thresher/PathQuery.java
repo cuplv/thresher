@@ -285,7 +285,7 @@ public class PathQuery implements IQuery {
         substituteExpForVar(new SimplePathTerm(rhsVarName), staticFieldVar);
       }
       return isFeasible();
-    }
+    }    
     return true;
   }
 

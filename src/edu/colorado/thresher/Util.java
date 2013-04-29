@@ -178,6 +178,13 @@ public class Util {
     }
     return null;
   }
+  
+  public static DependencyRule makeUnconditionalDependencyRule(PointsToEdge edge, SSAInstruction instr,
+      PointerStatement.EdgeType type, int lineId, int lineNum, CGNode node) {
+    PointerStatement stmt = makePointerStatement(instr, edge.getSource(), edge.getSink(), type, null, lineId, lineNum);
+    return new DependencyRule(edge, stmt, new TreeSet<PointsToEdge>(), node, (SSACFG.BasicBlock) node.getIR()
+        .getBasicBlockForInstruction(instr));
+  }
 
   public static PointerStatement makePointerStatement(SSAInstruction instr, PointerVariable lhs, PointerVariable rhs,
       PointerStatement.EdgeType type, String fieldString, int lineId, int lineNum) {

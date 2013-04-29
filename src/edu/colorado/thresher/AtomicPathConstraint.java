@@ -384,6 +384,36 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     }
     return false;
   }
+  
+  public boolean isPointsToConstraint() {
+    return (this.op == ConditionalBranchInstruction.Operator.EQ ||
+           this.op == ConditionalBranchInstruction.Operator.NE) &&
+           (this.lhs.isHeapLocation() ||
+           this.rhs.isHeapLocation());
+  }
+  
+  public PointsToEdge makePointsToEdge() {
+    Util.Pre(isPointsToConstraint());
+    // TODO: implement this. we'll just look at the points-to analysis and makea symbolic var of all
+    // instance keys that aren't precluded by the != constraint
+    if (this.op == ConditionalBranchInstruction.Operator.NE) Util.Unimp("NE pts-to constraints");
+    Set<PointerVariable> heapVars, localVars;
+    if (this.lhs.isHeapLocation()) {
+      heapVars = this.lhs.getVars();
+      localVars = this.rhs.getVars();
+    } else {
+      heapVars = this.rhs.getVars();
+      localVars = this.lhs.getVars();
+    }
+    
+    Util.Assert(heapVars.size() == 1);
+    Util.Assert(localVars.size() == 1);
+    PointerVariable lhs = localVars.iterator().next();
+    PointerVariable rhs = heapVars.iterator().next();
+    Util.Assert(lhs.isLocalVar());
+    Util.Assert(rhs.isHeapVar());
+    return new PointsToEdge(lhs, rhs);
+  }
 
   public Set<FieldReference> getFields() {
     Set<FieldReference> fields = HashSetFactory.make(); //new HashSet<FieldReference>();
