@@ -11,8 +11,8 @@ import z3.java.Z3AST;
 import z3.java.Z3Context;
 import z3.java.Z3Model;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.CallSiteReference;
-import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -23,9 +23,6 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
-import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.Selector;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
@@ -224,6 +221,27 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
 
     if (isPathInSummary(path)) return false; // summary makes path redundant
 
+    
+    // TMP
+    HeapGraph hg = path.query.getDepRuleGenerator().getHeapGraph();
+    
+    Map<Constraint,Set<CGNode>> constraintModMap = path.query.getRelevantNodes();//path.getModifiersForQuery();
+    // get potential producers for constraints
+    Set<CGNode> producers = Util.flatten(constraintModMap.values());
+    if (Options.DEBUG) {
+      Util.Debug("MAP: ");
+      for (Constraint constraint : constraintModMap.keySet()) {
+        Util.Debug(constraint + " ===>\n" + Util.printCollection(constraintModMap.get(constraint)));
+      }
+      
+      for (CGNode producer : producers) {
+        Util.Debug("producer: " + producer);
+      }
+
+    }
+    // END TMP
+    
+    
     CGNode callee = path.getCurrentNode();
 
     if (Options.DEBUG) Util.Debug(this.callGraph.getPredNodeCount(callee) + " callers.");

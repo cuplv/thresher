@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -1376,6 +1377,13 @@ public class PathQuery implements IQuery {
     }
   }
 
+  @Override
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    // TODO: fix
+    return Collections.EMPTY_MAP;
+    //return getModifiersForQuery();
+  }
+  
   /**
    * return the set of methods that can potentially produce / affect some part
    * of this query
@@ -1386,9 +1394,7 @@ public class PathQuery implements IQuery {
     Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make(); //new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = HashSetFactory.make();//new HashSet<CGNode>();
-      Util.Debug("getting pointer keys for " + constraint);
       for (PointerKey key : constraint.getPointerKeys(this.depRuleGenerator)) {
-        Util.Debug("POINTER KEY " + key);
         nodes.addAll(reversedModRef.get(key));
       }
       constraintModMap.put(constraint, nodes);

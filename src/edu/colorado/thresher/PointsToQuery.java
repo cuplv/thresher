@@ -18,17 +18,22 @@ import com.ibm.wala.ipa.callgraph.ContextItem;
 import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.debug.Assertions;
@@ -1611,7 +1616,6 @@ public class PointsToQuery implements IQuery {
    */
   @Override
   public boolean contains(IQuery other) {
-    Util.Debug("comparing " + this + " and " + other);
     if (!(other instanceof PointsToQuery))
       return false;
     PointsToQuery otherQuery = (PointsToQuery) other;
@@ -1631,12 +1635,12 @@ public class PointsToQuery implements IQuery {
       boolean contained = false;
       for (PointsToEdge constraint2 : this.constraints) { // for each constraint
                                                           // in this
-        Util.Debug(constraint2 + " contains? " + constraint1);
+
         // if the concretization of the other edge \supset eq concretization of our edge
         if (constraint1.symbContains(constraint2)) { 
         //if (constraint2.symbContains(constraint1)) { 
           // if (constraint1.symbEq(constraint2)) {
-          Util.Debug("true");
+
           contained = true;
           break;
         }
@@ -1678,6 +1682,92 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : toRemove) constraints.remove(edge);
     // about to do a piecewise jump; we no longer have any reliable produced information
     if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
+  }
+  
+  @Override
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    /*
+    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    for (PointsToEdge edge : constraints) {
+      Set<CGNode> nodes = HashSetFactory.make();
+      PointerVariable var = edge.getSource();
+      if (var.isLocalVar()) nodes.add(var.getNode());
+      else if (var.getPossibleValues() != null) {
+        for (InstanceKey key : var.getPossibleValues()) {
+          //key.getCreationSites(CG);
+          for (Iterator<Object> preds = hg.getPredNodes(key); preds.hasNext();) {
+            Object pred = preds.next();
+            if (pred instanceof LocalPointerKey) {
+              LocalPointerKey lpk = (LocalPointerKey) pred;
+              nodes.add(lpk.getNode());
+            }
+          }
+        }
+      } else {
+        Util.Debug("weird ptr variable " + var + "; possible values null");
+      }
+      constraintRelevantMap.put(edge, nodes);
+    }
+    return constraintRelevantMap;
+    */
+    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    for (PointsToEdge edge : constraints) {
+      
+      Set<CGNode> nodes = getRelevantNodesForVar(edge.getSource(), hg);
+      // take the intersection--a node must point to both in order to do a write
+      nodes.retainAll(getRelevantNodesForVar(edge.getSink(), hg));
+
+      IField field = edge.getFieldRef();
+      if (field != null) {
+        boolean array = field == AbstractDependencyRuleGenerator.ARRAY_CONTENTS;
+        FieldReference fldRef = field.getReference();
+        
+        List<CGNode> toRemove = new ArrayList<CGNode>(nodes.size());
+        for (CGNode node : nodes) {
+          boolean found = false;
+          for (SSAInstruction instr : node.getIR().getInstructions()) {
+            if (!array && instr instanceof SSAPutInstruction) {
+              SSAPutInstruction put = (SSAPutInstruction) instr;
+              if (put.getDeclaredField().equals(fldRef)) {
+                found = true;
+                break;
+              }
+            } else if (array && instr instanceof SSAArrayStoreInstruction) {
+              found = true; 
+              break;
+            }
+          }
+          // didn't find the field
+          if (!found && fldRef != null) {
+            toRemove.add(node);
+          }
+        }
+        nodes.removeAll(toRemove);
+      } else Util.Debug("field null for " + edge);
+      constraintRelevantMap.put(edge, nodes);
+    }
+    return constraintRelevantMap;
+  }
+  
+  private static Set<CGNode> getRelevantNodesForVar(PointerVariable var, HeapGraph hg) {
+    Set<CGNode> nodes = HashSetFactory.make();
+    if (var.isLocalVar()) nodes.add(var.getNode());
+    else if (var.getPossibleValues() != null) {
+      for (InstanceKey key : var.getPossibleValues()) {
+        for (Iterator<Object> preds = hg.getPredNodes(key); preds.hasNext();) {
+          Object pred = preds.next();
+          if (pred instanceof LocalPointerKey) {
+            LocalPointerKey lpk = (LocalPointerKey) pred;
+            nodes.add(lpk.getNode());
+          }
+        }
+      }
+    } else {
+      Util.Debug("weird ptr variable " + var + "; possible values null");
+    }
+    return nodes;
   }
 
   @Override

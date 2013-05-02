@@ -1648,9 +1648,10 @@ public class AbstractDependencyRuleGenerator {
   public Map<CGNode, OrdinalSet<PointerKey>> getModRef() {
     return this.modRef;
   }
-
+  
   public Map<PointerKey, Set<CGNode>> getReversedModRef() {
     if (reversedModRef == null) {
+      if (Options.DEBUG) Util.Debug("computing reversed mod/ref...");
       reversedModRef = HashMapFactory.make();//new HashMap<PointerKey, Set<CGNode>>();
       // create reverse mod/ref mapping: map from PointerKey's to CGNode's that
       // might modify them

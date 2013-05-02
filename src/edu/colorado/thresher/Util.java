@@ -989,7 +989,7 @@ public class Util {
     else if (key instanceof SmushedAllocationSiteInNode)
       return ((SmushedAllocationSiteInNode) key).getNode();
     else {
-      Util.Assert(false, "UNIMPLEMENTED INSTANCE KEY! " + key);
+      Util.Unimp("UNIMPLEMENTED INSTANCE KEY! " + key + " " + key.getClass());
       return null;
     }
   }

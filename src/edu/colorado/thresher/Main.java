@@ -807,6 +807,10 @@ public class Main {
   private static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
       throws ClassHierarchyException, IOException {
     IClassHierarchy cha;
+    final String PRIMORDIAL_MODEL = "lib/WALA/com.ibm.wala.core/lib/primordial.jar.model";
+    final File PRIMORDIAL_MODEL_FILE = new File(PRIMORDIAL_MODEL);
+    Util.Assert(PRIMORDIAL_MODEL_FILE.exists(), "Couldn't find WALA's primordia.jar.model file... has WALA been set up correctly?");
+    scope.addToScope(scope.getPrimordialLoader(), new JarFile(PRIMORDIAL_MODEL_FILE));
     
     if (Options.DACAPO) { // running one of the Dacapo benchmarks
       String appName;
@@ -1269,8 +1273,8 @@ public class Main {
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
                                     "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField",
-                                    "FakeMap" };
-    String[] tests0 = new String[] { "SimpleField" };
+                                    "FakeMap", "FakeMapNoTest1", "FakeMapNoTest2" };
+    String[] tests0 = new String[] { "FakeMapNoTest2" };
     
     int testNum = 0;
     int successes = 0;
@@ -1457,12 +1461,12 @@ public class Main {
         Util.Print("Beginning symbolic execution.");
         foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
         Collection<String> synthesized = exec.getSynthesizedClasses();
-        if (synthesizedClasses != null) {
+        if (synthesizedClasses != null && synthesized != null) {
           synthesizedClasses.addAll(synthesized);  
         }
       }
       
-      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
+      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail: see generated test.");
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   

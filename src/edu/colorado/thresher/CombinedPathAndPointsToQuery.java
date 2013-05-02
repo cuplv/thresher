@@ -235,8 +235,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             toRemove.add(constraint);
           }
         }
+        HeapGraph hg = this.depRuleGenerator.getHeapGraph();
         for (AtomicPathConstraint removeMe : toRemove) {
-          PointsToEdge edge = removeMe.makePointsToEdge();
+          PointsToEdge edge = removeMe.makePointsToEdge(hg);
           DependencyRule rule = 
               Util.makeUnconditionalDependencyRule(edge, instr, PointerStatement.EdgeType.GetField, -1, -1, node);
           // remove this constraint from the path constraints and add it to the points-to constraints.
@@ -968,6 +969,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     } 
   }
   
+  @Override 
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    Map<Constraint, Set<CGNode>> mods = pointsToQuery.getRelevantNodes();
+    mods.putAll(super.getRelevantNodes());
+    return mods;
+  }
 
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {

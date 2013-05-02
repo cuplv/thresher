@@ -175,6 +175,8 @@ public interface IQuery { // extends Comparable {
 
   public List<DependencyRule> getWitnessList();
   
+  public Map<Constraint, Set<CGNode>> getRelevantNodes();
+  
   public void dispose();
 
   /**
