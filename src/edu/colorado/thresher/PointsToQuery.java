@@ -1,6 +1,7 @@
 package edu.colorado.thresher;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -19,16 +20,21 @@ import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ssa.IR;
+import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.debug.Assertions;
@@ -260,9 +266,10 @@ public class PointsToQuery implements IQuery {
         if (first) {
           if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) {
             first = false;
-            continue; // first query will be the path we continue on (not added to
+          //  continue; // first query will be the path we continue on (not added to
                     // case split array)
           }
+          continue;
         }
         // create copy for this case and add it to the case split array
         PointsToQuery curQuery = copy.deepCopy(); 
@@ -853,6 +860,8 @@ public class PointsToQuery implements IQuery {
 
     if (!WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
 
+    toRemove.clear();
+    
     for (PointsToEdge edge : rule.getToShow()) {
       if (edge.isSymbolic()) {
         boolean add = true;
@@ -874,9 +883,19 @@ public class PointsToQuery implements IQuery {
             add = false;
             break;
           }
+          
+          // else, merge the two
+          if (edge.getSource().equals(queryEdge.getSource())) {
+            PointerVariable newVar = SymbolicPointerVariable.mergeVars(edge.getSink(), queryEdge.getSink());
+            toRemove.add(queryEdge);
+          }
         }
          
         if (add) query.addConstraint(edge);
+        for (PointsToEdge removeMe : toRemove) {
+          query.constraints.remove(removeMe);
+        }
+        toRemove.clear();
       } else {
         if (!query.produced.contains(edge)) {
           query.addConstraint(edge);
@@ -932,7 +951,17 @@ public class PointsToQuery implements IQuery {
           PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(srcPtsTo);
           PointerVariable mapping = subMap.get(snk);
           if (mapping == null) subMap.put(snk, newVar); // no sub for this yet
-          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+          else if (newVar.getPossibleValues().equals(mapping.getPossibleValues())) {
+            // already subbed, but the possible values don't agree. take the intersection
+            Set<InstanceKey> newVals = newVar.getPossibleValues();
+            newVals.retainAll(mapping.getPossibleValues());
+            if (newVals.isEmpty()) {
+              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              return false;
+            }
+            newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);
+            subMap.put(snk, newVar);
+          }
         }
         
         //Util.Debug("srcVals " + Util.printCollection(srcVals));
@@ -952,7 +981,17 @@ public class PointsToQuery implements IQuery {
           PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(snkPtsAt);
           PointerVariable mapping = subMap.get(src);
           if (mapping == null) subMap.put(src, newVar); // no sub for this yet
-          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+          else if (!newVar.getPossibleValues().equals(mapping.getPossibleValues())) {
+            // already subbed, but the possible values don't agree. take the intersection
+            Set<InstanceKey> newVals = newVar.getPossibleValues();
+            newVals.retainAll(mapping.getPossibleValues());
+            if (newVals.isEmpty()) {
+              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              return false;
+            }
+            newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);
+            subMap.put(src, newVar);
+          }
         }           
       }
     }
@@ -971,7 +1010,22 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
-    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);  
+    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);
+      
+     
+    if (Options.DEBUG) {
+      //Util.Debug("after simplification, query is " + qry);
+      for (PointsToEdge constraint : qry.constraints) {
+        if (constraint.getSource().isLocalVar()) {
+          ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
+          for (PointsToEdge edge : qry.constraints) {
+            Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
+                  + constraint);
+          }
+        }
+      } 
+    }
+        
     return true;
   }
 
@@ -985,6 +1039,7 @@ public class PointsToQuery implements IQuery {
    * @return
    */
   Set<DependencyRule> bindSymbolicRule(DependencyRule rule, PointsToQuery currentQuery, CGNode currentNode) {
+    // TODO: this is probably the ugliest/worst code in all of Thresher. rethink entirely
     PointsToEdge shown = rule.getShown();
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     List<Map<SymbolicPointerVariable, PointerVariable>> subMaps = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
@@ -1029,6 +1084,7 @@ public class PointsToQuery implements IQuery {
 
     Util.Assert(subMaps.size() == 1, "more than one instantiation choice for shown! have " + subMaps.size()
         + " this shouldn't happen, since we've only considered local constraints");
+    
     // DependencyRule newRule = rule;
     // if (subMaps.size() == 1) {
     Map<SymbolicPointerVariable, PointerVariable> singleMap = subMaps.iterator().next();
@@ -1062,7 +1118,7 @@ public class PointsToQuery implements IQuery {
         // comparison issues mean we don't know whether var0/var1 is the toSub/subFor var.
         // whichever var the old rule contains, that's the subFor variable
         if (rule.getSymbolicVars().contains(var0)) {
-          if (var1.symbEq(var0)) {
+          if (var1.symbEq(var0))  {
             if (Options.DEBUG) {
               Util.Debug(rule + "contains " + var0);
               Util.Debug("considering aliasing of " + var0 + " and " + var1);
@@ -1082,7 +1138,7 @@ public class PointsToQuery implements IQuery {
       }
       aliasMap.clear();
     }
-    rules.addAll(toAdd);
+    rules.addAll(toAdd);  
     return rules;
   }
 
@@ -1589,6 +1645,19 @@ public class PointsToQuery implements IQuery {
     return relevant;
   }
   
+  /**
+   * @return - all the constraints with local LHS's
+   */
+  private Collection<ConcretePointerVariable> getLocalVars() {
+    Collection<ConcretePointerVariable> locals = new ArrayList<ConcretePointerVariable>();
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().isLocalVar()) {
+        locals.add((ConcretePointerVariable) edge.getSource());
+      }
+    }
+    return locals;
+  }
+
   @Override
   public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
     if (this.constraints.isEmpty()) return false;
@@ -1611,7 +1680,6 @@ public class PointsToQuery implements IQuery {
    */
   @Override
   public boolean contains(IQuery other) {
-    Util.Debug("comparing " + this + " and " + other);
     if (!(other instanceof PointsToQuery))
       return false;
     PointsToQuery otherQuery = (PointsToQuery) other;
@@ -1631,12 +1699,12 @@ public class PointsToQuery implements IQuery {
       boolean contained = false;
       for (PointsToEdge constraint2 : this.constraints) { // for each constraint
                                                           // in this
-        Util.Debug(constraint2 + " contains? " + constraint1);
+
         // if the concretization of the other edge \supset eq concretization of our edge
         if (constraint1.symbContains(constraint2)) { 
         //if (constraint2.symbContains(constraint1)) { 
           // if (constraint1.symbEq(constraint2)) {
-          Util.Debug("true");
+
           contained = true;
           break;
         }
@@ -1678,6 +1746,91 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : toRemove) constraints.remove(edge);
     // about to do a piecewise jump; we no longer have any reliable produced information
     if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
+  }
+  
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    /*
+    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    for (PointsToEdge edge : constraints) {
+      Set<CGNode> nodes = HashSetFactory.make();
+      PointerVariable var = edge.getSource();
+      if (var.isLocalVar()) nodes.add(var.getNode());
+      else if (var.getPossibleValues() != null) {
+        for (InstanceKey key : var.getPossibleValues()) {
+          //key.getCreationSites(CG);
+          for (Iterator<Object> preds = hg.getPredNodes(key); preds.hasNext();) {
+            Object pred = preds.next();
+            if (pred instanceof LocalPointerKey) {
+              LocalPointerKey lpk = (LocalPointerKey) pred;
+              nodes.add(lpk.getNode());
+            }
+          }
+        }
+      } else {
+        Util.Debug("weird ptr variable " + var + "; possible values null");
+      }
+      constraintRelevantMap.put(edge, nodes);
+    }
+    return constraintRelevantMap;
+    */
+    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
+    HeapGraph hg = depRuleGenerator.getHeapGraph();
+    for (PointsToEdge edge : constraints) {
+      
+      Set<CGNode> nodes = getRelevantNodesForVar(edge.getSource(), hg);
+      // take the intersection--a node must point to both in order to do a write
+      nodes.retainAll(getRelevantNodesForVar(edge.getSink(), hg));
+
+      IField field = edge.getFieldRef();
+      if (field != null) {
+        boolean array = field == AbstractDependencyRuleGenerator.ARRAY_CONTENTS;
+        FieldReference fldRef = field.getReference();
+        
+        List<CGNode> toRemove = new ArrayList<CGNode>(nodes.size());
+        for (CGNode node : nodes) {
+          boolean found = false;
+          for (SSAInstruction instr : node.getIR().getInstructions()) {
+            if (!array && instr instanceof SSAPutInstruction) {
+              SSAPutInstruction put = (SSAPutInstruction) instr;
+              if (put.getDeclaredField().equals(fldRef)) {
+                found = true;
+                break;
+              }
+            } else if (array && instr instanceof SSAArrayStoreInstruction) {
+              found = true; 
+              break;
+            }
+          }
+          // didn't find the field
+          if (!found && fldRef != null) {
+            toRemove.add(node);
+          }
+        }
+        nodes.removeAll(toRemove);
+      } else Util.Debug("field null for " + edge);
+      constraintRelevantMap.put(edge, nodes);
+    }
+    return constraintRelevantMap;
+  }
+  
+  private static Set<CGNode> getRelevantNodesForVar(PointerVariable var, HeapGraph hg) {
+    Set<CGNode> nodes = HashSetFactory.make();
+    if (var.isLocalVar()) nodes.add(var.getNode());
+    else if (var.getPossibleValues() != null) {
+      for (InstanceKey key : var.getPossibleValues()) {
+        for (Iterator<Object> preds = hg.getPredNodes(key); preds.hasNext();) {
+          Object pred = preds.next();
+          if (pred instanceof LocalPointerKey) {
+            LocalPointerKey lpk = (LocalPointerKey) pred;
+            nodes.add(lpk.getNode());
+          }
+        }
+      }
+    } else {
+      Util.Debug("weird ptr variable " + var + "; possible values null");
+    }
+    return nodes;
   }
 
   @Override
@@ -1784,17 +1937,6 @@ public class PointsToQuery implements IQuery {
   }
 
   private boolean addConstraint(PointsToEdge constraint) {
-    /*
-    if (Options.DEBUG) {
-      if (constraint.getSource().isLocalVar()) {
-        ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
-        for (PointsToEdge edge : this.constraints) {
-          Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
-              + constraint);
-        }
-      }
-    } 
-    */  
     return constraints.add(constraint);
   }
 

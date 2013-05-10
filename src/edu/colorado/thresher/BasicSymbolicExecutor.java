@@ -772,8 +772,9 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee);
           allRefuted = false;
         } else {
-          if (visitCalleeWrapper(instr, callee, info)) {
-            addPath(info);
+	    IPathInfo copy = info.deepCopy();
+          if (visitCalleeWrapper(instr, callee, copy)) {
+            addPath(copy);
             allRefuted = false;
           } // else, refuted by parameter binding
         }
