@@ -867,7 +867,8 @@ public class PointsToQuery implements IQuery {
         boolean add = true;
         // check if some produced edge already subsumes the new edge 
         for (PointsToEdge prod : query.produced) {
-          if (edge.equals(prod)) {
+	  if (!prod.getSource().isLocalVar()) continue;
+	  if (edge.equals(prod)) {
             add = false;
             break;
           }
@@ -897,9 +898,10 @@ public class PointsToQuery implements IQuery {
         }
         toRemove.clear();
       } else {
-        if (!query.produced.contains(edge)) {
-          query.addConstraint(edge);
-        }
+	  //if (query.produced.contains(edge)) Util.Debug("re-adding " + edge);
+	  if (!query.produced.contains(edge) || !edge.getSource().isLocalVar()) {
+	      query.addConstraint(edge);
+	  } 
       }
     }
 
@@ -1559,6 +1561,7 @@ public class PointsToQuery implements IQuery {
   }
   
   public Set<PointsToEdge> getConstraintsRelevantToCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean earlyRet) {
+      Util.Debug("getting relevant to call");
     Set<PointsToEdge> toRemove = HashSetFactory.make();
     if (instr != null && instr.hasDef()) {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
@@ -1575,8 +1578,9 @@ public class PointsToQuery implements IQuery {
     
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (PointsToEdge edge : constraints) {     
-      PointerKey key = edge.getField();    
+      PointerKey key = edge.getField();  
       if (key != null && keys.contains(key)) {
+	Util.Debug("found key " + key + " to drop");
         toRemove.add(edge);
         if (earlyRet) return toRemove; 
       }
@@ -1587,6 +1591,7 @@ public class PointsToQuery implements IQuery {
         SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
           if (keys.contains(fieldKey)) {  
+	    Util.Debug("found key " + fieldKey + " to drop");
             toRemove.add(edge);
             if (earlyRet) return toRemove; 
           }
