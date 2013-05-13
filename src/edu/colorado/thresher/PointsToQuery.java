@@ -365,7 +365,9 @@ public class PointsToQuery implements IQuery {
     Set<PointsToEdge> toAdd = new TreeSet<PointsToEdge>(), toRemove = new TreeSet<PointsToEdge>();
     Set<PointerVariable> formalsAssigned = HashSetFactory.make();
     MutableIntSet argsSeen = new BitVectorIntSet();
-    Set<PointerVariable> possiblyAliased = HashSetFactory.make(); 
+    Set<PointerVariable> possiblyAliased = HashSetFactory.make();
+    HeapGraph hg = this.depRuleGenerator.getHeapGraph();
+    
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       int argUse = instr.getUse(i);
       PointerVariable arg = new ConcretePointerVariable(callerMethod, argUse, this.depRuleGenerator.getHeapModel());
@@ -385,8 +387,23 @@ public class PointsToQuery implements IQuery {
             this.feasible = false;
             return formalsAssigned;
           }
-
-          PointsToEdge newEdge = new PointsToEdge(arg, edge.getSink());
+          // get the points-to set of arg, intersect with the sink of edge
+          Set<InstanceKey> possibeVals = HashSetFactory.make();
+          for (Iterator<Object> succs = hg.getSuccNodes(arg.getInstanceKey()); succs.hasNext();) {
+            Object succ = succs.next();
+            if (succ instanceof InstanceKey) possibeVals.add((InstanceKey) succ);
+          }
+          PointerVariable argVar = SymbolicPointerVariable.makeSymbolicVar(possibeVals);
+          PointerVariable merged = SymbolicPointerVariable.mergeVars(argVar, edge.getSink());
+          if (merged == null) {
+            if (Options.DEBUG) {
+              Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty");
+            }
+            this.feasible = false;
+            return formalsAssigned;
+          }
+          
+          PointsToEdge newEdge = new PointsToEdge(arg, merged);
           toAdd.add(newEdge);
           toRemove.add(edge);
           formalsAssigned.add(formal);
@@ -394,6 +411,7 @@ public class PointsToQuery implements IQuery {
       }
     }
 
+    // TODO: might have to simplify w.r.t merged var
     for (PointsToEdge edge : toRemove) {
       boolean removed = constraints.remove(edge);
       if (!removed)

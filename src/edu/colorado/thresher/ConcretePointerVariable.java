@@ -235,7 +235,6 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     Util.Post(!pointsToSet.isEmpty()); 
     return pointsToSet;
   }
-
   
   public String toString() {
     // note than changing between forms doesn't affect the correctness of the
