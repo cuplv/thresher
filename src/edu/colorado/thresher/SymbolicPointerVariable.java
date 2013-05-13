@@ -28,6 +28,17 @@ public class SymbolicPointerVariable implements PointerVariable {
     if (possibleValues.size() == 1) return Util.makePointerVariable(possibleValues.iterator().next());
     return new SymbolicPointerVariable(possibleValues);
   }
+  
+  /**
+   * @return PointerVariabe representing intersection of possible value sets if nonempty, null otherwise
+   */
+  public static PointerVariable mergeVars(PointerVariable var0, PointerVariable var1) {
+    // can't make symbolic var from the empty set
+    Set<InstanceKey> newVals = Util.deepCopySet(var0.getPossibleValues());
+    newVals.retainAll(var1.getPossibleValues());
+    if (newVals.size() == 0) return null;
+    return makeSymbolicVar(newVals);
+  }
 
   public SymbolicPointerVariable(Set<InstanceKey> possibleValues) {
     this.id = symbCounter++;

@@ -735,10 +735,11 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     Util.Assert(instr instanceof SSAInvokeInstruction, "expecting invoke here");
     // if (callee.getIR() != null) Util.Print(callee.getIR().toString());
     List<IPathInfo> caseSplits = info.enterCall((SSAInvokeInstruction) instr, callGraph, callee);
-    if (caseSplits == null)
-      return false; // infeasible
-    for (IPathInfo path : caseSplits)
+    if (caseSplits == null) return false; // infeasible
+    for (IPathInfo path : caseSplits) {
+      Util.Debug("adding case split path");
       addPath(path);
+    }
     return true;
   }
 
@@ -790,9 +791,11 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           info.skipCall((SSAInvokeInstruction) instr, this.callGraph, callee);
           allRefuted = false;
         } else {
-          if (visitCalleeWrapper(instr, callee, info)) {
-            addPath(info);
-            allRefuted = false;
+	    IPathInfo copy = info.deepCopy();
+          if (visitCalleeWrapper(instr, callee, copy)) {
+            addPath(copy);
+            allRefuted = true;
+	    if (Options.CHECK_ASSERTS) split = true;
           } // else, refuted by parameter binding
         }
       }

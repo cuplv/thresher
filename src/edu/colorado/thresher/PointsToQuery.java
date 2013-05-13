@@ -1,6 +1,7 @@
 package edu.colorado.thresher;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -23,6 +24,10 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+<<<<<<< HEAD
+=======
+import com.ibm.wala.ssa.IR;
+>>>>>>> 8d41bd60027c15f49052d78ff2cadc79e498574e
 import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
@@ -265,9 +270,10 @@ public class PointsToQuery implements IQuery {
         if (first) {
           if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) {
             first = false;
-            continue; // first query will be the path we continue on (not added to
+          //  continue; // first query will be the path we continue on (not added to
                     // case split array)
           }
+          continue;
         }
         // create copy for this case and add it to the case split array
         PointsToQuery curQuery = copy.deepCopy(); 
@@ -858,12 +864,15 @@ public class PointsToQuery implements IQuery {
 
     if (!WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
 
+    toRemove.clear();
+    
     for (PointsToEdge edge : rule.getToShow()) {
       if (edge.isSymbolic()) {
         boolean add = true;
         // check if some produced edge already subsumes the new edge 
         for (PointsToEdge prod : query.produced) {
-          if (edge.equals(prod)) {
+	  if (!prod.getSource().isLocalVar()) continue;
+	  if (edge.equals(prod)) {
             add = false;
             break;
           }
@@ -879,13 +888,24 @@ public class PointsToQuery implements IQuery {
             add = false;
             break;
           }
+          
+          // else, merge the two
+          if (edge.getSource().equals(queryEdge.getSource())) {
+            PointerVariable newVar = SymbolicPointerVariable.mergeVars(edge.getSink(), queryEdge.getSink());
+            toRemove.add(queryEdge);
+          }
         }
          
         if (add) query.addConstraint(edge);
-      } else {
-        if (!query.produced.contains(edge)) {
-          query.addConstraint(edge);
+        for (PointsToEdge removeMe : toRemove) {
+          query.constraints.remove(removeMe);
         }
+        toRemove.clear();
+      } else {
+	  //if (query.produced.contains(edge)) Util.Debug("re-adding " + edge);
+	  if (!query.produced.contains(edge) || !edge.getSource().isLocalVar()) {
+	      query.addConstraint(edge);
+	  } 
       }
     }
 
@@ -937,7 +957,17 @@ public class PointsToQuery implements IQuery {
           PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(srcPtsTo);
           PointerVariable mapping = subMap.get(snk);
           if (mapping == null) subMap.put(snk, newVar); // no sub for this yet
-          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+          else if (newVar.getPossibleValues().equals(mapping.getPossibleValues())) {
+            // already subbed, but the possible values don't agree. take the intersection
+            Set<InstanceKey> newVals = newVar.getPossibleValues();
+            newVals.retainAll(mapping.getPossibleValues());
+            if (newVals.isEmpty()) {
+              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              return false;
+            }
+            newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);
+            subMap.put(snk, newVar);
+          }
         }
         
         //Util.Debug("srcVals " + Util.printCollection(srcVals));
@@ -957,7 +987,17 @@ public class PointsToQuery implements IQuery {
           PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(snkPtsAt);
           PointerVariable mapping = subMap.get(src);
           if (mapping == null) subMap.put(src, newVar); // no sub for this yet
-          else Util.Assert(newVar.getPossibleValues().equals(mapping.getPossibleValues())); // already subbed; ok if they agree
+          else if (!newVar.getPossibleValues().equals(mapping.getPossibleValues())) {
+            // already subbed, but the possible values don't agree. take the intersection
+            Set<InstanceKey> newVals = newVar.getPossibleValues();
+            newVals.retainAll(mapping.getPossibleValues());
+            if (newVals.isEmpty()) {
+              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              return false;
+            }
+            newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);
+            subMap.put(src, newVar);
+          }
         }           
       }
     }
@@ -976,7 +1016,22 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
-    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);  
+    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);
+      
+     
+    if (Options.DEBUG) {
+      //Util.Debug("after simplification, query is " + qry);
+      for (PointsToEdge constraint : qry.constraints) {
+        if (constraint.getSource().isLocalVar()) {
+          ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
+          for (PointsToEdge edge : qry.constraints) {
+            Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
+                  + constraint);
+          }
+        }
+      } 
+    }
+        
     return true;
   }
 
@@ -990,6 +1045,7 @@ public class PointsToQuery implements IQuery {
    * @return
    */
   Set<DependencyRule> bindSymbolicRule(DependencyRule rule, PointsToQuery currentQuery, CGNode currentNode) {
+    // TODO: this is probably the ugliest/worst code in all of Thresher. rethink entirely
     PointsToEdge shown = rule.getShown();
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     List<Map<SymbolicPointerVariable, PointerVariable>> subMaps = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
@@ -1034,6 +1090,7 @@ public class PointsToQuery implements IQuery {
 
     Util.Assert(subMaps.size() == 1, "more than one instantiation choice for shown! have " + subMaps.size()
         + " this shouldn't happen, since we've only considered local constraints");
+    
     // DependencyRule newRule = rule;
     // if (subMaps.size() == 1) {
     Map<SymbolicPointerVariable, PointerVariable> singleMap = subMaps.iterator().next();
@@ -1067,7 +1124,7 @@ public class PointsToQuery implements IQuery {
         // comparison issues mean we don't know whether var0/var1 is the toSub/subFor var.
         // whichever var the old rule contains, that's the subFor variable
         if (rule.getSymbolicVars().contains(var0)) {
-          if (var1.symbEq(var0)) {
+          if (var1.symbEq(var0))  {
             if (Options.DEBUG) {
               Util.Debug(rule + "contains " + var0);
               Util.Debug("considering aliasing of " + var0 + " and " + var1);
@@ -1087,7 +1144,7 @@ public class PointsToQuery implements IQuery {
       }
       aliasMap.clear();
     }
-    rules.addAll(toAdd);
+    rules.addAll(toAdd);  
     return rules;
   }
 
@@ -1508,6 +1565,7 @@ public class PointsToQuery implements IQuery {
   }
   
   public Set<PointsToEdge> getConstraintsRelevantToCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean earlyRet) {
+      Util.Debug("getting relevant to call");
     Set<PointsToEdge> toRemove = HashSetFactory.make();
     if (instr != null && instr.hasDef()) {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
@@ -1524,8 +1582,9 @@ public class PointsToQuery implements IQuery {
     
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (PointsToEdge edge : constraints) {     
-      PointerKey key = edge.getField();    
+      PointerKey key = edge.getField();  
       if (key != null && keys.contains(key)) {
+	Util.Debug("found key " + key + " to drop");
         toRemove.add(edge);
         if (earlyRet) return toRemove; 
       }
@@ -1536,6 +1595,7 @@ public class PointsToQuery implements IQuery {
         SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
           if (keys.contains(fieldKey)) {  
+	    Util.Debug("found key " + fieldKey + " to drop");
             toRemove.add(edge);
             if (earlyRet) return toRemove; 
           }
@@ -1594,6 +1654,19 @@ public class PointsToQuery implements IQuery {
     return relevant;
   }
   
+  /**
+   * @return - all the constraints with local LHS's
+   */
+  private Collection<ConcretePointerVariable> getLocalVars() {
+    Collection<ConcretePointerVariable> locals = new ArrayList<ConcretePointerVariable>();
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().isLocalVar()) {
+        locals.add((ConcretePointerVariable) edge.getSource());
+      }
+    }
+    return locals;
+  }
+
   @Override
   public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
     if (this.constraints.isEmpty()) return false;
@@ -1684,7 +1757,7 @@ public class PointsToQuery implements IQuery {
     if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
   }
   
-  @Override
+  //@Override
   public Map<Constraint, Set<CGNode>> getRelevantNodes() {
     /*
     Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
@@ -1874,17 +1947,6 @@ public class PointsToQuery implements IQuery {
   }
 
   private boolean addConstraint(PointsToEdge constraint) {
-    /*
-    if (Options.DEBUG) {
-      if (constraint.getSource().isLocalVar()) {
-        ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
-        for (PointsToEdge edge : this.constraints) {
-          Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
-              + constraint);
-        }
-      }
-    } 
-    */  
     return constraints.add(constraint);
   }
 
