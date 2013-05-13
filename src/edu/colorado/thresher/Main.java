@@ -165,7 +165,7 @@ public class Main {
     
     //final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
-    final String[] fakeMapTests0 = new String[] { "CallInLoopHeadNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "SingletonNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -253,8 +253,8 @@ public class Main {
     //Options.DACAPO = true;
 
     final String[] weakImmutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
-                                                       "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute" };//,
-                                                       //"MapRefute", "MapNoRefute" }; 
+                                                       "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
+                                                       "MapRefute", "MapNoRefute" }; 
     
     //final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
                                                            //"MapRefute" };
@@ -269,7 +269,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    final String[] tests0 = { "ArrayRefute" };
+    final String[] tests0 = { "MapNoRefute" };
 
     for (String test : weakImmutabilityTests) {
     //for (String test : tests0) {

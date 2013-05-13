@@ -294,8 +294,11 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         for (IPathInfo newPath : splitPaths) {
           // check if we are branching into a loop
           SSACFG.BasicBlock possibleLoopHead = WALACFGUtil.getLoopHeadForBlock(newPath.getCurrentBlock(), ir);
-          if (possibleLoopHead != null)
+          Util.Debug("branching into loop?");
+          if (possibleLoopHead != null) {
+            Util.Debug("true");
             addLoopMergePlaceholder(possibleLoopHead);
+          }
           addPath(newPath);
         }
         if (Options.CHECK_ASSERTS)
@@ -348,6 +351,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
             if (Options.DEBUG) Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!");
             Set<IPathInfo> extraPaths = HashSetFactory.make();
             for (IPathInfo path : cases) {
+              path.setCurrentLineNum(i - 1);
               if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
               else extraPaths.addAll(visitCallInLoopHead((SSAInvokeInstruction) instr, path));
             }
@@ -359,7 +363,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
               for (IPathInfo path : cases) {
                 Util.Assert(path.isFeasible());
                 Util.Assert(path.getCurrentNode().equals(startNode), 
-                    "path " + path.getPathId() + " in node " + path.getCurrentNode() + "instead of " + startNode);
+                    "path " + path.getPathId() + " in node " + path.getCurrentNode() + " instead of " + startNode);
               }
             }
             

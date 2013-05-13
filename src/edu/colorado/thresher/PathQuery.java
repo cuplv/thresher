@@ -1,5 +1,6 @@
 package edu.colorado.thresher;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -554,20 +555,37 @@ public class PathQuery implements IQuery {
     }
     return true;
   }
-
-  void dropConstraintsContaining(PointerVariable varName) {
-    List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
-    for (AtomicPathConstraint constraint : this.constraints) {
-      if (constraint.getVars().contains(varName))
-        toRemove.add(constraint);
-    }
-    for (AtomicPathConstraint constraint : toRemove) {
+  
+  private void dropConstraints(List<AtomicPathConstraint> toDrop) {
+    for (AtomicPathConstraint constraint : toDrop) {
       if (Options.DEBUG)
         Util.Debug("dropping constraint " + constraint);
       // constraints.remove(constraint);
       removeConstraint(constraint);
     }
     rebuildZ3Constraints();
+  }
+  
+  void dropConstraintsContaining(PointerVariable varName, IField fld) {
+    List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(varName)) {
+        List<FieldReference> fields = constraint.getLhs().getFields();
+        if (fields != null && fields.contains(fld.getReference())) {
+          toRemove.add(constraint);
+        }
+      }
+    }
+   dropConstraints(toRemove);
+  }
+  
+  void dropConstraintsContaining(PointerVariable varName) {
+    List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(varName))
+        toRemove.add(constraint);
+    }
+    dropConstraints(toRemove);
   }
 
   boolean visit(SSAArrayLoadInstruction instr, CGNode node, SymbolTable tbl) {
@@ -1162,31 +1180,6 @@ public class PathQuery implements IQuery {
       PointerVariable actual = new ConcretePointerVariable(callerMethod, instr.getUse(i), this.depRuleGenerator.getHeapModel());
       PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.depRuleGenerator.getHeapModel());
       SimplePathTerm formalTerm = new SimplePathTerm(formal);
-      /*
-       * if (this.pathVars.contains(actual)) {
-       * Util.Debug("path vars have actual"); for (AtomicPathConstraint
-       * constraint : this.constraints) { // check if this formal is our path
-       * constraints // if it is, it's important to use this copy of the var,
-       * since it may have an associated heap location that we need to remember
-       * if (constraint.getLhs().getVars().contains(actual)) {
-       * Set<PointerVariable> locs = constraint.getLhs().getHeapLocs(); if
-       * (locs.isEmpty()) break; // if this fires, it just means we have to
-       * drill deeper and find the exact SimplePathTerm corresponding to heap
-       * loc Util.Assert(locs.size() < 2,
-       * "not sure what to do with multiple locs here"); PointerVariable loc =
-       * locs.iterator().next(); Util.Debug("replacing " + actual + " with " +
-       * formal + " and associated " + loc); formalTerm = new
-       * SimplePathTerm(formal, loc); break; } else if
-       * (constraint.getRhs().getVars().contains(actual)) {
-       * 
-       * Set<PointerVariable> locs = constraint.getRhs().getHeapLocs(); if
-       * (locs.isEmpty()) break; Util.Assert(locs.size() < 2,
-       * "not sure what to do with multiple locs here"); PointerVariable loc =
-       * locs.iterator().next(); Util.Debug("replacing " + actual + " with " +
-       * formal + " and associated " + loc); formalTerm = new
-       * SimplePathTerm(formal, loc); break; } } }
-       */
-      // Util.Debug("subbing " + formal + " for " + actual);
       substituteExpForVar(formalTerm, actual);
     }
     return isFeasible();

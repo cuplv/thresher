@@ -803,7 +803,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      Util.Debug("removing " + toRemove);
+      //Util.Debug("removing " + toRemove);
       query.constraints.remove(removeMe);
     }
 
@@ -820,7 +820,7 @@ public class PointsToQuery implements IQuery {
         
     Map<SymbolicPointerVariable,PointerVariable> subMap = HashMapFactory.make();
 
-    Util.Debug("removing " + rule.getShown());
+    //Util.Debug("removing " + rule.getShown());
     query.constraints.remove(rule.getShown());
     // special case for if shown removes a symbolic edge from the constraints
     for (PointsToEdge edge : query.constraints) {
@@ -836,7 +836,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      Util.Debug("removing " + removeMe);
+      //Util.Debug("removing " + removeMe);
       query.constraints.remove(removeMe);
     }
 
@@ -860,7 +860,7 @@ public class PointsToQuery implements IQuery {
         }
       }
       for (PointsToEdge removeMe : toRemove) {
-        Util.Debug("removing " + removeMe);
+        //Util.Debug("removing " + removeMe);
         query.constraints.remove(removeMe);
       }
       //query.constraints.removeAll(toRemove);
@@ -906,7 +906,7 @@ public class PointsToQuery implements IQuery {
          
         if (add) query.addConstraint(edge);
         for (PointsToEdge removeMe : toRemove) {
-          Util.Debug("removing " + removeMe);
+          //Util.Debug("removing " + removeMe);
           query.constraints.remove(removeMe);
         }
         toRemove.clear();
@@ -931,7 +931,7 @@ public class PointsToQuery implements IQuery {
       query.produced.add(rule.getShown());
     }
  
-    Util.Debug("after applying " + query);
+    //Util.Debug("after applying " + query);
     return simplifyQuery(query, hg);
     //return true;
   }
@@ -1581,6 +1581,7 @@ public class PointsToQuery implements IQuery {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
       for (PointsToEdge edge : this.constraints) {
         if (edge.getSource().equals(retval)) {
+          Util.Debug("return val relevant");
           // relevant due to the return value
           toRemove.add(edge);
           if (earlyRet) return toRemove; 
@@ -1594,7 +1595,7 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {     
       PointerKey key = edge.getField();  
       if (key != null && keys.contains(key)) {
-        Util.Debug("found key " + key + " to drop");
+        Util.Debug("key " + key + " relevant");
         toRemove.add(edge);
         if (earlyRet) return toRemove; 
       }
@@ -1605,7 +1606,7 @@ public class PointsToQuery implements IQuery {
         SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
           if (keys.contains(fieldKey)) {  
-            Util.Debug("found key " + fieldKey + " to drop");
+            Util.Debug("key " + fieldKey + " relevant");
             toRemove.add(edge);
             if (earlyRet) return toRemove; 
           }
@@ -1945,7 +1946,7 @@ public class PointsToQuery implements IQuery {
   
   @Override
   public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
-    Util.Debug("checking feasibility of dispatch call " + callee);
+    //Util.Debug("checking feasibility of dispatch call " + callee);
     IClass calleeType = callee.getMethod().getDeclaringClass();
     PointerVariable receiver = Util.makePointerVariable(this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
     IClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();

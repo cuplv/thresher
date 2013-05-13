@@ -46,8 +46,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
   // paths to be executed
   protected final LinkedList<IPathInfo> pathsToExplore;
 
-  // optimization: map from CGNode -> paths seen in order to avoid redundant
-  // exploration
+  // optimization: map from CGNode -> paths seen in order to avoid redundant exploration
   protected final Map<CGNode, Set<IPathInfo>> seenPaths;
   protected final Logger logger;
   
@@ -181,6 +180,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return true if some summary makes this path redundant, false otherwise
    */
   boolean isPathInSummary(IPathInfo path) {
+    if (path.getCallStackDepth() != 0) return false; // TODO: match call stack?
     if (!Options.USE_SUMMARIES) return false;
     Set<IPathInfo> seen = seenPaths.get(path.getCurrentNode());
     if (seen == null) {
@@ -568,12 +568,18 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       Util.Debug("adding path " + path.getPathId() + "X " + path.getCurrentNode() + " " + path.getCurrentBlock() + " line "
           + path.getCurrentLineNum());
     int stackSize = pathsToExplore.size() + 1;
-    if (Options.DEBUG)
+    if (Options.DEBUG) {
       Util.Debug("have " + stackSize + " paths to explore.");
+    }
     logger.logPathStackSize(stackSize);
 
     // Thread.dumpStack();
     this.pathsToExplore.addFirst(path);
+    if (Options.DEBUG) {
+      for (IPathInfo thePath : this.pathsToExplore) {
+        Util.Debug(thePath.getPathId() + " " + thePath.getCurrentBlock());
+      }
+    }
   }
 
   /**

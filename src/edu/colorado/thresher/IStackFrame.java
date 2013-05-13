@@ -37,6 +37,15 @@ public class IStackFrame {
   }
 
   @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof IStackFrame)) return false;
+    IStackFrame otherFrame = (IStackFrame) other;
+    return this.cgNode.equals(otherFrame.cgNode) &&
+        this.block.equals(otherFrame.block) &&
+        this.lineNum == otherFrame.lineNum;
+  }
+  
+  @Override
   public String toString() {
     return "CGNode " + this.cgNode;
   }

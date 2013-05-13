@@ -333,6 +333,7 @@ public class IPathInfo { // implements Comparable {
 
   List<IPathInfo> handleQueryCaseSplitReturn(List<IQuery> caseSplits) {
     if (caseSplits == IQuery.INFEASIBLE) {
+      //Util.Debug("refuted by infeasible case splits");
       this.externallyRefuted = true; // this path and all case splits infeasible
       return IPathInfo.INFEASIBLE;
     } else if (caseSplits.equals(IQuery.FEASIBLE)) {
@@ -624,7 +625,10 @@ public class IPathInfo { // implements Comparable {
 
   // has query been refuted?
   public boolean isFeasible() {
-    if (externallyRefuted) return false; // refutation by external forces takes precedence over query feasability
+    if (externallyRefuted) {
+      Util.Debug("refuted externally");
+      return false; // refutation by external forces takes precedence over query feasability
+    }
     return query != null && // null query means that this is a dummy path (i.e.
                             // branch placeholder)
         query.isFeasible();
@@ -648,6 +652,8 @@ public class IPathInfo { // implements Comparable {
    * should call refute() when a path is refuted by a summary
    */
   public void refute() {
+    //Thread.dumpStack();
+    //Util.Debug("refuting " + this.pathId);
     this.externallyRefuted = true;
   }
 
@@ -685,18 +691,19 @@ public class IPathInfo { // implements Comparable {
    * @return
    */
   public static boolean mergePathWithPathSet(IPathInfo info, Set<IPathInfo> pathSet) {
-    Util.Debug("merging " + info);
     if (Options.USE_SUMMARIES) {
       List<IPathInfo> toRemove = new ArrayList<IPathInfo>(pathSet.size());
       for (IPathInfo path : pathSet) {
         if (info == path) continue;
-        if (info.containsQuery(path)) {
-          // already seen path simpler than this; don't add
-          if (Options.DEBUG) Util.Debug(info.getPathId() + " refuted by summary; " 
-                                        + path.getPathId() + " is simpler");
-          return false;
-        } else if (path.containsQuery(info)) {
-          toRemove.add(path);
+        if (info.callStacksEqual(path)) {
+          if (info.containsQuery(path)) {
+            // already seen path simpler than this; don't add
+            if (Options.DEBUG) Util.Debug(info.getPathId() + " refuted by summary; " 
+                                          + path.getPathId() + " is simpler");
+            return false;
+          } else if (path.containsQuery(info)) {
+            toRemove.add(path);
+          } 
         } // else, they're incomparable
       }
       for (IPathInfo removeMe : toRemove) pathSet.remove(removeMe);
@@ -742,6 +749,11 @@ public class IPathInfo { // implements Comparable {
    * query.compareTo(otherPath.query); }
    */
 
+  public boolean callStacksEqual(IPathInfo other) {
+    //if (this.callStack.size() != other.callStack.size()) return false;
+    return this.callStack.equals(other.callStack);
+  }
+  
   @Override
   public String toString() {
     if (query == null) {

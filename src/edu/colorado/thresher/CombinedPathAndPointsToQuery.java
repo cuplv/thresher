@@ -631,32 +631,36 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       if (instr instanceof SSAInvokeInstruction) {
         SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
         for (CGNode callee : cg.getPossibleTargets(node, invoke.getCallSite())) {
-          // seems to slow things down?
-          //dropConstraintsProduceableInCall(invoke, node, callee, false);
-          //dropConstraintsProduceableInCall(invoke, node, callee, true);
-          dropPathConstraintsProduceableByCall(invoke, node, callee);
+          if (isDispatchFeasible(invoke, node, callee)) {
+            // seems to slow things down?
+            //dropConstraintsProduceableInCall(invoke, node, callee, false);
+            //dropConstraintsProduceableInCall(invoke, node, callee, true);
+            dropPathConstraintsProduceableByCall(invoke, node, callee);
+          }
         }
       } else if (instr instanceof SSAPutInstruction) {
         SSAPutInstruction put = (SSAPutInstruction) instr;
+        IField fld = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(put.getDeclaredField());
+        if (fld == null) { // TODO: this shouldn't happen, but it sometimes does
+          continue;
+        }
         if (put.isStatic()) {
-          IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(put.getDeclaredField());
-          if (staticField == null) { // TODO: this shouldn't happen, but it sometimes does
-            continue;
-          }
-          PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(
-              staticField));
+          PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(fld));
           if (pathVars.contains(staticFieldVar)) {
+            //Util.Debug("dropping constraints with " + staticFieldVar + " due to " + instr);
             dropConstraintsContaining(staticFieldVar);
           }
         } else {
           PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()); 
           if (pathVars.contains(varName)) {
-            dropConstraintsContaining(varName);
+            //Util.Debug("dropping constraints with " + varName + " due to " + instr);
+            dropConstraintsContaining(varName, fld);
           }
         }
       } else if (instr.hasDef()) {
         PointerVariable var = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
         if (this.pathVars.contains(var)) {
+          //Util.Debug("dropping constraints with " + var + " due to " + instr);
           dropConstraintsContaining(var);
         }
       }
@@ -692,31 +696,42 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     // do constraints contain retval of this call?
     if (instr.hasDef()) {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
-      if (this.pathVars.contains(retval))
+      if (this.pathVars.contains(retval)) {
+        Util.Debug("path vars contain retval");
         return true; // constraints contain retval; definitely relevant
+      }
     }
 
+    /*
+    // TODO: wtf is this?
     // do constraints contain a param passed to this function?
     SymbolTable tbl = caller.getIR().getSymbolTable();
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       if (!tbl.isConstant(instr.getUse(i))) {
         PointerVariable arg = new ConcretePointerVariable(caller, instr.getUse(i), this.depRuleGenerator.getHeapModel());
         // constraints contain a non-constant param that's passed to this function; possibly relevant
-        if (this.pathVars.contains(arg)) return true; 
+        if (this.pathVars.contains(arg)) {
+          Util.Debug("path vals contain arg " + arg);
+          return true; 
+        }
       }
     }
+    */
     
     // does this call modify our path constraints according to its precomputed mod set?
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (AtomicPathConstraint constraint : constraints) {
       for (PointerKey key : constraint.getPointerKeys(depRuleGenerator)) {
-      if (keys.contains(key)) return true; // mod set says yes
+        if (keys.contains(key)) {
+          Util.Debug("relevant according to mod set.");
+          return true; // mod set says yes
+        }
         if (key instanceof StaticFieldKey) {
           IClass declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
           // if this is a <clinit>, might initialize field to default values
           return declaringClass.equals(callee.getMethod().getDeclaringClass())
               && (callee.getMethod().isClinit());
-        } 
+        }  
       }
     }
 

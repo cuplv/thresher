@@ -209,7 +209,10 @@ public class WALACFGUtil {
     //List<ISSABasicBlock> loopHeadBlocks = new ArrayList<ISSABasicBlock>();
     while (iter.hasNext()) {
       SSACFG.BasicBlock loopHeadBlock = cfg.getBasicBlock(iter.next());
-      if (!(loopHeadBlock.getLastInstruction() instanceof SSAConditionalBranchInstruction)) continue;
+      //if (!(loopHeadBlock.getLastInstruction() instanceof SSAConditionalBranchInstruction)) {
+        //Util.Debug("no conditional--continuing..");
+        //continue;
+      //}
       // a block may B is in a loop by if it is dominated by the loop head...
       if (domInfo.isDominatedBy(suspectedLoopBodyBlock, loopHeadBlock) && 
           // ...and the loop head is reachable from B

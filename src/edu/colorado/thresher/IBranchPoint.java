@@ -101,7 +101,6 @@ public class IBranchPoint {
   public boolean addPathToLoopHead(IPathInfo path) {
     Util.Pre(path.isFeasible(), "shouldn't add infeasible paths to loop head");
     Util.Pre(path.getLastBlock() != null, "need last block to be set here");
-    // true branch is always the first one
     Util.Debug("adding loop head path " + path + id + ": " + this.instr + "; have " + truePaths.size());
 
     return IPathInfo.mergePathWithPathSet(path, truePaths);

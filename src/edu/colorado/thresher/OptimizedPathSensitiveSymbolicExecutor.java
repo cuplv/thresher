@@ -30,6 +30,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
 
   private final Map<String, IBranchPoint> branchPointMap;
   LinkedList<IBranchPoint> branchPointStack;
+  protected final Map<SSACFG.BasicBlock,Set<IPathInfo>> loopHeadSeenPaths;
   // TODO: clear this after merging loop head!
   // map from (CGNode, Block#) -> set of paths seen at block
   //private final Map<Pair<CGNode, Integer>, Set<IPathInfo>> loopHeadSeenPaths;
@@ -44,6 +45,27 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     super(callGraph, logger);
     this.branchPointMap = HashMapFactory.make();
     this.branchPointStack = new LinkedList<IBranchPoint>();
+    this.loopHeadSeenPaths = HashMapFactory.make();
+  }
+  
+  /**
+   * perform summary check to avoid redundant exploration
+   * 
+   * @param path
+   * @return true if some summary makes this path redundant, false otherwise
+   */
+  boolean isPathInLoopHeadSummary(IPathInfo path) {
+    if (!Options.USE_SUMMARIES) return false;
+    Set<IPathInfo> seen = loopHeadSeenPaths.get(path.getCurrentBlock());
+    if (seen == null) {
+      // create seen and add this path to it
+      seen = HashSetFactory.make();
+      loopHeadSeenPaths.put(path.getCurrentBlock(), seen);
+      seen.add(path);
+    } else {
+      return !IPathInfo.mergePathWithPathSet(path, seen);
+    }
+    return false;
   }
 
   @Override
@@ -59,6 +81,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // remove loop produceable path constraints. we're not computing a fixed point over those
     info.removeLoopProduceableConstraints(currentBlock);
     if (info.foundWitness()) return true;
+    
+    if (this.isPathInLoopHeadSummary(info)) {
+      Util.Debug("refuted by loop head summary");
+      info.refute();
+      return false;
+    }
 
     boolean seenLoopHead = false;
     // if (info.seenLoopHead(currentBlock)) {
@@ -74,7 +102,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (!point.addPathToLoopHead(info)) {
         if (Options.DEBUG)
           Util.Debug("already seen this path... stopping execution");
-        executeAllNonPhiInstructionsInCurrentBlock(info);
+        // TODO: what is the point of this?
+        //executeAllNonPhiInstructionsInCurrentBlock(info);
         if (Options.CHECK_ASSERTS)
           split = true;
         return false; // already seen this path at the loop head; don't keep
@@ -164,8 +193,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           info.declareFakeWitness();
           return true;
         }
-        Util.Debug("split path " + path + " " + path.getCurrentBlock() + " " + ir);
-        //handleLoopHead(info, instr);
         handleLoopHead(path, instr);
       }
       if (Options.CHECK_ASSERTS) split = true;
@@ -223,7 +250,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     }
   }
 
-
   Set<IPathInfo> visitCallInLoopHead(SSAInvokeInstruction instr, IPathInfo path) {
     Util.Debug("visiting call " + instr.getDeclaredTarget() + " in loop head on path " + path.getPathId());
     int startingCallStackDepth = path.getCallStackDepth();
@@ -266,8 +292,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         Util.Assert(checkMe.getCurrentNode().equals(startingNode));
       }
     }
-    if (extraPaths.isEmpty()) extraPaths.add(path);
+    //if (extraPaths.isEmpty()) extraPaths.add(path);
     Util.Debug("returning " + extraPaths.size() + " paths.");
+    //Util.Assert(!extraPaths.isEmpty());
     return extraPaths;
   }
   
@@ -298,8 +325,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       // else, can simply fall through and return path
     } else if (!branchPointStack.peek().isDummy()) { 
       // no paths left to explore; need to merge branch point
-      IBranchPoint point = branchPointStack.removeFirst();
-      path = mergeBranchPoint(point);
+      //IBranchPoint point = branchPointStack.removeFirst();
+      //path = mergeBranchPoint(point);
+      path = mergeNextBranchPoint();
       while (path.isLoopMergeIndicator()) {
         path = mergeBranchPointForLoopHead(path.getCurrentBlock());
         if (path == null) return selectNonDummyPath();
@@ -326,6 +354,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
    */
 
   public IPathInfo mergeLoop(Set<IPathInfo> truePaths, Set<IPathInfo> falsePaths, SSACFG.BasicBlock loopHeadBlock) {
+    Util.Pre(falsePaths.isEmpty());
     if (Options.DEBUG) Util.Debug("merging loop");
     
     if (Options.SYNTHESIS) {
@@ -362,7 +391,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       }
     }
 
+    Set<IPathInfo> mergedPaths = HashSetFactory.make();
     for (IPathInfo info : truePaths) {
+      // TODO: do we want this???
       info.setCurrentBlock(loopHeadBlock);
       // if the block contains a branch instr, start before it
       if (loopHeadBlock.getLastInstructionIndex() != -1 && 
@@ -373,7 +404,46 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 1);         
       }
 
-      List<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info);
+      Collection<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info, loopHeadBlock);
+      if (cases != IPathInfo.INFEASIBLE) mergedPaths.addAll(cases);
+    }
+    
+    // simplify
+    for (IPathInfo info0 : mergedPaths) {
+      for (IPathInfo info1 : mergedPaths) {
+        if (info0 != info1) {
+          if (info0.containsQuery(info1)) toRemove.add(info0);
+        }
+      }
+    }
+    
+    mergedPaths.removeAll(toRemove);
+    
+    for (IPathInfo info : mergedPaths) {
+      Util.Assert(WALACFGUtil.isLoopEscapeBlock(info.getCurrentBlock(), loopHeadBlock, info.getCurrentNode().getIR()),
+                  "wanted loop escape block but found " + info.getCurrentBlock() + " " + info.getCurrentNode().getIR());
+      // forget that we saw this loop head; needed for nested loops  
+      info.removeSeenLoopHead(loopHeadBlock); 
+      addPath(info);
+    }
+    // Util.Debug("starting with " + truePaths.size() + " paths");
+    if (Options.DEBUG) Util.Debug("done merging loop; added " + truePaths.size() + " paths");
+    return selectPath();
+    
+    /*
+    for (IPathInfo info : truePaths) {
+      // TODO: do we want this???
+      info.setCurrentBlock(loopHeadBlock);
+      // if the block contains a branch instr, start before it
+      if (loopHeadBlock.getLastInstructionIndex() != -1 && 
+          loopHeadBlock.getLastInstruction() instanceof SSAConditionalBranchInstruction) {
+        info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 2);   
+      } else {
+        //  start before the branch instr
+        info.setCurrentLineNum(loopHeadBlock.getAllInstructions().size() - 1);         
+      }
+
+      Collection<IPathInfo> cases = executeAllInstructionsInLoopHeadBlock(info, loopHeadBlock);
       if (cases == IPathInfo.INFEASIBLE) toRemove.add(info);
     }
     truePaths.removeAll(toRemove);
@@ -390,6 +460,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     truePaths.removeAll(toRemove);
     
     for (IPathInfo info : truePaths) {
+      Util.Assert(WALACFGUtil.isLoopEscapeBlock(info.getCurrentBlock(), loopHeadBlock, info.getCurrentNode().getIR()),
+                  "wanted loop escape block but found " + info.getCurrentBlock() + " " + info.getCurrentNode().getIR());
       // forget that we saw this loop head; needed for nested loops  
       info.removeSeenLoopHead(loopHeadBlock); 
       addPath(info);
@@ -397,12 +469,24 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // Util.Debug("starting with " + truePaths.size() + " paths");
     if (Options.DEBUG) Util.Debug("done merging loop; added " + truePaths.size() + " paths");
     return selectPath();
+    */
   }
 
+  Collection<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info, SSACFG.BasicBlock loopHeadBlock) {
+    Collection<IPathInfo> paths = executeAllInstructionsInLoopHeadBlockImpl(info);
+    if (Options.DEBUG) {
+      for (IPathInfo path : paths) {
+        Util.Post(WALACFGUtil.isLoopEscapeBlock(path.getCurrentBlock(), loopHeadBlock, path.getCurrentNode().getIR()),
+        "needed loop escape block but found " + path.getCurrentBlock() + " " + path.getCurrentNode().getIR());
+      }
+    }
+    return paths;
+  }
+  
   /**
    * execute all instructions, making the phi choice corresponding to the loop escape block
    */
-  List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
+  private Collection<IPathInfo> executeAllInstructionsInLoopHeadBlockImpl(IPathInfo info) {
     if (Options.DEBUG) Util.Debug("executing loop head blk for " + info.getCurrentBlock() + " line " + info.getCurrentLineNum());
     final IR ir = info.getCurrentNode().getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
@@ -412,7 +496,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     int startLine = info.getCurrentLineNum();
     List<SSAInstruction> instrs = currentBlock.getAllInstructions();
     Collection<ISSABasicBlock> preds = cfg.getNormalPredecessors(currentBlock);
-    List<IPathInfo> caseSplits = new LinkedList<IPathInfo>();
+    Set<IPathInfo> caseSplits = HashSetFactory.make();
 
     // make sure this isn't an explicitly infinite loop (no branching).
     // otherwise, we would spin around the loop below forever
@@ -454,10 +538,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           } else if (instr instanceof SSAInvokeInstruction) {
             Set<IPathInfo> extraPaths = HashSetFactory.make();
             for (IPathInfo path : caseSplits) {
+              path.setCurrentLineNum(i - 1);
               if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
               else extraPaths.addAll(visitCallInLoopHead((SSAInvokeInstruction) instr, path)); 
             }
-            caseSplits.addAll(extraPaths);
+            if (!Options.SYNTHESIS) caseSplits = extraPaths;
+            //caseSplits.addAll(extraPaths);
           } else {
             //if (Options.DEBUG)
             Util.Assert(!(instr instanceof SSAConditionalBranchInstruction), "should never execute branch instr's here!");
@@ -491,11 +577,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       } else { // we've reached the splitting point. find the loop escape block
         if (Options.DEBUG)
           Util.Assert(!preds.isEmpty(), "loop should split eventually!");
-        // Util.Assert(!caseSplits.isEmpty(), "no paths left to execute!");
-        if (caseSplits.isEmpty())
-          return IPathInfo.INFEASIBLE;
-        if (preds.isEmpty())
-          return caseSplits;
+        if (caseSplits.isEmpty()) return IPathInfo.INFEASIBLE;
+        if (preds.isEmpty()) return caseSplits;
         for (ISSABasicBlock pred : preds) {
           SSACFG.BasicBlock nextBlock = (SSACFG.BasicBlock) pred;
           if (WALACFGUtil.isLoopEscapeBlock(nextBlock, currentBlock, ir)) {
@@ -575,7 +658,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // remove infeasible true paths
     for (IPathInfo info : truePaths) {
       if (Options.DEBUG)
-        Util.Assert(info.isFeasible(), "infeasible path " + info);
+        Util.Assert(info.isFeasible(), "infeasible path " + info + " while merging " + point);
       if (!info.isFeasible())
         toRemove.add(info);
     }
@@ -724,16 +807,29 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         if (WALACFGUtil.isDominatedBy(blk, newBlk, newPoint.getIR())) {
           // Util.Debug(blk + "is dominated by " + newBlk + "adding " + newPoint
           // + " at " + i);
-          if (i == branchPointStack.size() - 1)
+          if (i == branchPointStack.size() - 1) {
             branchPointStack.addLast(newPoint);
-          else
+          } else {
             branchPointStack.add(i + 1, newPoint);
+          }
+          if (Options.DEBUG) {
+            Util.Debug("now branch stack");
+            for (IBranchPoint pnt : branchPointStack) {
+              Util.Debug("POINT " + pnt.id);
+            }
+          }
           return;
         }
       } // else, IR's don't match, so these branch points are incomparable
     }
     // this branch doesn't dominate anything; just add it first
     branchPointStack.addFirst(newPoint);
+    if (Options.DEBUG) {
+      Util.Debug("now branch stack");
+      for (IBranchPoint point : branchPointStack) {
+        Util.Debug("POINT " + point.id);
+      }
+    }
   }
 
   /**
@@ -942,8 +1038,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   }
 
   public void cleanupPathAndBranchPlaceholders() {
-    if (Options.DEBUG)
+    if (Options.DEBUG) {
       Util.Debug("cleaning up path and branch placeholders");
+      for (IBranchPoint point : branchPointStack) {
+        Util.Debug("POINT " + point.id);
+      }
+    }
     IPathInfo poppedPath = this.pathsToExplore.pop();
     // DEBUG
     if (!poppedPath.isDummy()) {
