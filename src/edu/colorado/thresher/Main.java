@@ -75,7 +75,6 @@ import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.graph.traverse.BFSIterator;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
-import com.ibm.wala.util.graph.traverse.DFS;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
@@ -166,7 +165,7 @@ public class Main {
     
     //final String[] fakeMapTests0 = new String[] {};
     //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
-    final String[] fakeMapTests0 = new String[] { "SingletonNoRefute" };
+    final String[] fakeMapTests0 = new String[] { "CallInLoopHeadNoRefute" };
 
     final String[] realHashMapTests0 = new String[] { };
     //final String[] realHashMapTests0 = new String[] { "SimpleHashMapRefute" };
@@ -254,11 +253,11 @@ public class Main {
     //Options.DACAPO = true;
 
     final String[] weakImmutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
-                                                       "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
-                                                       "MapRefute", "MapNoRefute" }; 
+                                                       "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute" };//,
+                                                       //"MapRefute", "MapNoRefute" }; 
     
-    final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
-                                                           "MapRefute" };
+    //final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
+                                                           //"MapRefute" };
     
     // need call stack depth of at least 4 to refute some of these tests
     if (Options.MAX_CALLSTACK_DEPTH < 4) Options.MAX_CALLSTACK_DEPTH = 4;
@@ -312,9 +311,19 @@ public class Main {
   private static void runCastCheckingRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
     CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;
+    Options.MAX_CALLSTACK_DEPTH = 4;
+    Options.SKIP_DYNAMIC_DISPATCH = false;
     String[] tests = new String[] { "BasicCastRefute", "BasicCastNoRefute", "InstanceOfRefute", "InstanceOfNoRefute", 
                                     "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute", "FieldCastRefute", "FieldCastNoRefute",
-                                    "ArrayListRefute", "ArrayListNoRefute" };
+                                    "ArrayListRefute", "ArrayListNoRefute", "IteratorRefute", "IteratorNoRefute", 
+                                    "HashtableEnumeratorRefute", "HashtableEnumeratorNoRefute" };
+    // results for tests whose casts are not all safe or all unsafe
+    Map<String,CastCheckingResults> resultsMap = HashMapFactory.make();
+    resultsMap.put("IteratorRefute", new CastCheckingResults(2, 2, 2));
+    resultsMap.put("IteratorNoRefute", new CastCheckingResults(2, 3, 2));
+    resultsMap.put("HashtableEnumeratorRefute", new CastCheckingResults(0, 2, 2));
+    resultsMap.put("HashtableEnumeratorNoRefute", new CastCheckingResults(0, 2, 1));
+    
     //String[] tests = new String[] { "NegatedInstanceOfNoRefute" };
     
     final String regressionDir = "apps/tests/casts/";
@@ -330,11 +339,16 @@ public class Main {
         Util.Print("Test " + test + " (#" + (testNum) + ") failed :(");
         throw e;
       }
-      Util.Assert(results.numMightFail > 0);
-      if (test.contains("NoRefute")) {
-        Util.Assert(results.numThresherProvedSafe == 0);
+      CastCheckingResults expectedResults = resultsMap.get(test);
+      if (expectedResults != null) {
+        Util.Assert(results.equals(expectedResults));
       } else {
-        Util.Assert(results.numThresherProvedSafe == 1);
+        Util.Assert(results.numMightFail > 0);
+        if (test.contains("NoRefute")) {
+          Util.Assert(results.numThresherProvedSafe == 0);
+        } else {
+          Util.Assert(results.numThresherProvedSafe == 1);
+        }
       }
       Util.Print("Test " + test + " (#" + (testNum++) + ") passed!");
     }
@@ -807,10 +821,10 @@ public class Main {
   private static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
       throws ClassHierarchyException, IOException {
     IClassHierarchy cha;
-    final String PRIMORDIAL_MODEL = "lib/WALA/com.ibm.wala.core/lib/primordial.jar.model";
-    final File PRIMORDIAL_MODEL_FILE = new File(PRIMORDIAL_MODEL);
-    Util.Assert(PRIMORDIAL_MODEL_FILE.exists(), "Couldn't find WALA's primordia.jar.model file... has WALA been set up correctly?");
-    scope.addToScope(scope.getPrimordialLoader(), new JarFile(PRIMORDIAL_MODEL_FILE));
+    
+    // use hardcoded string instead of CallGraphUtil.REGRESSION_EXCLUSIONS because it simplifies our build. Otherwise, we have to
+    // build a lot more of WALA just to use this string
+    final String WALA_REGRESSION_EXCLUSIONS = "lib/WALA/com.ibm.wala.core.tests/dat/Java60RegressionExclusions.txt";
     
     if (Options.DACAPO) { // running one of the Dacapo benchmarks
       String appName;
@@ -838,8 +852,12 @@ public class Main {
     } else if (REGRESSIONS || Options.CHECK_CASTS || Options.IMMUTABILITY) {
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
       scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-      File exclusionsFile = new File("config/synthesis_exclusions.txt");
-      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      //File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
+      if (exclusionsFile.exists()) {
+        Util.Print("setting regressions");
+        scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      }
       
       cha = ClassHierarchy.make(scope);
       
@@ -1074,6 +1092,14 @@ public class Main {
       this.numMightFail = numMightFail;
       this.numThresherProvedSafe = numThresherProvedSafe;
     }
+    
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof CastCheckingResults)) return false;
+      CastCheckingResults results = (CastCheckingResults) other;
+      return this.numSafe == results.numSafe && this.numMightFail == results.numMightFail &&
+          this.numThresherProvedSafe == results.numThresherProvedSafe;
+    }
   }
   
   public static CastCheckingResults runCastChecker(String appPath) 
@@ -1273,8 +1299,8 @@ public class Main {
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
                                     "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField",
-                                    "FakeMap", "FakeMapNoTest1", "FakeMapNoTest2" };
-    String[] tests0 = new String[] { "FakeMapNoTest2" };
+                                    "FakeMap" };
+    String[] tests0 = new String[] { "SimpleField" };
     
     int testNum = 0;
     int successes = 0;
@@ -1366,6 +1392,7 @@ public class Main {
   public static Collection<String> runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.SYNTHESIS = true;
     Options.MAX_PATH_CONSTRAINT_SIZE = 50;
+    Options.SKIP_DYNAMIC_DISPATCH = false;
     Collection<String> synthesizedClasses = new ArrayList<String>();
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     JarFile androidJar = new JarFile(Options.ANDROID_JAR);
@@ -1466,7 +1493,7 @@ public class Main {
         }
       }
       
-      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail: see generated test.");
+      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
       else Util.Print("Assertion at " + loc + " cannot fail.");
     }
   

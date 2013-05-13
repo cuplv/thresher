@@ -9,13 +9,10 @@ import z3.java.Z3Context;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
-import com.ibm.wala.demandpa.util.ArrayContents;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
-import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
-import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.types.FieldReference;
@@ -364,6 +361,27 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
   }
   
   /**
+   * is this a constraint of the form var == 0?
+   */
+  public boolean isNullConstraintForLocal(PointerVariable var) {
+    Util.Pre(var.isLocalVar());
+    if (this.vars.contains(var)) {
+      if (this.op == ConditionalBranchInstruction.Operator.EQ) {
+        if (this.lhs == SimplePathTerm.NULL) {
+          if (this.rhs instanceof SimplePathTerm) {
+            return ((SimplePathTerm) rhs).getObject().equals(var);
+          }
+        } else if (this.rhs == SimplePathTerm.NULL) {
+          if (this.lhs instanceof SimplePathTerm) {
+            return ((SimplePathTerm) lhs).getObject().equals(var);
+          }
+        }
+      }
+    }
+    return false;
+  }
+  
+  /**
    * is this a constraint of the form var == 0 or var.f == 0?
    */
   public boolean isNullConstraintFor(PointsToEdge edge) {
@@ -392,8 +410,11 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
            this.rhs.isHeapLocation());
   }
   
-  public PointsToEdge makePointsToEdge(HeapGraph hg) {
+  public PointsToEdge makePointsToEdge() {
     Util.Pre(isPointsToConstraint());
+    // TODO: implement this. we'll just look at the points-to analysis and makea symbolic var of all
+    // instance keys that aren't precluded by the != constraint
+    if (this.op == ConditionalBranchInstruction.Operator.NE) Util.Unimp("NE pts-to constraints");
     Set<PointerVariable> heapVars, localVars;
     if (this.lhs.isHeapLocation()) {
       heapVars = this.lhs.getVars();
@@ -407,22 +428,8 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     Util.Assert(localVars.size() == 1);
     PointerVariable lhs = localVars.iterator().next();
     PointerVariable rhs = heapVars.iterator().next();
-    Util.Assert(rhs.isHeapVar());
     Util.Assert(lhs.isLocalVar());
-    
-    // TODO: implement this. we'll just look at the points-to analysis and make a symbolic var of all
-    // instance keys that aren't precluded by the != constraint
-    if (this.op == ConditionalBranchInstruction.Operator.NE) {
-      Set<InstanceKey> possibleValues = rhs.getPossibleValues(), newVals = HashSetFactory.make();
-      // make a symbolic pointer variable out of all the vars that are in ptsTo(lhs) \ possibleVals(rhs)
-      for (Iterator<Object> succs = hg.getSuccNodes(lhs.getInstanceKey()); succs.hasNext();) {
-        Object next = succs.next();
-        if (!possibleValues.contains(next)) newVals.add((InstanceKey) next);
-      }
-      Util.Assert(!newVals.isEmpty(), "need to add refutation here");
-      rhs = SymbolicPointerVariable.makeSymbolicVar(newVals);
-    } // else, op is ==, so all we need to do is change == to -> to make a pts-to constraint
-    
+    Util.Assert(rhs.isHeapVar());
     return new PointsToEdge(lhs, rhs);
   }
 

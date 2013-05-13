@@ -94,10 +94,21 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // list to hold split paths if split occurs before end of block
     LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
     int pathCount = this.pathsToExplore.size();
-    if (!executeAllInstructionsInLoopHeadSequence(info, splitPaths)) {
+    if (!executeAllInstructionsInLoopHeadSequence(info, splitPaths, false)) {
+      Util.Debug("loop head seq split");
       if (Options.CHECK_ASSERTS) split = true; // split in loop head sequence
       return false;
     }
+    Util.Assert(!splitPaths.isEmpty());
+    
+    // check for witness
+    for (IPathInfo path : splitPaths) {
+      if (path.foundWitness()) {
+        info.declareFakeWitness();
+        return true;
+      }
+    }
+    
     if (Options.DEBUG) {
       Util.Assert(pathCount == this.pathsToExplore.size(), "should not have added or removed any paths here!");
       Util.Debug("done with loop head sequence");
@@ -146,10 +157,18 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     } else if (WALACFGUtil.isDirectlyReachableFromLoopHead(currentBlock, ir)) {
       // continue backward execution until we hit the loop head
       LinkedList<IPathInfo> splitPaths = new LinkedList<IPathInfo>();
-      executeAllInstructionsInLoopHeadSequence(info, splitPaths);
+      executeAllInstructionsInLoopHeadSequence(info, splitPaths, true);
       for (IPathInfo path : splitPaths) {
-        handleLoopHead(info, instr);
+        // check for witness
+        if (path.foundWitness()) {
+          info.declareFakeWitness();
+          return true;
+        }
+        Util.Debug("split path " + path + " " + path.getCurrentBlock() + " " + ir);
+        //handleLoopHead(info, instr);
+        handleLoopHead(path, instr);
       }
+      if (Options.CHECK_ASSERTS) split = true;
       return false;
       //Util.Assert(splitPaths.isEmpty());
       //return handleLoopHead(info, instr);
@@ -204,6 +223,54 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     }
   }
 
+
+  Set<IPathInfo> visitCallInLoopHead(SSAInvokeInstruction instr, IPathInfo path) {
+    Util.Debug("visiting call " + instr.getDeclaredTarget() + " in loop head on path " + path.getPathId());
+    int startingCallStackDepth = path.getCallStackDepth();
+    final CGNode startingNode = path.getCurrentNode();
+    addPathAndBranchPlaceholders();
+  
+    Set<IPathInfo> extraPaths = HashSetFactory.make();
+    visitInvokeAsCallee(instr, path);
+    Util.Assert(!path.foundWitness());
+
+    IPathInfo extraPath = selectNonDummyPath();
+    // keep executing all paths until they have returned from the call
+    while (extraPath != null) { //this.pathsToExplore.get(0).getPathId() != topPath) {
+      Util.Assert(!extraPath.foundWitness());
+      if (extraPath.getCallStackDepth() == startingCallStackDepth) {
+        //Util.Assert(WALACFGUtil.isLoopHead(extraPath.getCurrentBlock(), extraPath.getCurrentNode().getIR()));
+        // we're back to the original call stack depth. add the path to the list to return
+        extraPaths.add(extraPath);
+      } else {
+        // not back to starting function yet--execute it
+        boolean hitProcBoundary = executeBackwardsPathIntraprocedural(extraPath);
+        if (hitProcBoundary && extraPath.returnFromCall()) {
+          // returned from some call - add path back to list
+          addPath(extraPath);
+        }
+      }
+      extraPath = selectNonDummyPath();
+    }
+    cleanupPathAndBranchPlaceholders();
+  
+    // don't want to add current path more than once because we are continuing execution on it.
+    // TODO: this is a bad hack
+    this.pathsToExplore.remove(path);
+    //Util.Assert(path.getCallStackDepth() == startingCallStackDepth, "path " + path.getPathId() + 
+      //  " at " + path.getCurrentNode() + " started at " + startingCallStackDepth);
+    
+    if (Options.DEBUG) {
+      for (IPathInfo checkMe : extraPaths) {
+        Util.Assert(checkMe.isFeasible());
+        Util.Assert(checkMe.getCurrentNode().equals(startingNode));
+      }
+    }
+    if (extraPaths.isEmpty()) extraPaths.add(path);
+    Util.Debug("returning " + extraPaths.size() + " paths.");
+    return extraPaths;
+  }
+  
   /**
    * returns null if we can't get a non-dummy path. should never return loop
    * merge indicator or dummy path
@@ -333,8 +400,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   }
 
   /**
-   * execute all instructions, making the phi choice corresponding to the loop
-   * escape block
+   * execute all instructions, making the phi choice corresponding to the loop escape block
    */
   List<IPathInfo> executeAllInstructionsInLoopHeadBlock(IPathInfo info) {
     if (Options.DEBUG) Util.Debug("executing loop head blk for " + info.getCurrentBlock() + " line " + info.getCurrentLineNum());
@@ -386,10 +452,12 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             caseSplits.addAll(toAdd);
             caseSplits.removeAll(toRemove);
           } else if (instr instanceof SSAInvokeInstruction) {
+            Set<IPathInfo> extraPaths = HashSetFactory.make();
             for (IPathInfo path : caseSplits) {
               if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
-              else visitCallInLoopHead((SSAInvokeInstruction) instr, path); 
+              else extraPaths.addAll(visitCallInLoopHead((SSAInvokeInstruction) instr, path)); 
             }
+            caseSplits.addAll(extraPaths);
           } else {
             //if (Options.DEBUG)
             Util.Assert(!(instr instanceof SSAConditionalBranchInstruction), "should never execute branch instr's here!");
@@ -413,8 +481,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       if (preds.size() == 1) { // keep executing straight-line code
         currentBlock = (SSACFG.BasicBlock) preds.iterator().next();
         // Util.Assert(!caseSplits.isEmpty(), "no paths left to execute!");
-        if (caseSplits.isEmpty())
-          return IPathInfo.INFEASIBLE;
+        if (caseSplits.isEmpty()) return IPathInfo.INFEASIBLE;
         for (IPathInfo path : caseSplits) {
           path.setCurrentBlock(currentBlock);
         }
@@ -454,8 +521,6 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         return caseSplits;
 
        // Util.Unimp("couldn't find escape block for loop head " + currentBlock + " in\n" + ir);
-
-        
       }
     }
   }

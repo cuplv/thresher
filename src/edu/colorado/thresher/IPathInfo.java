@@ -214,9 +214,7 @@ public class IPathInfo { // implements Comparable {
     Util.Pre(!callStack.isEmpty(), "Can't pop an empty call stack!");
     IStackFrame frame = callStack.pop();
     CGNode callee = currentNode;
-    if (Options.DEBUG)
-      Util.Debug("returning from " + callee + " to " + frame.getCGNode());
-    // MethodReference calleeMethod = callee.getMethod().getReference();
+    if (Options.DEBUG) Util.Debug("returning from " + callee.getMethod().getName() + " " + callee + " to " + frame.getCGNode());
 
     // cleanup: forget which loop heads we saw in the callee, in case we come
     // back to the callee later
@@ -225,19 +223,17 @@ public class IPathInfo { // implements Comparable {
       if (pair.fst.equals(callee))
         toRemove.add(pair);
     }
-    /*
-     * for (SSACFG.BasicBlock loopHead : loopHeadSet) { if
-     * (loopHead.getMethod().getReference().equals(calleeMethod))
-     * toRemove.add(loopHead); } for (SSACFG.BasicBlock removeMe : toRemove)
-     * loopHeadSet.remove(removeMe);
-     */
+    
     for (Pair<CGNode, SSACFG.BasicBlock> pair : toRemove) {
       boolean removed = loopHeadSet.remove(pair);
       Util.Assert(removed, "couldn't remove " + pair);
     }
 
+    Util.Assert(frame.getBlock() != null);
+
     // reset caller state
     this.currentNode = frame.getCGNode();
+    Util.Debug("resetting to " + frame.getBlock());
     this.currentBlock = frame.getBlock();
     this.currentLineNum = frame.getLineNum();
     // reflect return in query
@@ -399,8 +395,9 @@ public class IPathInfo { // implements Comparable {
         || calleeName.contains("indexOf") || calleeName.contains("Iterator") || 
         calleeName.contains("MessageQueue, next") || !isCallRelevantToQuery(instr, callee, cg)) { 
       // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
-      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
       if (Options.DEBUG) Util.Debug("skipping call " + instr + " and dropping produced constraints");
+      query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
+      Util.Debug("found witness? " + this.foundWitness() + " query? " + query.foundWitness());
       return IPathInfo.FEASIBLE;
     } else if (callee.equals(this.currentNode)) { // is this a recursive call?
       if (Options.DEBUG) {
@@ -432,6 +429,11 @@ public class IPathInfo { // implements Comparable {
     return handleQueryCaseSplitReturn(caseSplits);
   }
 
+  public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+    return query.isDispatchFeasible(instr, caller, callee);
+  }
+
+  
   /**
    * inspect call stack and determine if callee is part of a mutually recursive
    * sequence
@@ -569,8 +571,7 @@ public class IPathInfo { // implements Comparable {
    * set currentBlock and store old currentBlock as lastBlock
    */
   public void setCurrentBlock(SSACFG.BasicBlock currentBlock) {
-    if (Options.DEBUG)
-      Util.Pre(currentBlock != null, "can't set block to null!");
+    Util.Pre(currentBlock != null, "can't set block to null!");
     this.lastBlock = this.currentBlock;
     this.currentBlock = currentBlock;
   }
@@ -701,6 +702,10 @@ public class IPathInfo { // implements Comparable {
       for (IPathInfo removeMe : toRemove) pathSet.remove(removeMe);
     } 
     return pathSet.add(info);
+  }
+
+  public int getCallStackDepth() {
+    return this.callStack.size();
   }
 
   // TODO: possibly use program point information in hash code as well

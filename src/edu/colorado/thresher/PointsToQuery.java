@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
@@ -19,15 +20,11 @@ import com.ibm.wala.ipa.callgraph.ContextItem;
 import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
-import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
-<<<<<<< HEAD
-=======
-import com.ibm.wala.ssa.IR;
->>>>>>> 8d41bd60027c15f49052d78ff2cadc79e498574e
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
@@ -806,6 +803,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
+      Util.Debug("removing " + toRemove);
       query.constraints.remove(removeMe);
     }
 
@@ -822,6 +820,7 @@ public class PointsToQuery implements IQuery {
         
     Map<SymbolicPointerVariable,PointerVariable> subMap = HashMapFactory.make();
 
+    Util.Debug("removing " + rule.getShown());
     query.constraints.remove(rule.getShown());
     // special case for if shown removes a symbolic edge from the constraints
     for (PointsToEdge edge : query.constraints) {
@@ -836,7 +835,10 @@ public class PointsToQuery implements IQuery {
         }
       }
     }
-    for (PointsToEdge removeMe : toRemove) query.constraints.remove(removeMe);
+    for (PointsToEdge removeMe : toRemove) {
+      Util.Debug("removing " + removeMe);
+      query.constraints.remove(removeMe);
+    }
 
     for (SymbolicPointerVariable key : subMap.keySet()) {
       toRemove.clear();
@@ -857,7 +859,11 @@ public class PointsToQuery implements IQuery {
           toRemove.add(edge);
         }
       }
-      query.constraints.removeAll(toRemove);
+      for (PointsToEdge removeMe : toRemove) {
+        Util.Debug("removing " + removeMe);
+        query.constraints.remove(removeMe);
+      }
+      //query.constraints.removeAll(toRemove);
       query.constraints.addAll(toAdd);
     }
         
@@ -871,33 +877,36 @@ public class PointsToQuery implements IQuery {
         boolean add = true;
         // check if some produced edge already subsumes the new edge 
         for (PointsToEdge prod : query.produced) {
-	  if (!prod.getSource().isLocalVar()) continue;
-	  if (edge.equals(prod)) {
+          if (!prod.getSource().isLocalVar()) continue;
+          if (edge.equals(prod)) {
             add = false;
             break;
           }
         }
         
-        // TODO: should do narrowing of symbolic vars here...
+        // TODO: should do narrowing of symbolic vars here?
         //boolean lhsSymbolic = edge.getSource().isSymbolic();
         //boolean rhsSymbolic = edge.getSink().isSymbolic();
         for (PointsToEdge queryEdge : query.constraints) {
-          
           if (edge.symbContains(queryEdge)) {
             // query edge is already more specific
             add = false;
             break;
           }
-          
+
+          /*
           // else, merge the two
           if (edge.getSource().equals(queryEdge.getSource())) {
-            PointerVariable newVar = SymbolicPointerVariable.mergeVars(edge.getSink(), queryEdge.getSink());
+            PointerVariable newSnk = SymbolicPointerVariable.mergeVars(edge.getSink(), queryEdge.getSink());
+            edge = new PointsToEdge(queryEdge.getSource(), newSnk, queryEdge.getField());
             toRemove.add(queryEdge);
           }
+          */
         }
          
         if (add) query.addConstraint(edge);
         for (PointsToEdge removeMe : toRemove) {
+          Util.Debug("removing " + removeMe);
           query.constraints.remove(removeMe);
         }
         toRemove.clear();
@@ -922,6 +931,7 @@ public class PointsToQuery implements IQuery {
       query.produced.add(rule.getShown());
     }
  
+    Util.Debug("after applying " + query);
     return simplifyQuery(query, hg);
     //return true;
   }
@@ -1031,7 +1041,6 @@ public class PointsToQuery implements IQuery {
         }
       } 
     }
-        
     return true;
   }
 
@@ -1126,7 +1135,7 @@ public class PointsToQuery implements IQuery {
         if (rule.getSymbolicVars().contains(var0)) {
           if (var1.symbEq(var0))  {
             if (Options.DEBUG) {
-              Util.Debug(rule + "contains " + var0);
+              //Util.Debug(rule + "contains " + var0);
               Util.Debug("considering aliasing of " + var0 + " and " + var1);
             }
             aliasMap.put(var0, var1);
@@ -1136,7 +1145,8 @@ public class PointsToQuery implements IQuery {
             if (Options.DEBUG) {
               Util.Debug("considering aliasing of " + var1 + " and " + var0);
             }
-            aliasMap.put(var1, var0);
+            //aliasMap.put(var1, var0);
+            aliasMap.put(var0, var1);
           }
         }
 
@@ -1584,7 +1594,7 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {     
       PointerKey key = edge.getField();  
       if (key != null && keys.contains(key)) {
-	Util.Debug("found key " + key + " to drop");
+        Util.Debug("found key " + key + " to drop");
         toRemove.add(edge);
         if (earlyRet) return toRemove; 
       }
@@ -1595,7 +1605,7 @@ public class PointsToQuery implements IQuery {
         SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
           if (keys.contains(fieldKey)) {  
-	    Util.Debug("found key " + fieldKey + " to drop");
+            Util.Debug("found key " + fieldKey + " to drop");
             toRemove.add(edge);
             if (earlyRet) return toRemove; 
           }
@@ -1757,7 +1767,6 @@ public class PointsToQuery implements IQuery {
     if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
   }
   
-  //@Override
   public Map<Constraint, Set<CGNode>> getRelevantNodes() {
     /*
     Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
@@ -1907,6 +1916,45 @@ public class PointsToQuery implements IQuery {
         return;
       }
     }
+  }
+  
+  private static boolean isDispatchFeasibleHelper(Set<PointsToEdge> edges, PointerVariable receiver, IClass calleeType, 
+                                                  InstanceKey receiverKey, IClassHierarchy cha) {
+    // if constraints contain receiver and say that this could not be the callee, no need to drop
+    outer:
+    for (PointsToEdge edge : edges) {
+      if (edge.getSource().equals(receiver)) {
+        PointerVariable snk = edge.getSink();
+        if (receiverKey != null && !snk.getPossibleValues().contains(receiverKey)) {
+          return false;
+        }
+        for (InstanceKey key : snk.getPossibleValues()) {
+          // if the instance key type is a subtype of the declaring class type, this dispatch could happen
+          if (cha.isAssignableFrom(calleeType, key.getConcreteType())) {
+            break outer;
+          }
+        }
+        // no instance key in the possible values could cause callee to be called 
+        Util.Debug("refuted by infeasible dispatch!");
+        return false;
+      }
+      break;
+    }
+    return true;
+  }
+  
+  @Override
+  public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+    Util.Debug("checking feasibility of dispatch call " + callee);
+    IClass calleeType = callee.getMethod().getDeclaringClass();
+    PointerVariable receiver = Util.makePointerVariable(this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
+    IClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
+    
+    Context context = callee.getContext();
+    ContextItem receiverItem = context.get(ContextKey.RECEIVER);
+    InstanceKey receiverKey = receiverItem instanceof InstanceKey ? (InstanceKey) receiverItem : null;
+    return isDispatchFeasibleHelper(this.constraints, receiver, calleeType, receiverKey, cha) &&
+           isDispatchFeasibleHelper(this.produced, receiver, calleeType, receiverKey, cha);
   }
 
   @Override

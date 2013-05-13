@@ -492,9 +492,11 @@ public class WALACFGUtil {
     SSACFG cfg = ir.getControlFlowGraph();
     for (IntIterator iter = headers.intIterator(); iter.hasNext();) {
       SSACFG.BasicBlock loopHead = cfg.getBasicBlock(iter.next());
-      if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) return true;
+      if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) {
+        Util.Debug("directly reachable from loop head " + loopHead);
+        return true;
+      }
     }
-    Util.Debug("false");
     return false; 
   }
   

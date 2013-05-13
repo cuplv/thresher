@@ -137,6 +137,12 @@ public interface IQuery { // extends Comparable {
   public boolean addContextualConstraints(CGNode node, IPathInfo currentPath);
 
   /**
+   * can @param instr dispatch to @param callee from @param caller given our constraints? 
+   * @return true if feasible, false otherwise
+   */
+  public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee);
+  
+  /**
    * drop constraints containing non-heap values
    */
   public void removeAllLocalConstraints();
@@ -174,8 +180,6 @@ public interface IQuery { // extends Comparable {
   public void enterCallFromJump(CGNode callee);
 
   public List<DependencyRule> getWitnessList();
-  
-  public Map<Constraint, Set<CGNode>> getRelevantNodes();
   
   public void dispose();
 

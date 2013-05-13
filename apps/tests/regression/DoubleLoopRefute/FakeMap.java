@@ -12,10 +12,14 @@ public class FakeMap {
 
     public Object put(String str, Object value, int count) {
 	table = new Object[5];
+	int a;
+	int b;
 	for (int i = 0; i < 5; i++) {
+	    count /= 1;
 	    for (int j = 0; j < 5; j++) {
 		count++;
 	    }
+	    count *= 1;
 	}
 	table[size] = value;
 	return null;

@@ -24,6 +24,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
@@ -235,9 +236,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             toRemove.add(constraint);
           }
         }
-        HeapGraph hg = this.depRuleGenerator.getHeapGraph();
         for (AtomicPathConstraint removeMe : toRemove) {
-          PointsToEdge edge = removeMe.makePointsToEdge(hg);
+          PointsToEdge edge = removeMe.makePointsToEdge();
           DependencyRule rule = 
               Util.makeUnconditionalDependencyRule(edge, instr, PointerStatement.EdgeType.GetField, -1, -1, node);
           // remove this constraint from the path constraints and add it to the points-to constraints.
@@ -569,15 +569,21 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return this.pointsToQuery.contains(otherQuery.pointsToQuery) && super.symbContains(otherQuery);
     // && super.constraints.containsAll(otherQuery.constraints);
   }
+  
+  @Override
+  public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee){
+    return this.pointsToQuery.isDispatchFeasible(instr, caller, callee) &&
+        super.isDispatchFeasible(instr, caller, callee);
+  }
 
   @Override
-  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {
+  public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {  
     if (dropPtConstraints) this.pointsToQuery.dropConstraintsProduceableInCall(instr, caller, callee, dropPtConstraints);
     this.dropPathConstraintsProduceableByCall(instr, caller, callee);
     if (this.foundWitness()) Util.Debug("dropping constraints led to FAKE witness!");
   }
 
-  void dropConstraintsProuceableByRuleSet(Set<DependencyRule> rules) {
+  void dropConstraintsProduceableByRuleSet(Set<DependencyRule> rules) {
     Set<PointerVariable> toDrop = HashSetFactory.make(); //new HashSet<PointerVariable>();
     Set<PointerVariable> relevantVars = HashSetFactory.make();// new HashSet<PointerVariable>();
     for (PointerVariable var : this.pathVars) {
@@ -627,7 +633,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         for (CGNode callee : cg.getPossibleTargets(node, invoke.getCallSite())) {
           // seems to slow things down?
           //dropConstraintsProduceableInCall(invoke, node, callee, false);
-          dropConstraintsProduceableInCall(invoke, node, callee, true);
+          //dropConstraintsProduceableInCall(invoke, node, callee, true);
+          dropPathConstraintsProduceableByCall(invoke, node, callee);
         }
       } else if (instr instanceof SSAPutInstruction) {
         SSAPutInstruction put = (SSAPutInstruction) instr;
@@ -969,12 +976,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     } 
   }
   
-  @Override 
-  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
-    Map<Constraint, Set<CGNode>> mods = pointsToQuery.getRelevantNodes();
-    mods.putAll(super.getRelevantNodes());
-    return mods;
-  }
 
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {

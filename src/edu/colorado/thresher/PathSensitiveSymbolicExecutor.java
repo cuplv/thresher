@@ -39,8 +39,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
    * @return - list of paths branching off of current path
    */
   void initializeSplitPaths(LinkedList<IPathInfo> splitPaths, Collection<ISSABasicBlock> preds, IPathInfo path) {
-    if (Options.DEBUG)
-      Util.Pre(splitPaths.isEmpty(), "split path list should always be empty here! it's only to pass back");
+      //if (Options.DEBUG) Util.Pre(splitPaths.isEmpty(), "split path list should always be empty here! it's only to pass back");
     if (preds.size() < 2) { // sometimes, we need to add the exceptional
                             // predecessors here
       SSACFG cfg = path.getCurrentNode().getIR().getControlFlowGraph();
@@ -310,37 +309,27 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
     return true;
   }
 
-  void visitCallInLoopHead(SSAInvokeInstruction instr, IPathInfo path) {
-    // ignore call and drop constraints it may produce. this is to avoid getting lost
-    // in the call if it is complicated; we can afford to explore an expensive call
-    // once, but a call in a loop head is likely to be explored a lot of times
-    Set<CGNode> callees = callGraph.getPossibleTargets(path.getCurrentNode(), instr.getCallSite());
-    if (callees.isEmpty()) {
-      // still need to drop retval
-      path.skipCall(instr, callGraph, null);
-    }
-    
-    for (CGNode callee : callees) {
-      // skipCall drops constraints the call might produce
-      path.skipCall(instr, callGraph, callee); 
-    }
-    // TODO: drop retval constraints as well
-  }
 
   /**
    * special case for loop heads that are more than one block in length. keep
-   * executing until we reach the block connecting the back edge
+   * executing until we reach the sink of the back edge
+   * @param justGetToLoopHead if true, only execute until we reach the loop head and then stop
    */
-  boolean executeAllInstructionsInLoopHeadSequence(IPathInfo info, LinkedList<IPathInfo> splitPaths) {
-    if (Options.DEBUG)
-      Util.Pre(splitPaths.isEmpty(), "not expecting any split paths here!");
+  boolean executeAllInstructionsInLoopHeadSequence(IPathInfo info, LinkedList<IPathInfo> splitPaths, 
+      boolean justGetToLoopHead) {
+    if (Options.DEBUG) Util.Pre(splitPaths.isEmpty(), "not expecting any split paths here!");
+    // !justGetToLoopHead => path is not at loop head already
+    Util.Pre(!justGetToLoopHead || 
+        !WALACFGUtil.isLoopHead(info.getCurrentBlock(), info.getCurrentNode().getIR()));
+    
     // list to handle case splits in straight-line code (i.e. many applicable rules)
     Set<IPathInfo> cases = HashSetFactory.make();
     cases.add(info);
     // run path through all of the instructions in the loop head sequence,
     // storing any case splits in splitPaths
     // do NOT add any paths to the path manager; add them to caseSplits instead.
-    final IR ir = info.getCurrentNode().getIR();
+    final CGNode startNode = info.getCurrentNode();
+    final IR ir = startNode.getIR();
     final SSACFG cfg = ir.getControlFlowGraph();
     SSACFG.BasicBlock currentBlock = info.getCurrentBlock();
     int startLine = info.getCurrentLineNum();
@@ -357,18 +346,32 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         if (i <= startLine) {
           if (instr instanceof SSAInvokeInstruction) {
             if (Options.DEBUG) Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!");
+            Set<IPathInfo> extraPaths = HashSetFactory.make();
             for (IPathInfo path : cases) {
               if (Options.SYNTHESIS) visitInvokeAsCallee((SSAInvokeInstruction) instr, path);
-              else visitCallInLoopHead((SSAInvokeInstruction) instr, path); 
+              else extraPaths.addAll(visitCallInLoopHead((SSAInvokeInstruction) instr, path));
             }
+            if (!Options.SYNTHESIS) cases = extraPaths;
+            //cases.clear();
+            //cases.addAll(extraPaths);
+            
+            if (Options.DEBUG) {
+              for (IPathInfo path : cases) {
+                Util.Assert(path.isFeasible());
+                Util.Assert(path.getCurrentNode().equals(startNode), 
+                    "path " + path.getPathId() + " in node " + path.getCurrentNode() + "instead of " + startNode);
+              }
+            }
+            
           } else if (instr instanceof SSAPhiInstruction) {
             // found a phi node; need to do path splitting early in order to
             // decide which value is assigned on which path
             if (phiIndexMap == null) {
-              phiIndexMap = HashMapFactory.make();//new HashMap<Integer, List<IPathInfo>>(instr.getNumberOfUses());
+              phiIndexMap = HashMapFactory.make();
               for (IPathInfo path : cases) {
                 path.setCurrentLineNum(i - 1);
                 splitPaths.clear();
+                if (justGetToLoopHead) Util.Assert(preds.size() < 2, " bad IR " + ir);
                 initializeSplitPaths(splitPaths, preds, path);
                 int phiIndex = instr.getNumberOfUses() - 1;
                 for (IPathInfo choice : splitPaths) {
@@ -420,14 +423,19 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
       // keep executing straightline code
       if (preds.size() == 1) {
         currentBlock = (SSACFG.BasicBlock) preds.iterator().next();
-        if (Options.DEBUG)
-          Util.Assert(!cases.isEmpty(), "no paths left to execute!");
-        if (Options.DEBUG)
-          Util.Assert(phiIndexMap == null, "phiIndex map should not be init!");
+        if (Options.DEBUG) Util.Assert(!cases.isEmpty(), "no paths left to execute!");
+        if (Options.DEBUG) Util.Assert(phiIndexMap == null, 
+             "phiIndex map should not be initialized!");
+        // if we've made it to the loop head and that's our only goal, we're done.
+        boolean returnNow = justGetToLoopHead && WALACFGUtil.isLoopHead(currentBlock, ir);
+        
         for (IPathInfo choice : cases) {
           choice.setCurrentBlock(currentBlock);
           choice.setCurrentLineNum(currentBlock.getAllInstructions().size() - 1);
+          if (returnNow) splitPaths.add(choice);
         }
+        if (returnNow) return !splitPaths.isEmpty();
+        
         startLine = currentBlock.getAllInstructions().size() - 1;
         preds = cfg.getNormalPredecessors(currentBlock);
       } else {
@@ -437,101 +445,45 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         splitPaths.clear();
         if (phiIndexMap == null) { // phiIndexMap was never initialized. need to
                                    // split into a case for each pred
-          if (Options.DEBUG)
-            Util.Assert(splitPaths.isEmpty(), "split paths should be empty here!");
+          if (Options.DEBUG) Util.Assert(splitPaths.isEmpty(), 
+              "split paths should be empty here!");
           if (cases.isEmpty()) {
+            Util.Debug("cases empty");
             info.refute();
             return false;
           }
-          if (Options.DEBUG)
-            Util.Assert(cases.size() == 1, "too many cases " + cases.size());
-          for (IPathInfo _case : cases)
-            initializeSplitPaths(splitPaths, preds, _case);
-          // splitPaths.addAll(cases);
-          // return !splitPaths.isEmpty();
+
+          if (!justGetToLoopHead) {
+            for (IPathInfo _case : cases) {
+              initializeSplitPaths(splitPaths, preds, _case);
+            }
+          } else {
+            splitPaths.addAll(cases);
+            if (Options.DEBUG) {
+              for (IPathInfo splitPath : splitPaths) {
+                Util.Assert(WALACFGUtil.isLoopHead(splitPath.getCurrentBlock(), splitPath.getCurrentNode().getIR()),
+                    splitPath + " not at loop head " + splitPath.getCurrentBlock() + " " + splitPath.getCurrentNode().getIR());
+              }
+            }
+          }
           return true;
         } // else, phiIndexMap was already initialized
         Collection<List<IPathInfo>> lists = phiIndexMap.values();
-        for (List<IPathInfo> list : lists)
+        for (List<IPathInfo> list : lists) {
           splitPaths.addAll(list);
+        }
+        
+        if (Options.DEBUG && justGetToLoopHead) {
+          for (IPathInfo splitPath : splitPaths) {
+            Util.Assert(WALACFGUtil.isLoopHead(splitPath.getCurrentBlock(), splitPath.getCurrentNode().getIR()),
+                splitPath + " not at loop head " + splitPath.getCurrentBlock() + " " + splitPath.getCurrentNode().getIR());
+          }
+        }
+        
         return !splitPaths.isEmpty();
-        // Util.Assert(!splitPaths.isEmpty(), "no paths left!");
-        // if (splitPaths.isEmpty()) initializeSplitPaths(splitPaths, preds,
-        // path);
-        // return true; // multiple predecessors; we've found the back edge
       }
     }
   }
-
-  /**
-   * special case for loop heads that are more than one block in length. keep
-   * executing until we reach the block connecting the back edge
-   */
-  /*
-   * boolean executeAllInstructionsInLoopHeadSequence(IPathInfo path,
-   * LinkedList<IPathInfo> splitPaths) { // run path through all of the
-   * instructions in the loop head sequence, storing any case splits in
-   * splitPaths // do NOT add any paths to the path manager; add them to
-   * caseSplits instead. final IR ir = path.getCurrentNode().getIR(); final
-   * SSACFG cfg = ir.getControlFlowGraph(); SSACFG.BasicBlock currentBlock =
-   * path.getCurrentBlock(); int startLine = path.getCurrentLineNum();
-   * Util.Debug("executing loop head sequence"); Collection<ISSABasicBlock>
-   * preds = cfg.getNormalPredecessors(currentBlock);
-   * 
-   * // map from phi index to paths corresponding to that phi index
-   * Map<Integer,List<IPathInfo>> phiIndexMap = null;
-   * 
-   * for (;;) { List<SSAInstruction> instrs = currentBlock.getAllInstructions();
-   * for (int i = instrs.size() - 1; i > -1; i--) { SSAInstruction instr =
-   * instrs.get(i); Util.Debug("loop head instr " + instr); if (i <= startLine)
-   * { if (instr instanceof SSAInvokeInstruction) {
-   * Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!");
-   * visitCallInLoopHead((SSAInvokeInstruction) instr, path); } else if (instr
-   * instanceof SSAPhiInstruction) { List<IPathInfo> toRemove = new
-   * LinkedList<IPathInfo>(); // found a phi node; need to do path splitting
-   * early in order to decide which value is assigned on which path if
-   * (splitPaths.isEmpty()) { initializeSplitPaths(splitPaths, preds, path);
-   * phiIndexMap = new
-   * HashMap<Integer,List<IPathInfo>>(instr.getNumberOfUses()); int phiIndex =
-   * instr.getNumberOfUses() - 1; for (IPathInfo choice : splitPaths) {
-   * List<IPathInfo> choices = new LinkedList<IPathInfo>(); choices.add(choice);
-   * phiIndexMap.put(phiIndex, choices); phiIndex--; } } for (int key :
-   * phiIndexMap.keySet()) { List<IPathInfo> values = phiIndexMap.get(key);
-   * List<IPathInfo> toAdd = new LinkedList<IPathInfo>(); for (IPathInfo choice
-   * : values) { List<IPathInfo> cases = visitPhi((SSAPhiInstruction) instr,
-   * choice, key); if (cases == IPathInfo.INFEASIBLE) {
-   * Util.Debug("phi visit made path infeasible"); toRemove.add(choice); // phi
-   * visit made path infeasible } else if (!cases.isEmpty()) {
-   * Util.Debug("case plitting on phi"); toAdd.addAll(cases); } }
-   * values.addAll(toAdd); }
-   * 
-   * List<IPathInfo> newSplitPaths = new LinkedList<IPathInfo>();
-   * Collection<List<IPathInfo>> lists = phiIndexMap.values(); for
-   * (List<IPathInfo> list : lists) { newSplitPaths.addAll(list); }
-   * 
-   * for (IPathInfo choice : toRemove) newSplitPaths.remove(choice); } else {
-   * Util.Assert(!(instr instanceof SSAConditionalBranchInstruction),
-   * "should never be executing conditionals here!");
-   * Util.Assert(splitPaths.isEmpty(), "shouldn't have split yet!"); // "normal"
-   * case path.setCurrentLineNum(i - 1);
-   * 
-   * List<IPathInfo> cases = path.visit(instr); if (cases ==
-   * IPathInfo.INFEASIBLE) return false; // infeasible Util.Assert(cases ==
-   * IPathInfo.FEASIBLE, "not expecting case splits here! " + cases.size()); for
-   * (IPathInfo split : cases) { executeAllInstructionsInLoopHeadSequence(split,
-   * splitPaths); } for (IPathInfo split : cases) splitPaths.add(split);
-   * 
-   * //if (!visit(instr, path)) return false; } } } // keep executing
-   * straightline code if (preds.size() == 1) { currentBlock =
-   * (SSACFG.BasicBlock) preds.iterator().next(); for (IPathInfo choice :
-   * splitPaths) choice.setCurrentBlock(currentBlock);
-   * path.setCurrentBlock(currentBlock); startLine =
-   * currentBlock.getAllInstructions().size() - 1; preds =
-   * cfg.getNormalPredecessors(currentBlock); } else { Util.Assert(preds.size()
-   * > 1, "loop should split at some point!"); if (splitPaths.isEmpty())
-   * initializeSplitPaths(splitPaths, preds, path); return true; // multiple
-   * predecessors; we've found the back edge } } }
-   */
 
   // special case of instruction visiting for phi nodes
   List<IPathInfo> visitPhi(SSAPhiInstruction instr, IPathInfo info, int phiIndex) {
@@ -546,6 +498,12 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
       Util.Debug(instr.toString());
     return info.visitPhi(instr, phiIndex);
   }
+  
+  Set<IPathInfo> visitCallInLoopHead(SSAInvokeInstruction instr, IPathInfo path) {
+    Util.Unimp("don't call this");
+    return null;
+  }
+  
 
   public void addLoopMergePlaceholder(SSACFG.BasicBlock loopHeadToMerge) {
     IPathInfo mergeIndicator = IPathInfo.makeMergeIndicator(loopHeadToMerge);

@@ -17,11 +17,12 @@ public class FakeMap {
 	    count++;
 	    i = getStr();
             try {
-                count++;
+		count -= 17;
 		success = true;
             } catch (NullPointerException e) {
                 count *= 1;
             };
+	    count /= 1;
         } while (!success && i != null);
 
 	foo(value);

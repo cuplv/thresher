@@ -1,6 +1,5 @@
 package edu.colorado.thresher;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -602,6 +601,17 @@ public class PathQuery implements IQuery {
     }
     return true;
   }
+  
+  // TODO: just assuming conversion goes through and is for integers at this point--should add check
+  public boolean visit(SSAConversionInstruction instr, CGNode node) {
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    if (pathVars.contains(lhsVar)) {
+      // for now conversions are unchecked; just sub the rhs for the lhs
+      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
+      substituteExpForVar(new SimplePathTerm(rhsVar), lhsVar);
+    }
+    return true;
+  }
 
   public boolean visit(SSACheckCastInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
@@ -754,17 +764,17 @@ public class PathQuery implements IQuery {
       PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.depRuleGenerator.getHeapModel()); 
       List<FieldReference> toSub = new LinkedList<FieldReference>();
       for (AtomicPathConstraint constraint : constraints) {
-	Set<SimplePathTerm> terms = constraint.getTerms();
+        Set<SimplePathTerm> terms = constraint.getTerms();
         for (SimplePathTerm term : terms) {
-	  if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
+          if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
             toSub.add(term.getFirstField());
           }
-	}
+        }
       }
       
       // init to default values
       for (FieldReference field : toSub) {
-	if (Options.DEBUG) Util.Debug("initializing " + field + " to default value");
+        if (Options.DEBUG) Util.Debug("initializing " + field + " to default value");
         substituteExpForFieldRead(new SimplePathTerm(0), thisVar, field);
         // check if substitution made query infeasible
         if (!this.isFeasible()) return IQuery.INFEASIBLE;
@@ -816,6 +826,21 @@ public class PathQuery implements IQuery {
     return IQuery.FEASIBLE;
   }
 
+  @Override
+  public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+    PointerVariable receiver = Util.makePointerVariable(this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
+    if (this.pathVars.contains(receiver)) {
+      // check for null constraint on receiver
+      for (AtomicPathConstraint constraint : this.constraints) {
+        if (constraint.isNullConstraintForLocal(receiver)) {
+          Util.Debug("refuted by dispatch on null!");
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  
   @Override
   public boolean foundWitness() {
     if (fakeWitness) return fakeWitness;
@@ -1377,13 +1402,6 @@ public class PathQuery implements IQuery {
     }
   }
 
-  @Override
-  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
-    // TODO: fix
-    return Collections.EMPTY_MAP;
-    //return getModifiersForQuery();
-  }
-  
   /**
    * return the set of methods that can potentially produce / affect some part
    * of this query
@@ -1394,7 +1412,9 @@ public class PathQuery implements IQuery {
     Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make(); //new HashMap<Constraint, Set<CGNode>>();
     for (AtomicPathConstraint constraint : this.constraints) {
       Set<CGNode> nodes = HashSetFactory.make();//new HashSet<CGNode>();
+      Util.Debug("getting pointer keys for " + constraint);
       for (PointerKey key : constraint.getPointerKeys(this.depRuleGenerator)) {
+        Util.Debug("POINTER KEY " + key);
         nodes.addAll(reversedModRef.get(key));
       }
       constraintModMap.put(constraint, nodes);

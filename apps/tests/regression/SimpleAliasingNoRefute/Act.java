@@ -7,15 +7,15 @@ public class Act {
 
     public static void main(String[] args) {
 	Obj x;
-	Obj z = new Obj();
-	z.f = new Obj();
+	Obj z = new Obj(); // Obj0
+	z.f = new Obj(); // Obj1
 	if (rand()) {
-	    x = new Obj();
+	    x = new Obj(); // Obj2
 	    z = x;
 	} else {
-	    x = new Obj();
+	    x = new Obj(); // Obj3
 	}
-	x.f = new Act();
+	x.f = new Act(); // Act0
 	storyCache.put(1, z.f);
     }
 
