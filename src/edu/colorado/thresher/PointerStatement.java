@@ -41,6 +41,14 @@ public class PointerStatement implements Comparable {
     return this.toString().hashCode();
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (o == null) {
+      return false;
+    }
+    return o.toString().equals(this.toString());
+  }
+  
   public String toString() {
     if (lineId == -1)
       return "DUMMY";

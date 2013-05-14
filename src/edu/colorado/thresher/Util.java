@@ -17,13 +17,16 @@ import z3.java.Z3AST;
 import z3.java.Z3Context;
 import z3.java.Z3Sort;
 
+import com.ibm.wala.analysis.pointers.BasicHeapGraph;
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
+import com.ibm.wala.ipa.callgraph.propagation.AbstractTypeInNode;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSite;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -34,6 +37,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.NormalAllocationInNode;
+import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.ReturnValueKey;
 import com.ibm.wala.ipa.callgraph.propagation.SmushedAllocationSiteInNode;
@@ -42,6 +46,7 @@ import com.ibm.wala.ipa.callgraph.propagation.cfa.ExceptionReturnValueKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ArrayLengthKey;
+import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.IR;
@@ -62,6 +67,7 @@ import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
+import com.ibm.wala.util.intset.OrdinalSet;
 import com.ibm.wala.viz.DotUtil;
 import com.ibm.wala.viz.PDFViewUtil;
 
@@ -345,7 +351,7 @@ public class Util {
       Util.Assert(edge.getField() == null || edge.getField() instanceof StaticFieldKey, "odd field " + edge.getField());
     boolean staticField = edgeField == null && !array;
     
-    if (snk instanceof ReturnValueKey) {
+    if (src instanceof ReturnValueKey) {
       ReturnValueKey rvk = (ReturnValueKey) src;
       CGNode retNode = rvk.getNode();
       IR retIR = retNode.getIR();
@@ -1713,4 +1719,51 @@ public class Util {
     return files;
   }
   
+  /**
+   * get some state of {@link PointerStatement}s that explain why the points-to
+   * analysis thinks that pk can point to ik. Not at all guaranteed to be
+   * minimal.
+   */
+  public static Set<PointerStatement> getStatementsForPToEdge(PointerKey pk, InstanceKey ik, CallGraph cg, PointerAnalysis pa, AnalysisCache cache) {
+    HeapGraph hg = new BasicHeapGraph(pa, cg); 
+    ModRef modref = ModRef.make();
+    Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pa);    
+    AbstractDependencyRuleGenerator ruleGen = new AbstractDependencyRuleGenerator(cg, hg, pa.getHeapModel(), cache, modRefMap);
+    PointsToEdge initEdge = makePointsToEdge(pk, ik);
+    LinkedList<PointsToEdge> worklist = new LinkedList<PointsToEdge>();
+    worklist.add(initEdge);
+    Set<PointerStatement> result = HashSetFactory.make();
+    while (!worklist.isEmpty()) {
+      PointsToEdge curEdge = worklist.remove();
+//      System.err.println("processing edge " + curEdge);
+      Set<DependencyRule> producersForEdge = getProducersForEdge(curEdge, ruleGen);
+      if (producersForEdge.size() > 0) {
+        DependencyRule rule = producersForEdge.iterator().next();
+        PointerStatement stmt = rule.getStmt();
+        if (result.add(stmt)) {
+//          System.err.println("added statement " + stmt);
+          TreeSet<PointsToEdge> toShow = rule.getToShow();
+          for (PointsToEdge e : toShow) {
+            if (!worklist.contains(e)) {
+//              System.err.println("added edge " + e);
+              worklist.add(e);
+            }
+          }
+        }
+      } else {
+//        System.err.println("weird no producers for " + curEdge);
+      }
+      
+    }
+    return result;
+  }
+
+  protected static PointsToEdge makePointsToEdge(PointerKey pk, InstanceKey ik) {
+    if (pk instanceof InstanceFieldKey) {
+      InstanceFieldKey ifk = (InstanceFieldKey)pk;
+      return new PointsToEdge(makePointerVariable(ifk.getInstanceKey()), makePointerVariable(ik), ifk.getField());
+    } else {
+      return new PointsToEdge(makePointerVariable(pk), makePointerVariable(ik));
+    }
+  }
 }
