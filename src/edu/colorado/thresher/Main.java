@@ -839,8 +839,11 @@ public class Main {
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
       scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
       scope.addToScope(scope.getApplicationLoader(), appJar);
-      File exclusionsFile = new File("config/synthesis_exclusions.txt");
-      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      //File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
+      if (exclusionsFile.exists()) {
+        scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      }
       
       final MethodReference DACAPO_MAIN =
           MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
@@ -855,7 +858,6 @@ public class Main {
       //File exclusionsFile = new File("config/synthesis_exclusions.txt");
       File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
       if (exclusionsFile.exists()) {
-        Util.Print("setting regressions");
         scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
       }
       
@@ -1121,9 +1123,107 @@ public class Main {
     CallGraph cg = depRuleGenerator.getCallGraph();
     HeapModel heapModel = depRuleGenerator.getHeapModel();
     PointerAnalysis pointerAnalysis = depRuleGenerator.getHeapGraph().getPointerAnalysis();
-    
-    // adapted from code in Manu's DemandCastChecker.java
+
     int numSafe = 0, numMightFail = 0, numThresherProvedSafe = 0, total = 0;
+
+    if (!REGRESSIONS) {
+    List<Pair<Integer,IPathInfo>> paths = new ArrayList<Pair<Integer,IPathInfo>>();
+    
+    for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
+      CGNode node = nodeIter.next();
+      TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
+      // skip library classes
+      if (declaringClass.getClassLoader().equals(ClassLoaderReference.Primordial)) {
+        continue;
+      }
+      IR ir = node.getIR();
+      if (ir == null) continue;
+      SSAInstruction[] instrs = ir.getInstructions();
+      for (int i = 0; i < instrs.length; i++) {
+        SSAInstruction instruction = instrs[i];
+        if (instruction instanceof SSACheckCastInstruction) {
+          SSACheckCastInstruction castInstr = (SSACheckCastInstruction) instruction;
+          final TypeReference[] declaredResultTypes = castInstr.getDeclaredResultTypes();
+          Util.Assert(declaredResultTypes.length == 1, "weird cast " + castInstr + " has " + declaredResultTypes.length + " result types");
+          
+          boolean primOnly = true;
+          for (TypeReference t : declaredResultTypes) {
+            if (!t.isPrimitiveType()) {
+              primOnly = false;
+            }
+          }
+          if (primOnly) {
+            continue;
+          }
+          Util.Print("checking cast #" + ++total);
+          if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod());
+          PointerKey castPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
+          OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castPk);
+          Set<InstanceKey> badKeys = HashSetFactory.make();
+          for (InstanceKey key : keys) { // for each instance key in the points-to set
+            TypeReference ikTypeRef = key.getConcreteType().getReference();
+            for (TypeReference t : declaredResultTypes) {
+              //IClass resultClass = cha.lookupClass(t), typeRefClass = cha.lookupClass(ikTypeRef);
+              //Util.Assert(resultClass == null, "couldn't find class for " + t);
+              //Util.Assert(typeRefClass == null, "couldn't find class for " + ikTypeRef);
+              if (!cha.isAssignableFrom(cha.lookupClass(t), cha.lookupClass(ikTypeRef))) {
+              //if (!cha.isAssignableFrom(resultClass, typeRefClass)) {
+                badKeys.add(key);
+              }
+            }
+          }
+          // only safe if every type that the key may be cast to is safe
+          if (badKeys.isEmpty()) {
+            Util.Print("Points-to analysis proved cast #" + total + " safe.");
+            numSafe++;
+          }
+          else {
+            Util.Print("According to point-to analysis, cast #" + total + " may fail.");
+            numMightFail++;
+            if (Options.FLOW_INSENSITIVE_ONLY) continue;
+            // invoke Thresher, try to show that failure can't happen
+            // query (informally): when cast occurs, local var cast doesn't point to a bad key
+            // for instr v0 = checkcast v1 T, query is v1 -> a && (a from badKeys)
+            PointerVariable src = Util.makePointerVariable(castPk);
+            PointerVariable snk = SymbolicPointerVariable.makeSymbolicVar(badKeys);
+            PointsToEdge startEdge = new PointsToEdge(src, snk);
+            final IQuery query = new CombinedPathAndPointsToQuery(startEdge, depRuleGenerator);
+            SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(castInstr);
+            int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(castInstr, startBlk);
+            Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(castInstr));
+            
+            paths.add(Pair.make(total - 1, new IPathInfo(node, startBlk, startLineBlkIndex - 1, query)));
+          }
+        }
+      }
+    }
+    
+    Util.Assert(paths.size() >= 10);
+    // pick 10 casts
+    for (int i = 0; i < paths.size(); i += (paths.size() / 10)) {
+      Pair<Integer,IPathInfo> pair = paths.get(i);
+      Util.Print("Starting on cast #" + pair.fst);
+      Logger logger = new Logger();
+      boolean foundWitness = true, fail = false;
+      try {
+        ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+        foundWitness = exec.executeBackward(pair.snd);
+      } catch (Exception e) {
+        if (Options.EXIT_ON_FAIL) throw e;
+        Util.Print("FAILED " + e + " " + Util.printArray(e.getStackTrace()));
+        Util.Print("Thresher failed on cast #" + total);
+        fail = true;
+      }
+      // start at line BEFORE cast statement
+      if (!foundWitness) {
+        //Util.Print("Thresher proved cast #" + total + " safe.");
+        Util.Print("Thresher proved cast #" + pair.fst + " safe.");
+        numThresherProvedSafe++; 
+      } else Util.Print("Thresher cannot prove cast #" + pair.fst + " safe. Fail? " + fail);
+    }
+    
+    } else {
+    // adapted from code in Manu's DemandCastChecker.java
     for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
       CGNode node = nodeIter.next();
       TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
@@ -1202,6 +1302,7 @@ public class Main {
           }
         }
       }
+    }
     }
     Util.Debug("Total safe: " + numSafe);
     Util.Debug("Total might fail: " + numMightFail);
@@ -1450,7 +1551,7 @@ public class Main {
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
     // collect pure assertions
-    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForNode(ASSERT_PURE, cg);
+    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForMethod(ASSERT_PURE, cg);
     Util.Print("Collected " + asserts.size() + " assertions.");
     for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
       SSAInvokeInstruction invoke = asser.fst;

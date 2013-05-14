@@ -90,6 +90,26 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     query.dispose(); // clear theorem prover contexts and other resources used by the query
     return result;
   }
+  
+  /**
+   * @param startNode
+   *          - CGNode from which to begin
+   * @param query
+   *          - fact that symbolic execution will witness or refute
+   * @return false if query is refuted on all paths, true otherwise
+   */
+  @Override
+  public final boolean executeBackward(IPathInfo path) {
+    // Util.Print(startNode.getIR().toString());
+    //final IPathInfo path = makePath(startNode, startBlk, startLine, query);
+    final IQuery query = path.query;
+    this.pathsToExplore.add(path);
+    // Util.visualizeIR(Options.DEBUG_cha, startNode.getIR(), "TEST"); // DEBUG
+    // only; can get a view of weird IR if it's giving us trouble
+    boolean result = executeBackward();
+    query.dispose(); // clear theorem prover contexts and other resources used by the query
+    return result;
+  }
 
   /**
    * main execution loop - keep exploring until no paths are left
@@ -362,7 +382,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           IPathInfo newPath = path.deepCopy();
           if (caller.equals(callee)) { // is this a recursive call?
             if (Options.DEBUG)
-              Util.Debug("skipping recursive call " + callee.getMethod().toString() + " and dropping produced constraints");
+              Util.Debug("skipping recursive call " + callee.getMethod().toString() + " and remvoing produced constraints, if any.");
             // this is both a recursive call and relevant. overapproximate its
             // effects by dropping constraints
             // that it could possibly produce
@@ -573,13 +593,14 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     }
     logger.logPathStackSize(stackSize);
 
-    // Thread.dumpStack();
     this.pathsToExplore.addFirst(path);
+    /*
     if (Options.DEBUG) {
       for (IPathInfo thePath : this.pathsToExplore) {
         Util.Debug(thePath.getPathId() + " " + thePath.getCurrentBlock());
       }
     }
+    */
   }
 
   /**

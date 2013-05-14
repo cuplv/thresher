@@ -79,7 +79,7 @@ public class PathQuery implements IQuery {
 
   // Z3Context shared among all paths. do not make copies of this unless you dispose of them properly!
   final Z3Context ctx; 
-
+  
   // a z3 representation of the z3 assumption tied to the current path
   // constraints
   Z3AST currentPathAssumption;

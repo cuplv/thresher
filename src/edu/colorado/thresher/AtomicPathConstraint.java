@@ -365,7 +365,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
    */
   public boolean isNullConstraintForLocal(PointerVariable var) {
     Util.Pre(var.isLocalVar());
-    if (this.vars.contains(var)) {
+    if (this.vars.contains(var) && this.getFields() == null || this.getFields().isEmpty()) {
       if (this.op == ConditionalBranchInstruction.Operator.EQ) {
         if (this.lhs == SimplePathTerm.NULL) {
           if (this.rhs instanceof SimplePathTerm) {

@@ -209,6 +209,15 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       SimplePathTerm toSub = null;
       if (instr.isStatic()) { // static field get
         IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(instr.getDeclaredField());
+
+        // TODO: support this somehow
+        if (staticField == null) {
+          Util.Assert(instr.getDeclaredField().getFieldType().isPrimitiveType());
+          if (Options.DEBUG) Util.Debug("getstatic for field of primitive type? " + instr.getDeclaredField() + " dropping related constraints");
+          dropConstraintsContaining(varName);
+          return true;
+        }
+        
         PointerKey key = depRuleGenerator.getHeapModel().getPointerKeyForStaticField(staticField);
         PointerVariable var = Util.makePointerVariable(key);
         
@@ -359,8 +368,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
-    PointerVariable allocated = Util.makePointerVariable(this.depRuleGenerator.getHeapModel()
-                                                              .getInstanceKeyForAllocation(node, instr.getNewSite()));
+    InstanceKey allocatedKey = this.depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
+    if (allocatedKey == null) { // this can happen due to exclusions
+      if (Options.DEBUG) Util.Debug("can't find key for allocation instr " + instr);
+      dropConstraintsContaining(local);
+      return true;
+    }
+    PointerVariable allocated = Util.makePointerVariable(allocatedKey);
     PointerVariable subFor = null;
     if (pathVars.contains(local)) subFor = local;
     else if (pathVars.contains(allocated)) subFor = allocated;
@@ -701,22 +715,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         return true; // constraints contain retval; definitely relevant
       }
     }
-
-    /*
-    // TODO: wtf is this?
-    // do constraints contain a param passed to this function?
-    SymbolTable tbl = caller.getIR().getSymbolTable();
-    for (int i = 0; i < instr.getNumberOfParameters(); i++) {
-      if (!tbl.isConstant(instr.getUse(i))) {
-        PointerVariable arg = new ConcretePointerVariable(caller, instr.getUse(i), this.depRuleGenerator.getHeapModel());
-        // constraints contain a non-constant param that's passed to this function; possibly relevant
-        if (this.pathVars.contains(arg)) {
-          Util.Debug("path vals contain arg " + arg);
-          return true; 
-        }
-      }
-    }
-    */
     
     // does this call modify our path constraints according to its precomputed mod set?
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
@@ -729,8 +727,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         if (key instanceof StaticFieldKey) {
           IClass declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
           // if this is a <clinit>, might initialize field to default values
-          return declaringClass.equals(callee.getMethod().getDeclaringClass())
+          boolean relevant = declaringClass.equals(callee.getMethod().getDeclaringClass())
               && (callee.getMethod().isClinit());
+          if (relevant) {
+            Util.Debug("relevant because is clinit and could initialize static field " + key);
+            return true;
+          }
         }  
       }
     }

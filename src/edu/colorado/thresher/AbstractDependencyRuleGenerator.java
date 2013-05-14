@@ -384,7 +384,6 @@ public class AbstractDependencyRuleGenerator {
 
   public Set<DependencyRule> generateAbstractRulesForInstr(SSAInstruction instr, CGNode node, int lineId, int lineNum, IR ir) {
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
-
     if (instr instanceof SSANewInstruction) {
       // Util.Unimp("dealing with NEW's!");
       SSANewInstruction instruction = (SSANewInstruction) instr;

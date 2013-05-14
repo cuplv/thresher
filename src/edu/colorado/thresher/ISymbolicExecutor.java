@@ -38,6 +38,14 @@ public interface ISymbolicExecutor {
   public boolean executeBackward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query);
 
   /**
+   * perform symbolic execution until query is refuted or witnessed
+   * @param path - path to begin execution with
+   * @return false if query is refuted on all paths, true otherwise
+   */
+  public boolean executeBackward(IPathInfo path);
+
+    
+  /**
    * main execution loop - keep exploring until no paths are left
    * 
    * @return false if query is refuted on all paths, true otherwise

@@ -998,6 +998,9 @@ public class PointsToQuery implements IQuery {
           }
         }
         
+        // no hope in refuting based on the pts-at set of a static field
+        if (field.isStatic()) continue;
+        
         //Util.Debug("srcVals " + Util.printCollection(srcVals));
         Set<InstanceKey> snkPtsAt = snk.getPointsAtSet(hg, field);
         //Util.Debug("snk pts-at " + Util.printCollection(snkPtsAt));
@@ -1104,7 +1107,8 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (ruleEdge.getSource().isLocalVar() && edge.getSink().isSymbolic())
-          ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false);
+          //ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false);
+          ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, true);
       }
     }
     for (PointsToEdge edge : produced) {
@@ -1115,8 +1119,12 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    Util.Assert(subMaps.size() == 1, "more than one instantiation choice for shown! have " + subMaps.size()
-        + " this shouldn't happen, since we've only considered local constraints");
+    if (subMaps.size() != 1) {
+      for (Map map : subMaps) Util.Debug(Util.printMap(map));
+      Util.Assert(subMaps.size() == 1, "more than one instantiation choice for shown! have " + subMaps.size()
+          + " this shouldn't happen, since we've only considered local constraints");      
+    }
+
     
     // DependencyRule newRule = rule;
     // if (subMaps.size() == 1) {
@@ -1593,16 +1601,17 @@ public class PointsToQuery implements IQuery {
   }
   
   public Set<PointsToEdge> getConstraintsRelevantToCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean earlyRet) {
-      Util.Debug("getting relevant to call");
     Set<PointsToEdge> toRemove = HashSetFactory.make();
     if (instr != null && instr.hasDef()) {
       ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
       for (PointsToEdge edge : this.constraints) {
         if (edge.getSource().equals(retval)) {
-          Util.Debug("return val relevant");
           // relevant due to the return value
           toRemove.add(edge);
-          if (earlyRet) return toRemove; 
+          if (earlyRet) {
+            Util.Debug("retval relevant");
+            return toRemove; 
+          }
         }
       }
     }
@@ -1613,9 +1622,11 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {     
       PointerKey key = edge.getField();  
       if (key != null && keys.contains(key)) {
-        Util.Debug("key " + key + " relevant");
         toRemove.add(edge);
-        if (earlyRet) return toRemove; 
+        if (earlyRet) {
+          Util.Debug("key " + key + " relevant");
+          return toRemove; 
+        }
       }
       
       // if the source is symbolic, there may be many fields that are modified -- check 'em all
@@ -1624,9 +1635,11 @@ public class PointsToQuery implements IQuery {
         SymbolicPointerVariable src = (SymbolicPointerVariable) edge.getSource();    
         for (PointerKey fieldKey : src.getPossibleFields(edge.getFieldRef(), this.depRuleGenerator.getHeapModel())) {
           if (keys.contains(fieldKey)) {  
-            Util.Debug("key " + fieldKey + " relevant");
             toRemove.add(edge);
-            if (earlyRet) return toRemove; 
+            if (earlyRet) {
+              Util.Debug("key " + fieldKey + " relevant");
+              return toRemove; 
+            }
           }
         }
       }
@@ -1645,7 +1658,7 @@ public class PointsToQuery implements IQuery {
     if (this.constraints.isEmpty()) return;
     Set<PointsToEdge> toRemove = getConstraintsRelevantToCall(instr, caller, callee, false); 
     for (PointsToEdge edge : toRemove) {
-      if (Options.DEBUG) Util.Debug("dropping " + edge);
+      if (Options.DEBUG) Util.Debug("DROPPING " + edge);
       this.constraints.remove(edge);
       this.produced.remove(edge);
     }

@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -50,12 +51,14 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
+import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.WalaException;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
@@ -316,6 +319,7 @@ public class Util {
 
   public static Set<DependencyRule> getProducersForEdge(PointsToEdge edge, AbstractDependencyRuleGenerator depRuleGenerator) {
     HeapGraph hg = depRuleGenerator.getHeapGraph();
+    CallGraph cg = depRuleGenerator.getCallGraph();
     final int ANY_LINE_ID = 0;
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     Util.Debug("getting rules relevant to " + edge);
@@ -340,18 +344,17 @@ public class Util {
     else
       Util.Assert(edge.getField() == null || edge.getField() instanceof StaticFieldKey, "odd field " + edge.getField());
     boolean staticField = edgeField == null && !array;
-
-    if (src instanceof LocalPointerKey) { // this edge has a local LHS
-      LocalPointerKey lpk = (LocalPointerKey) src;
-      CGNode node = lpk.getNode();
-      IR ir = node.getIR();
-      SSAInstruction[] instrs = ir.getInstructions();
-      int i = 0;
-      for (i = 0; i < instrs.length; i++) {
+    
+    if (snk instanceof ReturnValueKey) {
+      ReturnValueKey rvk = (ReturnValueKey) src;
+      CGNode retNode = rvk.getNode();
+      IR retIR = retNode.getIR();
+      SSAInstruction[] instrs = retIR.getInstructions();
+      for (int i = 0; i < instrs.length; i++) {
         SSAInstruction instr = instrs[i];
-        if (instr != null && instr.hasDef() && instr.getDef() == lpk.getValueNumber()) {
-          // this is the statement that produces our edge
-          Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, node, ANY_LINE_ID, i, ir);
+        if (instr != null && instr instanceof SSAReturnInstruction) {
+          SSAReturnInstruction ret = (SSAReturnInstruction) instr;
+          Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, retNode, ANY_LINE_ID, i, retIR);
           for (DependencyRule rule : instrRules) {
             if (rule.getShown().equals(edge))
               rules.add(rule); // this rule produces our edge
@@ -361,20 +364,56 @@ public class Util {
           return rules;
         }
       }
-      if (rules.isEmpty()) { // it's possible that the edge is produced by a
-                             // phi, which aren't in the regular instruction
-                             // array
-        Iterator<? extends SSAInstruction> phiIter = ir.iteratePhis();
-        while (phiIter.hasNext()) {
-          SSAPhiInstruction phi = (SSAPhiInstruction) phiIter.next();
-          if (phi.getDef() == lpk.getValueNumber()) {
+    } else if (src instanceof LocalPointerKey) { // this edge has a local LHS
+      LocalPointerKey lpk = (LocalPointerKey) src;
+      CGNode node = lpk.getNode();
+      if (!lpk.isParameter()) {
+        // non-parameter case -- key is assigned in body of current node
+        IR ir = node.getIR();
+        SSAInstruction[] instrs = ir.getInstructions();
+        int i = 0;
+        for (i = 0; i < instrs.length; i++) {
+          SSAInstruction instr = instrs[i];
+          if (instr != null && instr.hasDef() && instr.getDef() == lpk.getValueNumber()) {
             // this is the statement that produces our edge
-            Set<DependencyRule> instrRules = depRuleGenerator.visit(phi, node, ANY_LINE_ID, i, ir);
+            Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, node, ANY_LINE_ID, i, ir);
             for (DependencyRule rule : instrRules) {
               if (rule.getShown().equals(edge))
                 rules.add(rule); // this rule produces our edge
             }
-            break; // because of SSA, this must be the only statement that produces our edge
+            // because of SSA, this must be the only statement that
+            // produces our edge
+            return rules;
+          }
+        }
+        if (rules.isEmpty()) { // it's possible that the edge is produced by a
+                               // phi, which aren't in the regular instruction
+                               // array
+          Iterator<? extends SSAInstruction> phiIter = ir.iteratePhis();
+          while (phiIter.hasNext()) {
+            SSAPhiInstruction phi = (SSAPhiInstruction) phiIter.next();
+            if (phi.getDef() == lpk.getValueNumber()) {
+              // this is the statement that produces our edge
+              Set<DependencyRule> instrRules = depRuleGenerator.visit(phi, node, ANY_LINE_ID, i, ir);
+              for (DependencyRule rule : instrRules) {
+                if (rule.getShown().equals(edge))
+                  rules.add(rule); // this rule produces our edge
+              }
+              break; // because of SSA, this must be the only statement that produces our edge
+            }
+          }
+        }
+      } else {
+        // pointer key is a parameter. get all callers of the current function and determine which call(s) produce our edge
+        for (Pair<SSAInvokeInstruction,CGNode> pair : WALACallGraphUtil.getCallInstrsForNode(node, cg)) {
+          SSAInvokeInstruction calleeInstr = pair.fst;
+          CGNode callerNode = pair.snd;
+          // TODO: lineNum is wrong
+          int lineNum = -1;
+          Set<DependencyRule> instrRules = depRuleGenerator.visit(calleeInstr, callerNode, ANY_LINE_ID, lineNum, callerNode.getIR());
+          for (DependencyRule rule : instrRules) {
+            if (rule.getShown().equals(edge))
+              rules.add(rule); // this rule produces our edge
           }
         }
       }
@@ -1498,6 +1537,16 @@ public class Util {
     StringBuffer s = new StringBuffer();
     while (iter.hasNext()) {
       s.append(iter.next());
+      s.append("\n");
+    }
+    return s.toString();
+  }
+  
+  public static <K,V> String printMap(Map<K,V> m) {
+    Set<Entry<K,V>> entries = m.entrySet();
+    StringBuffer s = new StringBuffer();
+    for (Entry<K,V> entry : entries) {
+      s.append(entry.getKey() + "\n=>\n" + entry.getValue());
       s.append("\n");
     }
     return s.toString();

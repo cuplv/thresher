@@ -2,6 +2,7 @@ package edu.colorado.thresher;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -22,8 +23,14 @@ public final class WALACallGraphUtil {
   /**
    * @return all SSAInvokeInstructions that call callee. Each instruction is returned in a pair with its containing CGNode.
    */
-  public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForNode(MethodReference callee, CallGraph cg) {
-    Set<CGNode> nodes = cg.getNodes(callee);
+  public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForNode(CGNode node, CallGraph cg) {
+    return getCallInstrsForNodes(Collections.singleton(node), cg);
+  }
+  
+  /**
+   * @return all SSAInvokeInstructions that call callee. Each instruction is returned in a pair with its containing CGNode.
+   */
+  public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForNodes(Set<CGNode> nodes, CallGraph cg) {
     List<Pair<SSAInvokeInstruction,CGNode>> invokes = new ArrayList<Pair<SSAInvokeInstruction,CGNode>>();
     
     for (CGNode node : nodes) { 
@@ -47,6 +54,14 @@ public final class WALACallGraphUtil {
       }
     }
     return invokes;
+  }
+  
+  /**
+   * @return all SSAInvokeInstructions that call callee. Each instruction is returned in a pair with its containing CGNode.
+   */
+  public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForMethod(MethodReference callee, CallGraph cg) {
+    Set<CGNode> nodes = cg.getNodes(callee);
+    return getCallInstrsForNodes(nodes, cg);
   }
   
 }

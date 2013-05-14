@@ -139,7 +139,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     }
     
     if (Options.DEBUG) {
-      Util.Assert(pathCount == this.pathsToExplore.size(), "should not have added or removed any paths here!");
+      Util.Assert(pathCount == this.pathsToExplore.size(), "should not have added or removed any paths here! " +
+                  pathCount + " vs " + this.pathsToExplore.size());
       Util.Debug("done with loop head sequence");
       Util.Assert(!splitPaths.isEmpty(), "path should split after loop!");
     }
@@ -282,7 +283,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   
     // don't want to add current path more than once because we are continuing execution on it.
     // TODO: this is a bad hack
-    this.pathsToExplore.remove(path);
+    //this.pathsToExplore.remove(path);
     //Util.Assert(path.getCallStackDepth() == startingCallStackDepth, "path " + path.getPathId() + 
       //  " at " + path.getCurrentNode() + " started at " + startingCallStackDepth);
     
@@ -812,24 +813,28 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           } else {
             branchPointStack.add(i + 1, newPoint);
           }
+          /*
           if (Options.DEBUG) {
             Util.Debug("now branch stack");
             for (IBranchPoint pnt : branchPointStack) {
               Util.Debug("POINT " + pnt.id);
             }
           }
+          */
           return;
         }
       } // else, IR's don't match, so these branch points are incomparable
     }
     // this branch doesn't dominate anything; just add it first
     branchPointStack.addFirst(newPoint);
+    /*
     if (Options.DEBUG) {
       Util.Debug("now branch stack");
       for (IBranchPoint point : branchPointStack) {
         Util.Debug("POINT " + point.id);
       }
     }
+    */
   }
 
   /**
@@ -1040,9 +1045,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   public void cleanupPathAndBranchPlaceholders() {
     if (Options.DEBUG) {
       Util.Debug("cleaning up path and branch placeholders");
-      for (IBranchPoint point : branchPointStack) {
-        Util.Debug("POINT " + point.id);
-      }
+      //for (IBranchPoint point : branchPointStack) {
+        //Util.Debug("POINT " + point.id);
+      //}
     }
     IPathInfo poppedPath = this.pathsToExplore.pop();
     // DEBUG
@@ -1058,12 +1063,13 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     // DEBUG
     if (!poppedBranch.isDummy()) {
       Util.Debug(branchPointStack.size() + " points");
-      for (IBranchPoint point : branchPointStack) {
-        Util.Debug("POINT " + point.id);
-      }
+      //for (IBranchPoint point : branchPointStack) {
+        //Util.Debug("POINT " + point.id);
+      //}
       Util.Assert(poppedBranch.isDummy(), "popped non-dummy branch! " + poppedBranch);
     }
 
+    /*
     if (!Options.PIECEWISE_EXECUTION) { // the piecwise symbolic executor
                                         // multi-stacks these; can't do this
                                         // check
@@ -1075,6 +1081,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         Util.Assert(!point.isDummy(), "should not contain dummy points anymore!");
       }
     }
+    */
     // make sure these correspond to the same execution
     Util.Assert(poppedPath.getPathId() == poppedBranch.getId());
   }
