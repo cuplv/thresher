@@ -478,7 +478,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     if (Options.DEBUG && paths != null) {
       for (IPathInfo path : paths) {
         Util.Post(WALACFGUtil.isLoopEscapeBlock(path.getCurrentBlock(), loopHeadBlock, path.getCurrentNode().getIR()),
-        "needed loop escape block but found " + path.getCurrentBlock() + " " + path.getCurrentNode().getIR());
+        "needed loop escape block for loop headed by " + loopHeadBlock + " but found " + 
+        path.getCurrentBlock() + " " + path.getCurrentNode().getIR());
       }
     }
     return paths;

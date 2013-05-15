@@ -150,17 +150,27 @@ public class WALACFGUtil {
    * @return - true if escape block, false otherwise
    */
   public static boolean isLoopEscapeBlock(SSACFG.BasicBlock suspectedEscapeBlock, SSACFG.BasicBlock loopHead, IR ir) {
-    Dominators<ISSABasicBlock> domInfo = getDominators(ir);
+    //Dominators<ISSABasicBlock> domInfo = getDominators(ir);
+    Util.Print("not in loop body? " + !isInLoopBody(suspectedEscapeBlock, loopHead, ir));
+    Util.Print("not dir reachable? " + isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph()));
+    // TODO: figure out which of these doesn't hold in Enumerator example.  
     if (!isInLoopBody(suspectedEscapeBlock, loopHead, ir) && // we have an
                                                              // escape block if
                                                              // it's not in the
                                                              // loop...
-        domInfo.isDominatedBy(loopHead, suspectedEscapeBlock)) { // ... and it
+        // and it transitions directly to the loop head
+        isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph())) {
+        // dominator relationship doesn't hold for code like
+        // if (e) s1 else s2; while (e) s3. s1 and s2 are both loop escape blocks
+        //domInfo.isDominatedBy(loopHead, suspectedEscapeBlock)) { // ... and it
                                                                  // dominates
                                                                  // the loop
                                                                  // head
+      //Thread.dumpStack();
+      //Util.Assert(isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph()), "dif result! " + ir);
       return true;
     }
+    
     return false;
   }
   
@@ -505,7 +515,8 @@ public class WALACFGUtil {
     SSACFG cfg = ir.getControlFlowGraph();
     for (IntIterator iter = headers.intIterator(); iter.hasNext();) {
       SSACFG.BasicBlock loopHead = cfg.getBasicBlock(iter.next());
-      if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) {
+      //if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) {
+      if (isDirectlyReachableFrom(dstBlk, loopHead, cfg)) {
         Util.Debug("directly reachable from loop head " + loopHead);
         return true;
       }
@@ -605,9 +616,15 @@ public class WALACFGUtil {
     return -1;
   }
 
-  public static boolean isDirectlyReachableFrom(SSACFG.BasicBlock src, SSACFG.BasicBlock dst, SSACFG cfg) {
+  /**
+   *
+   * @return - true if @param dst is directly reachable from @param src (no branching), false otherwise
+   */
+  public static boolean isDirectlyReachableFrom(SSACFG.BasicBlock dst, SSACFG.BasicBlock src, SSACFG cfg) {
     Collection<ISSABasicBlock> succs = null;
+    Set<SSACFG.BasicBlock> seen = HashSetFactory.make();
     do {
+      if (!seen.add(src)) return false; // have looped around without seeing target
       if (src.equals(dst)) return true;
       succs = cfg.getNormalSuccessors(src);
       src = (SSACFG.BasicBlock) succs.iterator().next();
