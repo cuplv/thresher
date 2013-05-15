@@ -852,6 +852,7 @@ public class PathQuery implements IQuery {
       for (AtomicPathConstraint constraint : this.constraints) {
         if (constraint.isNullConstraintForLocal(receiver)) {
           Util.Debug("refuted by dispatch on null!");
+          this.feasible = false;
           return false;
         }
       }

@@ -174,7 +174,8 @@ public class WALACFGUtil {
         if (!body.contains(pred)) return pred;
       }
     }
-    Util.Unimp("couldn't find escape block for do..while loop headed by " + loopHead + " " + ir);
+    Util.Unimp("couldn't find escape block for do..while loop headed by " + loopHead + " " + 
+        ir + " blocks " + Util.printCollection(body));
     return null;
   }
 
@@ -330,8 +331,17 @@ public class WALACFGUtil {
       List<ISSABasicBlock> toExplore = new LinkedList<ISSABasicBlock>();
       Dominators<ISSABasicBlock> domInfo = getDominators(ir);
       for (ISSABasicBlock blk : cfg.getNormalPredecessors(loopHead)) {
+        /*
         // if the block dominates the loop head it's not part of the back edge
         if (!domInfo.isDominatedBy(loopHead, blk)) toExplore.add(blk);
+        */
+        // if the block dominates the loop head, it's not part of the back edge
+        // if the block does not dominate the loop head, it's not part of the back edge
+        if (!domInfo.isDominatedBy(loopHead, blk) &&
+            domInfo.isDominatedBy(blk, loopHead))  {
+          toExplore.add(blk);
+        }
+
       }
       Util.Assert(!toExplore.isEmpty()); // should be at least one back edge
       loopBody = HashSetFactory.make();

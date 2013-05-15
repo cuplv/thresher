@@ -702,7 +702,9 @@ public class PointsToQuery implements IQuery {
 
     Util.Debug("PRODUCED " + Util.constraintSetToString(produced));
 
-    Set<DependencyRule> rulesAtLine = depRuleGenerator.getRulesForInstr(instr, caller);
+    //Set<DependencyRule> rulesAtLine = depRuleGenerator.getRulesForInstr(instr, caller);
+    // get only the rules specific to entering this callee
+    Set<DependencyRule> rulesAtLine = depRuleGenerator.generateAbstractRulesForInvoke(instr, caller, callee);
     if (rulesAtLine == null || rulesAtLine.isEmpty()) {
       return checkForNullRefutation(instr, currentPath.getCurrentNode());
     }
@@ -757,12 +759,13 @@ public class PointsToQuery implements IQuery {
       if (rulesForParam.size() > 1) {
         if (idRuleMap.keySet().size() == 1) {
           // easy case; only one parameter. just add a choice for each
-          for (DependencyRule rule : rulesForParam)
+          for (DependencyRule rule : rulesForParam) {
             applicableRules.add(rule);
+          }
           break;
         } // else, this is tricky. more than one parameter, and more than one
           // choice for one of them
-        Util.Unimp("more than one rule for multiple parameters");
+          Util.Unimp("more than one rule for multiple parameters");
       } else if (rulesForParam.size() == 1)
         applicableRules.add(rulesForParam.get(0));
     }

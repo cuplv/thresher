@@ -393,7 +393,7 @@ public class IPathInfo { // implements Comparable {
     else Util.Assert(skip);
     // if this call is relevant
     if (skip || callee.getIR() == null || calleeName.contains("equals") || calleeName.contains("hashCode")
-        || calleeName.contains("indexOf") || calleeName.contains("Iterator") || 
+        || calleeName.contains("indexOf") || calleeName.contains("String, startsWith") || calleeName.contains("Iterator") || 
         calleeName.contains("MessageQueue, next") || !isCallRelevantToQuery(instr, callee, cg)) { 
       // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
       if (Options.DEBUG) Util.Debug("skipping call " + instr + " and dropping produced constraints");

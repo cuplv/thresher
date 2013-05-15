@@ -650,7 +650,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             //dropConstraintsProduceableInCall(invoke, node, callee, false);
             //dropConstraintsProduceableInCall(invoke, node, callee, true);
             dropPathConstraintsProduceableByCall(invoke, node, callee);
-          }
+          } else if (!this.isFeasible()) return; // path refuted--can return
         }
       } else if (instr instanceof SSAPutInstruction) {
         SSAPutInstruction put = (SSAPutInstruction) instr;

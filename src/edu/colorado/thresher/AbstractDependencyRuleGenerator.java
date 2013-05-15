@@ -1,6 +1,7 @@
 package edu.colorado.thresher;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -599,72 +600,7 @@ public class AbstractDependencyRuleGenerator {
 
     else if (instr instanceof SSAInvokeInstruction) {
       SSAInvokeInstruction instruction = (SSAInvokeInstruction) instr;
-      MethodReference method = instruction.getCallSite().getDeclaredTarget();
-      // no rules to generate for fakeWorldClinit
-      if (method.equals(WALACFGUtil.getFakeWorldClinitNode(cg).getMethod().getReference())) return rules;
-      Set<CGNode> callees = cg.getPossibleTargets(node, instruction.getCallSite());
-      // TODO: we could be even more abstract here and merge calls...but
-      // currently, we only support a SymbolicPointerVariable being a
-      // disjunction of InstanceKeys. to merge calls into a single rule, we also need
-      // a disjunction of PointerKeys on the left
-      for (CGNode callee : callees) {
-        if (instr.hasDef()) {
-          // generate return value rule
-          PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), heapModel);
-          PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
-          PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
-              lineNum);
-          Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
-          Set<InstanceKey> possibleRetvals = HashSetFactory.make();
-          while (retvalSuccs.hasNext()) {
-            possibleRetvals.add((InstanceKey) retvalSuccs.next());
-          }
-          if (!possibleRetvals.isEmpty()) {
-            PointerVariable succ = SymbolicPointerVariable.makeSymbolicVar(possibleRetvals);
-            PointsToEdge shown = new PointsToEdge(lhs, succ);
-            TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
-            toShow.add(new PointsToEdge(retval, succ));
-            DependencyRule rule = new DependencyRule(shown, stmt, toShow, node,
-                (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
-            rules.add(rule);
-          }
-        }
-        
-        SymbolTable tbl = ir.getSymbolTable();
-        // if the call is siteName(arg0, ..., argn), for the ith parameter, assign siteName-vi := argi
-        for (int j = 0; j < instruction.getNumberOfUses(); j++) {
-          int localValNum = instruction.getUse(j);
-          if (tbl.isNullConstant(localValNum)) continue; 
-          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
-          PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
-          PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
-          PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
-              lineNum);
-          
-          Set<InstanceKey> possibleParamVals = HashSetFactory.make();
-
-          // consider possible values for rhs
-          Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
-          while (ptValues.hasNext()) {
-            InstanceKey next = (InstanceKey) ptValues.next();
-            // don't track exception types
-            if (!Util.isExceptionType(next, cha)) {
-              possibleParamVals.add(next);
-            }
-          }
-          if (possibleParamVals.isEmpty()) continue;
-          TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
-          PointerVariable paramVal = SymbolicPointerVariable.makeSymbolicVar(possibleParamVals);
-
-          PointsToEdge shown = new PointsToEdge(lhs, paramVal);
-          PointsToEdge toShow = new PointsToEdge(rhsPointer, paramVal);
-          toShowSet.add(toShow);
-          DependencyRule rule = new DependencyRule(shown, stmt, toShowSet, node,
-              (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
-          rules.add(rule);
-        }
-      }
-
+      rules.addAll(generateAbstractRulesForInvoke(instruction, node, lineId, lineNum)); 
     } else if (instr instanceof SSACheckCastInstruction) {
       SSACheckCastInstruction cci = (SSACheckCastInstruction) instr;
       PointerKey valKey = heapModel.getPointerKeyForLocal(node, cci.getVal());
@@ -688,6 +624,89 @@ public class AbstractDependencyRuleGenerator {
     return rules;
 
   }
+  
+  private Set<DependencyRule> generateAbstractRulesForInvoke(SSAInvokeInstruction instruction, CGNode node, 
+                                                            int lineId, int lineNum) {
+    MethodReference method = instruction.getCallSite().getDeclaredTarget();
+    // no rules to generate for fakeWorldClinit
+    if (method.equals(WALACFGUtil.getFakeWorldClinitNode(cg).getMethod().getReference())) return Collections.EMPTY_SET;
+    Set<CGNode> callees = cg.getPossibleTargets(node, instruction.getCallSite());
+    return generateAbstractRulesForInvoke(instruction, node, callees, lineId, lineNum);
+  }
+  
+  public Set<DependencyRule> generateAbstractRulesForInvoke(SSAInvokeInstruction instr, CGNode node, CGNode callee) {
+    return generateAbstractRulesForInvoke(instr, node, Collections.singleton(callee), 0, 1);
+  }
+  
+  private Set<DependencyRule> generateAbstractRulesForInvoke(SSAInvokeInstruction instr, CGNode node, Set<CGNode> callees, 
+                                                            int lineId, int lineNum) {
+    Set<DependencyRule> rules = HashSetFactory.make();
+
+    IR ir = node.getIR();
+    // TODO: we could be even more abstract here and merge calls...but
+    // currently, we only support a SymbolicPointerVariable being a
+    // disjunction of InstanceKeys. to merge calls into a single rule, we also need
+    // a disjunction of PointerKeys on the left
+    for (CGNode callee : callees) {
+      if (instr.hasDef()) {
+        // generate return value rule
+        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), heapModel);
+        PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
+        PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
+            lineNum);
+        Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
+        Set<InstanceKey> possibleRetvals = HashSetFactory.make();
+        while (retvalSuccs.hasNext()) {
+          possibleRetvals.add((InstanceKey) retvalSuccs.next());
+        }
+        if (!possibleRetvals.isEmpty()) {
+          PointerVariable succ = SymbolicPointerVariable.makeSymbolicVar(possibleRetvals);
+          PointsToEdge shown = new PointsToEdge(lhs, succ);
+          TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
+          toShow.add(new PointsToEdge(retval, succ));
+          DependencyRule rule = new DependencyRule(shown, stmt, toShow, node,
+              (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
+          rules.add(rule);
+        }
+      }
+      
+      SymbolTable tbl = ir.getSymbolTable();
+      // if the call is siteName(arg0, ..., argn), for the ith parameter, assign siteName-vi := argi
+      for (int j = 0; j < instr.getNumberOfUses(); j++) {
+        int localValNum = instr.getUse(j);
+        if (tbl.isNullConstant(localValNum)) continue; 
+        PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
+        PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
+        PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
+        PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
+            lineNum);
+        
+        Set<InstanceKey> possibleParamVals = HashSetFactory.make();
+
+        // consider possible values for rhs
+        Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
+        while (ptValues.hasNext()) {
+          InstanceKey next = (InstanceKey) ptValues.next();
+          // don't track exception types
+          if (!Util.isExceptionType(next, cha)) {
+            possibleParamVals.add(next);
+          }
+        }
+        if (possibleParamVals.isEmpty()) continue;
+        TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
+        PointerVariable paramVal = SymbolicPointerVariable.makeSymbolicVar(possibleParamVals);
+
+        PointsToEdge shown = new PointsToEdge(lhs, paramVal);
+        PointsToEdge toShow = new PointsToEdge(rhsPointer, paramVal);
+        toShowSet.add(toShow);
+        DependencyRule rule = new DependencyRule(shown, stmt, toShowSet, node,
+            (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
+        rules.add(rule);
+      }
+    }
+    return rules;
+  }
+  
 
   // the "visitor"
   public Set<DependencyRule> visit(SSAInstruction instr, CGNode node, int lineId, int lineNum, IR ir) {

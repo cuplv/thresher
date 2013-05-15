@@ -797,7 +797,10 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       SSAInvokeInstruction invoke = (SSAInvokeInstruction) instr;
       for (CGNode callee : callees) { // consider case for each potential callee
         // make sure callee is feasible w.r.t to constraints
-        if (!info.isDispatchFeasible(invoke, info.getCurrentNode(), callee)) continue;
+        if (!info.isDispatchFeasible(invoke, info.getCurrentNode(), callee)) {
+          if (!info.isFeasible()) return false; // can be refuted by dispatch on null
+          continue;
+        }
         
         if (Options.SKIP_DYNAMIC_DISPATCH) {
           // heuristic: skip any dynamic dispatch. exploration cost is not worth it
