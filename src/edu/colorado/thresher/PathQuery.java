@@ -631,6 +631,16 @@ public class PathQuery implements IQuery {
     return true;
   }
 
+  // drop constraints
+  public boolean visit(SSALoadMetadataInstruction instr, CGNode node) {
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    if (pathVars.contains(lhsVar)) {
+      dropConstraintsContaining(lhsVar);
+    }
+    return true;
+  }
+
+
   public boolean visit(SSACheckCastInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
@@ -846,14 +856,17 @@ public class PathQuery implements IQuery {
 
   @Override
   public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
-    PointerVariable receiver = Util.makePointerVariable(this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
-    if (this.pathVars.contains(receiver)) {
-      // check for null constraint on receiver
-      for (AtomicPathConstraint constraint : this.constraints) {
-        if (constraint.isNullConstraintForLocal(receiver)) {
-          Util.Debug("refuted by dispatch on null!");
-          this.feasible = false;
-          return false;
+    if (!callee.getMethod().isStatic()) {
+      PointerVariable receiver = Util.makePointerVariable(
+          this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
+      if (this.pathVars.contains(receiver)) {
+        // check for null constraint on receiver
+        for (AtomicPathConstraint constraint : this.constraints) {
+          if (constraint.isNullConstraintForLocal(receiver)) {
+            Util.Debug("refuted by dispatch on null! " + constraint + " " + instr);
+            this.feasible = false;
+            return false;
+          }
         }
       }
     }
@@ -867,18 +880,33 @@ public class PathQuery implements IQuery {
     return constraints.isEmpty(); // can't have a witness while there are still
                                   // path constraints to produce
   }
-
+  
+  // TODO: hack! but z3 really slows things down once it can't decide
+  private static boolean z3Panic = false;
+  
   @Override
   public boolean isFeasible() {
     if (!feasible) {
       // if (!deleted) ctx.delete(); //occasionally causes Z3 to die
       return false;
     }
+    
+    if (z3Panic) {
+      // problem with z3 -- don't try to use it to check constraints
+      return true;
+    }
         
     if (currentPathAssumption == null) return true;
     // call Z3 to check for feasibility
     Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };
-    boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
+    Util.Print("this " + this);
+    Boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
+    if (result == null) {
+      if (Options.DEBUG) Util.Debug("Z3 decidability problem. giving up on z3 checking");
+      // z3 can't solve our current constraints. give up
+      z3Panic = true;
+      return true; 
+    }
 
     if (!result) {
       this.feasible = false;
@@ -1278,9 +1306,9 @@ public class PathQuery implements IQuery {
     else if (instr instanceof SSASwitchInstruction)
       return IQuery.FEASIBLE; // switch is a nop
     else if (instr instanceof SSALoadMetadataInstruction)
-      return IQuery.FEASIBLE; // this is a nop, I think
+      result = visit((SSALoadMetadataInstruction) instr, node);
     else if (instr instanceof SSAConversionInstruction)
-      return IQuery.FEASIBLE; // we don't reason about this; it's a nop
+      result = visit((SSAConversionInstruction) instr, node);
     else if (instr instanceof SSAInstanceofInstruction)
       result = visit((SSAInstanceofInstruction) instr, node);
     else if (instr instanceof SSAComparisonInstruction)
