@@ -2,7 +2,6 @@ package edu.colorado.thresher;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,7 +23,6 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
-import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
@@ -308,9 +306,16 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           oldKeys.add((InstanceKey) key);
         }
         Util.Assert(!oldKeys.isEmpty());
-        // add checkedVar -> possibleValues edge to points-to constraints.
-        // no need to check feasability here. since we know checkedVar wasn't an lhs before, this can't cause a refutation
-        this.pointsToQuery.constraints.add(new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(oldKeys)));
+        if (oldKeys.isEmpty()) {
+          // points-to set is empty, so var must be null
+          // add null constraint
+          this.constraints.add(new AtomicPathConstraint(new SimplePathTerm(checkedVar), 
+                               SimplePathTerm.NULL, ConditionalBranchInstruction.Operator.EQ));
+        } else {
+          // add checkedVar -> possibleValues edge to points-to constraints.
+          // no need to check feasibility here. since we know checkedVar wasn't an lhs before, this can't cause a refutation
+          this.pointsToQuery.constraints.add(new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(oldKeys)));
+        }
       } else {
         // look inside rhsVar and grab the instance keys that are of the required type
         oldKeys = rhsVar.getPossibleValues();
@@ -321,14 +326,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       IClass checkedType = cha.lookupClass(type);
       Set<InstanceKey> newKeys = HashSetFactory.make();
       for (InstanceKey key : oldKeys) {
-        Util.Debug("key " + key);
         if (cha.isAssignableFrom(checkedType, key.getConcreteType())) {
           if (!negated) {
             newKeys.add(key);
           }
         } else {
           if (negated) {
-            Util.Debug("adding key " + key);
             newKeys.add(key);
           }
         }

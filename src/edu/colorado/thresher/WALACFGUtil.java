@@ -151,8 +151,6 @@ public class WALACFGUtil {
    */
   public static boolean isLoopEscapeBlock(SSACFG.BasicBlock suspectedEscapeBlock, SSACFG.BasicBlock loopHead, IR ir) {
     //Dominators<ISSABasicBlock> domInfo = getDominators(ir);
-    Util.Print("not in loop body? " + !isInLoopBody(suspectedEscapeBlock, loopHead, ir));
-    Util.Print("not dir reachable? " + isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph()));
     // TODO: figure out which of these doesn't hold in Enumerator example.  
     if (!isInLoopBody(suspectedEscapeBlock, loopHead, ir) && // we have an
                                                              // escape block if

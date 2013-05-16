@@ -1980,6 +1980,9 @@ public class PointsToQuery implements IQuery {
   
   @Override
   public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+    // TODO: add context-sensitivity here as well
+    if (callee.getMethod().isStatic()) return true;
+    
     //Util.Debug("checking feasibility of dispatch call " + callee);
     IClass calleeType = callee.getMethod().getDeclaringClass();
     PointerVariable receiver = Util.makePointerVariable(this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));

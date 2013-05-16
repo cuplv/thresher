@@ -375,7 +375,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
               for (IPathInfo path : cases) {
                 path.setCurrentLineNum(i - 1);
                 splitPaths.clear();
-                if (justGetToLoopHead) Util.Assert(preds.size() < 2, " bad IR " + ir);
+                //if (justGetToLoopHead) Util.Assert(preds.size() < 2, " bad IR " + ir);
                 initializeSplitPaths(splitPaths, preds, path);
                 int phiIndex = instr.getNumberOfUses() - 1;
                 for (IPathInfo choice : splitPaths) {
