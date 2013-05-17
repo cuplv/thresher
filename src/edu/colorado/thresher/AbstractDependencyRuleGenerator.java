@@ -33,12 +33,14 @@ import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.ssa.SSALoadMetadataInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
@@ -606,6 +608,29 @@ public class AbstractDependencyRuleGenerator {
       PointerKey valKey = heapModel.getPointerKeyForLocal(node, cci.getVal());
       PointerKey resultKey = heapModel.getPointerKeyForLocal(node, cci.getResult());
       rules.addAll(generateAbstractRulesForAssign(instr, resultKey, valKey, node, null, lineId, lineNum));
+    } 
+    
+    else if (instr instanceof SSALoadMetadataInstruction) {
+      SSALoadMetadataInstruction load = (SSALoadMetadataInstruction) instr;
+      if (Util.isClassMetadataGetter(load)) {
+        // this instruction is lhs = something.class
+        TypeReference ref = (TypeReference) load.getToken();
+        IClass clazz = cha.lookupClass(ref);
+        if (clazz == null) {
+          // convert to application scope class and try again
+          ref = TypeReference.findOrCreate(ClassLoaderReference.Application, ref.getName());
+          clazz = cha.lookupClass(ref);
+          Util.Assert(clazz != null);
+        }
+
+        PointerVariable typeVar = Util.makePointerVariable(new ConcreteTypeKey(clazz));
+        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
+        PointsToEdge edge = new PointsToEdge(lhs, typeVar);
+        PointerStatement stmt = Util.makePointerStatement(instr, lhs, typeVar, PointerStatement.EdgeType.Assign,
+            null, lineId, lineNum);
+        rules.add(new DependencyRule(edge, stmt, new TreeSet<PointsToEdge>(), node, 
+            (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr)));
+      }
     }
     /*
      * else if (instr instanceof SSABinaryOpInstruction || instr instanceof
@@ -617,7 +642,7 @@ public class AbstractDependencyRuleGenerator {
      * instanceof SSAInstanceofInstruction) { } // do nothing
      */
     else {
-      Util.Debug("instr " + instr + " does not manipulate the heap.");
+      if (Options.DEBUG) Util.Debug("instr " + instr + " does not manipulate the heap.");
       // Util.Unimp("UNHANDLED INSTR " + instr);
     }
 

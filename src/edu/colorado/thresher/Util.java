@@ -26,7 +26,6 @@ import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.ipa.callgraph.propagation.AbstractTypeInNode;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSite;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -54,6 +53,7 @@ import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.ssa.SSALoadMetadataInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
@@ -77,7 +77,8 @@ public class Util {
   public static boolean DEBUG = Options.DEBUG;
   public static boolean PRINT = Options.PRINT;
 
-  public static TypeReference EXCEPTION_TYPE = TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/lang/Exception");
+  private static final TypeReference CLASS_TYPE = TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/lang/Class");
+  public static final TypeReference EXCEPTION_TYPE = TypeReference.findOrCreate(ClassLoaderReference.Primordial, "Ljava/lang/Exception");
   
   public static Map<String, Integer> varIds = HashMapFactory.make();
   private static int varIdCounter = 0;
@@ -1024,6 +1025,10 @@ public class Util {
           cha.computeSubClasses(EXCEPTION_TYPE).contains(key.getConcreteType());
     }
     return false;
+  }
+
+  public static boolean isClassMetadataGetter(SSALoadMetadataInstruction instr) {
+    return instr.getType().equals(CLASS_TYPE) && instr.getToken() instanceof TypeReference;
   }
 
   public static CGNode getNodeForInstanceKey(InstanceKey key) {

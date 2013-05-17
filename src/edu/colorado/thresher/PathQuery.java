@@ -45,7 +45,9 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.ssa.SSAUnaryOpInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 
@@ -635,7 +637,7 @@ public class PathQuery implements IQuery {
   public boolean visit(SSALoadMetadataInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
-      dropConstraintsContaining(lhsVar);
+        dropConstraintsContaining(lhsVar);
     }
     return true;
   }
@@ -899,7 +901,6 @@ public class PathQuery implements IQuery {
     if (currentPathAssumption == null) return true;
     // call Z3 to check for feasibility
     Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };
-    Util.Print("this " + this);
     Boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
     if (result == null) {
       if (Options.DEBUG) Util.Debug("Z3 decidability problem. giving up on z3 checking");

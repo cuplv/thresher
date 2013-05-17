@@ -17,6 +17,7 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.ContextItem;
 import com.ibm.wala.ipa.callgraph.ContextKey;
+import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -30,10 +31,12 @@ import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstanceofInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.ssa.SSALoadMetadataInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
@@ -262,6 +265,26 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       return false;
     }
     return true; // didn't add any constraints, can't be infeasible
+  }
+  
+  @Override
+  public boolean visit(SSALoadMetadataInstruction instr, CGNode node) {
+    Util.Print(node.getIR());
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    if (pathVars.contains(lhsVar)) {
+      if (Util.isClassMetadataGetter(instr)) {
+        // this instruction is lhsVar = something.class
+        TypeReference ref = (TypeReference) instr.getToken();
+        IClass clazz = this.depRuleGenerator.getClassHierarchy().lookupClass(ref);
+        PointerVariable typeVar = Util.makePointerVariable(new ConcreteTypeKey(clazz));
+        substituteExpForVar(new SimplePathTerm(typeVar), lhsVar);
+        return isFeasible();
+      } else {
+        Util.Assert(false, "unsupported metatadata instruction " + instr + " " + node.getIR());
+        dropConstraintsContaining(lhsVar);
+      }
+    }
+    return true;
   }
   
   @Override
@@ -719,6 +742,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
     }
     
+    IClass calleeClass = callee.getMethod().getDeclaringClass();
     // does this call modify our path constraints according to its precomputed mod set?
     OrdinalSet<PointerKey> keys = this.depRuleGenerator.getModRef().get(callee);
     for (AtomicPathConstraint constraint : constraints) {
@@ -730,13 +754,17 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         if (key instanceof StaticFieldKey) {
           IClass declaringClass = ((StaticFieldKey) key).getField().getDeclaringClass();
           // if this is a <clinit>, might initialize field to default values
-          boolean relevant = declaringClass.equals(callee.getMethod().getDeclaringClass())
-              && (callee.getMethod().isClinit());
-          if (relevant) {
+          if (declaringClass.equals(calleeClass) && (callee.getMethod().isClinit())) {
             Util.Debug("relevant because is clinit and could initialize static field " + key);
             return true;
           }
-        }  
+        } else if (key instanceof InstanceFieldKey) {
+          IClass declaringClass = ((InstanceFieldKey) key).getField().getDeclaringClass();
+          if (declaringClass.equals(calleeClass) && callee.getMethod().isInit()) {
+            Util.Debug("relevant because is init and could initialize field " + key);
+            return true;
+          }
+        }
       }
     }
 
