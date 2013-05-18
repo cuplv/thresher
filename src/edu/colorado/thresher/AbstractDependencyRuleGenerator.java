@@ -677,6 +677,7 @@ public class AbstractDependencyRuleGenerator {
         // generate return value rule
         PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), heapModel);
         PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
+        if (retval == null) continue;
         PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
             lineNum);
         Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());

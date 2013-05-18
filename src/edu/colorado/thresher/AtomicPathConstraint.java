@@ -410,12 +410,10 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
            this.rhs.isHeapLocation());
   }
   
-  public PointsToEdge makePointsToEdge() {
+  public PointsToEdge makePointsToEdge(HeapGraph hg) {
     Util.Pre(isPointsToConstraint());
-    // TODO: implement this. we'll just look at the points-to analysis and makea symbolic var of all
-    // instance keys that aren't precluded by the != constraint
-    if (this.op == ConditionalBranchInstruction.Operator.NE) Util.Unimp("NE pts-to constraints");
-    Set<PointerVariable> heapVars, localVars;
+    Set<PointerVariable> heapVars, localVars;    
+    
     if (this.lhs.isHeapLocation()) {
       heapVars = this.lhs.getVars();
       localVars = this.rhs.getVars();
@@ -430,7 +428,20 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     PointerVariable rhs = heapVars.iterator().next();
     Util.Assert(lhs.isLocalVar());
     Util.Assert(rhs.isHeapVar());
+    
+    if (this.op == ConditionalBranchInstruction.Operator.NE) {
+      // negative pts-to constraint; change heapVars to be pt(localVars) \ heapVars
+      Set<InstanceKey> possibleVals = rhs.getPossibleValues();
+      Set<InstanceKey> newHeapVars = HashSetFactory.make();
+      for (Iterator<Object> succs = hg.getSuccNodes(lhs.getInstanceKey()); succs.hasNext();) {
+        InstanceKey succ = (InstanceKey) succs.next();
+        if (!possibleVals.contains(succ)) newHeapVars.add(succ);
+      }
+      Util.Assert(!possibleVals.isEmpty());
+      rhs = SymbolicPointerVariable.makeSymbolicVar(possibleVals);
+    }
     return new PointsToEdge(lhs, rhs);
+
   }
 
   public Set<FieldReference> getFields() {

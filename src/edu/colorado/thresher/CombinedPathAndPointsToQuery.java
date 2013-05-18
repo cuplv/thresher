@@ -247,11 +247,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           }
         }
         for (AtomicPathConstraint removeMe : toRemove) {
-          PointsToEdge edge = removeMe.makePointsToEdge();
+          PointsToEdge edge = removeMe.makePointsToEdge(this.depRuleGenerator.getHeapGraph());
           DependencyRule rule = 
               Util.makeUnconditionalDependencyRule(edge, instr, PointerStatement.EdgeType.GetField, -1, -1, node);
           // remove this constraint from the path constraints and add it to the points-to constraints.
-          if (pointsToQuery.isRuleConsistent(rule, Collections.EMPTY_LIST, node) != null) {
+          if (pointsToQuery.isRuleConsistent(rule, pointsToQuery.unsatCore, node) != null) {
             if (Options.DEBUG) Util.Debug("adding edge " + edge + " from path constraints");
             this.pointsToQuery.constraints.add(edge);
             this.constraints.remove(removeMe);
@@ -328,7 +328,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           Util.Assert(key instanceof InstanceKey);
           oldKeys.add((InstanceKey) key);
         }
-        Util.Assert(!oldKeys.isEmpty());
+        
         if (oldKeys.isEmpty()) {
           // points-to set is empty, so var must be null
           // add null constraint

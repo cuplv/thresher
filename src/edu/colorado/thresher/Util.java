@@ -952,6 +952,7 @@ public class Util {
         node = erv.getNode();
         return new ConcretePointerVariable(erv, node, -1);
         */
+        if (Options.DEBUG) Util.Debug("exceptional return value; not handling");
         return null; // purposely do not handle this case
       } else if (key instanceof StaticFieldKey) {
         StaticFieldKey sfk = (StaticFieldKey) key;
@@ -994,7 +995,10 @@ public class Util {
       } else if (key instanceof ConcreteTypeKey) {
         ConcreteTypeKey ctk = (ConcreteTypeKey) key;
         // purposely don't track exception literals
-        if (ctk.getConcreteType().getReference() == EXCEPTION_TYPE) return null;
+        if (ctk.getConcreteType().getReference() == EXCEPTION_TYPE) {
+          if (Options.DEBUG) Util.Debug("exception literal, not tracking.");
+          return null;
+        }
         pointerString = ctk.getType().toString();
         return new ConcretePointerVariable(key, pointerString);// typeId);
       } else if (key instanceof ConstantKey) {

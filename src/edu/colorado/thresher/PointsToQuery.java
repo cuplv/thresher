@@ -57,7 +57,7 @@ public class PointsToQuery implements IQuery {
   final Set<PointsToEdge> produced;
   // the constraints produced, in the order they were produced
   final List<DependencyRule> witnessList;
-  private List<PointsToEdge> unsatCore = new LinkedList<PointsToEdge>();
+  final List<PointsToEdge> unsatCore = new ArrayList<PointsToEdge>();
 
   private boolean feasible = true; // this is just a sanity check to make sure
                                    // that refuted queries are not re-used
