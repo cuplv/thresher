@@ -258,7 +258,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     addPathAndBranchPlaceholders();
   
     Set<IPathInfo> extraPaths = HashSetFactory.make();
-    visitInvokeAsCallee(instr, path);
+    if (visitInvokeAsCallee(instr, path)) addPath(path);
     Util.Assert(!path.foundWitness());
 
     IPathInfo extraPath = selectNonDummyPath();

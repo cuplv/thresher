@@ -398,7 +398,6 @@ public class IPathInfo { // implements Comparable {
       // heuristic: want to avoid executing equals(), hashCode() e.t.c because they're a time sink and are unlikely to lead to refutation
       if (Options.DEBUG) Util.Debug("skipping call " + instr + " and dropping produced constraints");
       query.dropConstraintsProduceableInCall(instr, this.getCurrentNode(), callee, true);
-      Util.Debug("found witness? " + this.foundWitness() + " query? " + query.foundWitness());
       return IPathInfo.FEASIBLE;
     } else if (callee.equals(this.currentNode)) { // is this a recursive call?
       if (Options.DEBUG) {

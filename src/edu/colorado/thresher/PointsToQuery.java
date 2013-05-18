@@ -905,9 +905,6 @@ public class PointsToQuery implements IQuery {
           }
         }
         
-        // TODO: should do narrowing of symbolic vars here?
-        //boolean lhsSymbolic = edge.getSource().isSymbolic();
-        //boolean rhsSymbolic = edge.getSink().isSymbolic();
         for (PointsToEdge queryEdge : query.constraints) {
           if (edge.symbContains(queryEdge)) {
             // query edge is already more specific
@@ -915,14 +912,18 @@ public class PointsToQuery implements IQuery {
             break;
           }
 
-          /*
-          // else, merge the two
-          if (edge.getSource().equals(queryEdge.getSource())) {
+          // else, merge the two if LHS's are the same
+          // TODO: not sure if this is sound with heap lhs's, sticking to locals for now
+          if (edge.getSource().isLocalVar() && edge.getSource().equals(queryEdge.getSource())) {
             PointerVariable newSnk = SymbolicPointerVariable.mergeVars(edge.getSink(), queryEdge.getSink());
+            if (newSnk == null) {
+              if (Options.DEBUG) Util.Debug("refuting by empty intersection of " + edge.getSink() + " and " + queryEdge.getSink());
+              return false;
+            }
+            Util.Assert(newSnk != null, "problem merging " + edge + " and " + queryEdge);
             edge = new PointsToEdge(queryEdge.getSource(), newSnk, queryEdge.getField());
             toRemove.add(queryEdge);
           }
-          */
         }
          
         if (add) query.addConstraint(edge);
@@ -1059,8 +1060,10 @@ public class PointsToQuery implements IQuery {
         if (constraint.getSource().isLocalVar()) {
           ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
           for (PointsToEdge edge : qry.constraints) {
-            Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
-                  + constraint);
+            if (edge == constraint) continue;
+            Util.Assert(!lhs.equals(edge.getSource()), "constraints already contain " + edge + "\nadding " + constraint);
+            //Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
+              //    + constraint);
           }
         }
       } 
