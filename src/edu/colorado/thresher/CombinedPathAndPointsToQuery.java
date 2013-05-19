@@ -269,7 +269,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   
   @Override
   public boolean visit(SSALoadMetadataInstruction instr, CGNode node) {
-    Util.Print(node.getIR());
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
     if (pathVars.contains(lhsVar)) {
       if (Util.isClassMetadataGetter(instr)) {

@@ -245,10 +245,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
           Util.Debug("in loop, but don't know conditional");
         if (Options.DEBUG)
           Util.Assert(splitPaths.isEmpty(), "expecting empty split paths here!");
-        if (WALACFGUtil.isExplicitlyInfiniteLoop(currentBlock, ir)) { // is this
-                                                                      // loop
-                                                                      // explicitly
-                                                                      // infinite?
+        if (WALACFGUtil.isExplicitlyInfiniteLoop(currentBlock, ir)) { 
           // yes; find the block that precedes the loop, and execute backwards
           // from there
           SSACFG.BasicBlock escapeBlk = WALACFGUtil.getEscapeBlockForLoop(currentBlock, ir);
@@ -265,14 +262,6 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         // conditional yet.
         return handleLoopHead(path, currentBlock.getLastInstruction());
       }
-
-      /*
-       * // if we reach this point the current block should NOT be a loop head
-       * (unless we're leaving a proc whose first block is a loop head)
-       * Util.Assert(preds.isEmpty() || !WALACFGUtil.isLoopHead(currentBlock,
-       * ir), "not expecting loop head here! BLK " + currentBlock + "IR:\n" + ir
-       * + "preds: " + preds.size());
-       */
 
       // have executed all instructions in currentBlock. proceed to
       // predecessors, if there are any
@@ -293,16 +282,14 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
         initializeSplitPaths(splitPaths, preds, path);
         for (IPathInfo newPath : splitPaths) {
           // check if we are branching into a loop
-          SSACFG.BasicBlock possibleLoopHead = WALACFGUtil.getLoopHeadForBlock(newPath.getCurrentBlock(), ir);
-          Util.Debug("branching into loop?");
+          SSACFG.BasicBlock possibleLoopHead = 
+              WALACFGUtil.getLoopHeadForBlock(newPath.getCurrentBlock(), ir);
           if (possibleLoopHead != null) {
-            Util.Debug("true");
             addLoopMergePlaceholder(possibleLoopHead);
           }
           addPath(newPath);
         }
-        if (Options.CHECK_ASSERTS)
-          split = true;
+        if (Options.CHECK_ASSERTS) split = true;
         return false; // path has split
       }
     }
@@ -311,7 +298,6 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
   boolean handleLoopHead(IPathInfo info, SSAInstruction instr) {
     return true;
   }
-
 
   /**
    * special case for loop heads that are more than one block in length. keep

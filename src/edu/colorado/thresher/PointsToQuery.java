@@ -414,22 +414,43 @@ public class PointsToQuery implements IQuery {
     // TODO: might have to simplify w.r.t merged var
     for (PointsToEdge edge : toRemove) {
       boolean removed = constraints.remove(edge);
-      if (!removed)
-        Util.Assert(removed, "couldn't remove edge " + edge + " from " + Util.printCollection(constraints));
+      if (!removed) Util.Assert(removed, "couldn't remove edge " + edge + " from " + Util.printCollection(constraints));
     }
+    toRemove.clear();
+    
+    Set<PointsToEdge> toAdd2 = HashSetFactory.make();
     for (PointsToEdge addMe : toAdd) {
       PointerVariable lhs = addMe.getSource();
+      boolean add = true;
       // check for multiple bindings for single LHS
       for (PointsToEdge edge : this.constraints) {
+        /*
         if (lhs.equals(edge.getSource()) && !addMe.symbEq(edge)) {
           if (Options.DEBUG)
             Util.Debug("refuted by multiple binding! " + edge + " and " + addMe);
           this.feasible = false;
           return formalsAssigned;
         }
+        */
+        if (lhs.equals(edge.getSource())) {
+          // merge the two vars
+          PointerVariable newRHS = SymbolicPointerVariable.mergeVars(edge.getSink(), addMe.getSink());
+          if (newRHS == null) {
+            if (Options.DEBUG) Util.Debug("refuted by multiple binding! " + edge + " and " + addMe);
+            this.feasible = false;
+            return formalsAssigned;
+          }
+          add = false;
+          toAdd2.add(new PointsToEdge(lhs, newRHS));
+          toRemove.add(edge);
+          break;
+        }
       }
-      addConstraint(addMe);
+      if (add) addConstraint(addMe);
     }
+    this.constraints.removeAll(toRemove);
+    toRemove.clear();
+    this.constraints.addAll(toAdd2);
 
     if (!possiblyAliased.isEmpty()) { // handle case where aliasing relationship
                                       // may be created by param passing
@@ -857,13 +878,13 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      //Util.Debug("removing " + removeMe);
+      Util.Debug("removing " + removeMe);
       query.constraints.remove(removeMe);
     }
 
+    List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>();
     for (SymbolicPointerVariable key : subMap.keySet()) {
       toRemove.clear();
-      List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>();
       for (PointsToEdge edge : query.constraints) {
         boolean remove = false;
         PointerVariable newSrc = edge.getSource(), newSnk = edge.getSink();
@@ -876,16 +897,19 @@ public class PointsToQuery implements IQuery {
           remove = true;
         }
         if (remove) {
-          toAdd.add(new PointsToEdge(newSrc, newSnk, edge.getFieldRef()));
+          PointsToEdge newEdge = new PointsToEdge(newSrc, newSnk, edge.getFieldRef());
+          Util.Debug("now adding " + newEdge);
+          toAdd.add(newEdge);
           toRemove.add(edge);
         }
       }
       for (PointsToEdge removeMe : toRemove) {
-        //Util.Debug("removing " + removeMe);
+        Util.Debug("removing " + removeMe);
         query.constraints.remove(removeMe);
       }
       //query.constraints.removeAll(toRemove);
       query.constraints.addAll(toAdd);
+      toAdd.clear();
     }
         
 
@@ -920,23 +944,28 @@ public class PointsToQuery implements IQuery {
               if (Options.DEBUG) Util.Debug("refuting by empty intersection of " + edge.getSink() + " and " + queryEdge.getSink());
               return false;
             }
+            Util.Debug("merged " + edge.getSink() + " and " + queryEdge.getSink() + " with common lhs " + edge.getSource());
             Util.Assert(newSnk != null, "problem merging " + edge + " and " + queryEdge);
             edge = new PointsToEdge(queryEdge.getSource(), newSnk, queryEdge.getField());
             toRemove.add(queryEdge);
           }
         }
          
-        if (add) query.addConstraint(edge);
+        if (add) {
+          Util.Debug("adding " + edge);
+          query.addConstraint(edge);
+        }
         for (PointsToEdge removeMe : toRemove) {
           //Util.Debug("removing " + removeMe);
           query.constraints.remove(removeMe);
         }
         toRemove.clear();
       } else {
-	  //if (query.produced.contains(edge)) Util.Debug("re-adding " + edge);
-	  if (!query.produced.contains(edge) || !edge.getSource().isLocalVar()) {
-	      query.addConstraint(edge);
-	  } 
+        //if (query.produced.contains(edge)) Util.Debug("re-adding " + edge);
+        if (!query.produced.contains(edge) || !edge.getSource().isLocalVar()) {
+          Util.Debug("adding here " + edge);
+          query.addConstraint(edge);
+        } 
       }
     }
 
@@ -944,13 +973,27 @@ public class PointsToQuery implements IQuery {
       query.witnessList.add(rule);
     }
 
-
     // only want to add constraints with local LHS to shown set because we can
     // produced refutations based on shown set...
     // ... it would be unsound to do this if we used constraints with heap LHS
     // (could be a different instance or strong update)
     if (rule.getShown().getSource().isLocalVar() && !WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) {
       query.produced.add(rule.getShown());
+    }
+    
+    if (Options.DEBUG) {
+      //Util.Debug("after simplification, query is " + qry);
+      for (PointsToEdge constraint : query.constraints) {
+        if (constraint.getSource().isLocalVar()) {
+          ConcretePointerVariable lhs = (ConcretePointerVariable) constraint.getSource();
+          for (PointsToEdge edge : query.constraints) {
+            if (edge == constraint) continue;
+            Util.Assert(!lhs.equals(edge.getSource()), "constraints already contain " + edge + "\nadding " + constraint);
+            //Util.Assert(!lhs.equals(edge.getSource()) || edge.equals(constraint), "constraints already contain " + edge + "\nadding "
+              //    + constraint);
+          }
+        }
+      } 
     }
  
     //Util.Debug("after applying " + query);
@@ -1051,7 +1094,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
-    for (PointsToEdge addMe : toAdd) qry.constraints.add(addMe);
+    for (PointsToEdge addMe : toAdd) qry.addConstraint(addMe);//qry.constraints.add(addMe);
       
      
     if (Options.DEBUG) {
@@ -2036,6 +2079,8 @@ public class PointsToQuery implements IQuery {
   }
 
   private boolean addConstraint(PointsToEdge constraint) {
+    //Util.Debug("adding constraint " + constraint);
+    //Thread.dumpStack();
     return constraints.add(constraint);
   }
 
