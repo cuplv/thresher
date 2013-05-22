@@ -39,6 +39,7 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
@@ -642,6 +643,20 @@ public class AbstractDependencyRuleGenerator {
      * instanceof SSAInstanceofInstruction) { } // do nothing
      */
     else {
+      
+      if (instr instanceof SSASwitchInstruction) {
+        Util.Print(ir);
+        SymbolTable tbl = ir.getSymbolTable();
+        SSASwitchInstruction switch_ = (SSASwitchInstruction) instr;
+        int[] casesAndLabels = switch_.getCasesAndLabels();
+        for (int i = 0; i < casesAndLabels.length; i += 2) {
+          Util.Print("case " + casesAndLabels[i]);
+          Util.Print("label " + casesAndLabels[i+1]);
+          
+          //Util.Print("target " + switch_.getTarget(casesAndLabels[i]));
+          //Util.Print("const: " + tbl.getConstant(casesAndLabels[i]));
+        }
+      }
       if (Options.DEBUG) Util.Debug("instr " + instr + " does not manipulate the heap.");
       // Util.Unimp("UNHANDLED INSTR " + instr);
     }

@@ -11,6 +11,7 @@ import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSite;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
+import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -352,13 +353,18 @@ public class ConcretePointerVariable implements PointerVariable { // implements
 
   public boolean isLocalVar() {
     // return useNum != -1;
-    return instanceKey != null && (instanceKey instanceof LocalPointerKey || instanceKey instanceof ReturnValueKey);
+    return instanceKey != null && (instanceKey instanceof LocalPointerKey || 
+                                   instanceKey instanceof ReturnValueKey);
   }
 
   public boolean isHeapVar() {
     return instanceKey != null
-        && (instanceKey instanceof AllocationSite || instanceKey instanceof AllocationSiteInNode
-            || instanceKey instanceof SmushedAllocationSiteInNode || instanceKey instanceof ArrayContentsKey || instanceKey instanceof StaticFieldKey);
+        && (instanceKey instanceof AllocationSiteInNode ||
+            instanceKey instanceof ArrayContentsKey ||
+            instanceKey instanceof StaticFieldKey ||
+            instanceKey instanceof ConcreteTypeKey||
+            instanceKey instanceof AllocationSite || 
+            instanceKey instanceof SmushedAllocationSiteInNode); 
   }
 
   @Override

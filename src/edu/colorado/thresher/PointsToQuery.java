@@ -368,6 +368,7 @@ public class PointsToQuery implements IQuery {
     Set<PointerVariable> possiblyAliased = HashSetFactory.make();
     HeapGraph hg = this.depRuleGenerator.getHeapGraph();
     
+    Map<PointerVariable,PointerVariable> subMap = HashMapFactory.make();
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       int argUse = instr.getUse(i);
       PointerVariable arg = new ConcretePointerVariable(callerMethod, argUse, this.depRuleGenerator.getHeapModel());
@@ -377,7 +378,7 @@ public class PointsToQuery implements IQuery {
       // Object o; foo(o, o).
       if (!argsSeen.add(argUse))
         possiblyAliased.add(arg);
-
+      
       for (PointsToEdge edge : constraints) {
         PointerVariable src = edge.getSource();
         if (src.equals(formal)) {
@@ -403,6 +404,12 @@ public class PointsToQuery implements IQuery {
             return formalsAssigned;
           }
           
+          Util.Assert(!subMap.containsKey(argVar));
+          Util.Assert(!subMap.containsKey(edge.getSink()));
+
+          subMap.put(argVar, merged);
+          subMap.put(edge.getSink(), merged);
+          
           PointsToEdge newEdge = new PointsToEdge(arg, merged);
           toAdd.add(newEdge);
           toRemove.add(edge);
@@ -411,12 +418,21 @@ public class PointsToQuery implements IQuery {
       }
     }
 
+    this.constraints.removeAll(toRemove);
+    this.constraints.addAll(toAdd);
+    substitute(this, subMap);
+    toRemove.clear();
+    toAdd.clear();
+    subMap.clear();
+    
+    /*
     // TODO: might have to simplify w.r.t merged var
     for (PointsToEdge edge : toRemove) {
       boolean removed = constraints.remove(edge);
       if (!removed) Util.Assert(removed, "couldn't remove edge " + edge + " from " + Util.printCollection(constraints));
     }
     toRemove.clear();
+    */
     
     Set<PointsToEdge> toAdd2 = HashSetFactory.make();
     for (PointsToEdge addMe : toAdd) {
@@ -424,14 +440,6 @@ public class PointsToQuery implements IQuery {
       boolean add = true;
       // check for multiple bindings for single LHS
       for (PointsToEdge edge : this.constraints) {
-        /*
-        if (lhs.equals(edge.getSource()) && !addMe.symbEq(edge)) {
-          if (Options.DEBUG)
-            Util.Debug("refuted by multiple binding! " + edge + " and " + addMe);
-          this.feasible = false;
-          return formalsAssigned;
-        }
-        */
         if (lhs.equals(edge.getSource())) {
           // merge the two vars
           PointerVariable newRHS = SymbolicPointerVariable.mergeVars(edge.getSink(), addMe.getSink());
@@ -443,6 +451,10 @@ public class PointsToQuery implements IQuery {
           add = false;
           toAdd2.add(new PointsToEdge(lhs, newRHS));
           toRemove.add(edge);
+          Util.Assert(!subMap.containsKey(edge.getSink()));
+          Util.Assert(!subMap.containsKey(addMe.getSink()));
+          subMap.put(edge.getSink(), newRHS);
+          subMap.put(addMe.getSink(), newRHS);
           break;
         }
       }
@@ -451,6 +463,7 @@ public class PointsToQuery implements IQuery {
     this.constraints.removeAll(toRemove);
     toRemove.clear();
     this.constraints.addAll(toAdd2);
+    substitute(this, subMap);
 
     if (!possiblyAliased.isEmpty()) { // handle case where aliasing relationship
                                       // may be created by param passing
@@ -1080,23 +1093,8 @@ public class PointsToQuery implements IQuery {
       }
     }
     
-    List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>(qry.constraints.size());
-    List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>(qry.constraints.size());
-
-    if (Options.DEBUG && !subMap.isEmpty()) Util.Debug("simplifying query");
-    
-    // iterate through edges and perform necessary substitutions
-    for (PointsToEdge edge : qry.constraints) {
-      PointsToEdge subbed = edge.substitute(subMap);
-      if (subbed != edge) {
-        toRemove.add(edge);
-        toAdd.add(subbed);
-      }
-    }
-    for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
-    for (PointsToEdge addMe : toAdd) qry.addConstraint(addMe);//qry.constraints.add(addMe);
-      
-     
+    substitute(qry, subMap);
+ 
     if (Options.DEBUG) {
       //Util.Debug("after simplification, query is " + qry);
       for (PointsToEdge constraint : qry.constraints) {
@@ -1112,6 +1110,22 @@ public class PointsToQuery implements IQuery {
       } 
     }
     return true;
+  }
+  
+  // update query by performing substituion according to subMap
+  private static void substitute(PointsToQuery qry, Map<PointerVariable,PointerVariable> subMap) {
+    List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>(qry.constraints.size());
+    List<PointsToEdge> toAdd = new ArrayList<PointsToEdge>(qry.constraints.size());
+    // iterate through edges and perform necessary substitutions
+    for (PointsToEdge edge : qry.constraints) {
+      PointsToEdge subbed = edge.substitute(subMap);
+      if (subbed != edge) {
+        toRemove.add(edge);
+        toAdd.add(subbed);
+      }
+    }
+    for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
+    for (PointsToEdge addMe : toAdd) qry.addConstraint(addMe);//qry.constraints.add(addMe
   }
 
   /**

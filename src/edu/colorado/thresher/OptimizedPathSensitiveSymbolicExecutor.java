@@ -16,6 +16,8 @@ import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
+import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
@@ -173,7 +175,35 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       split = true;
     return false; // don't want to continue executing here
   }
-
+  
+  /**
+   * special branch point-creating visitor for switch instructions
+   */
+  // TODO: do branch points for switch? add cases for switch?
+  // TODO: do we even want to add path constraints from switch?
+  boolean visitSwitch(SSASwitchInstruction instr, IPathInfo info) {
+    /*
+    Util.Assert(info.getLastBlock().getFirstInstructionIndex() != -1);
+    SSAInstruction lastInstr = info.getLastBlock().getAllInstructions().get(0);
+    // the IR index of the last instruction this path executed before the switch()
+    int label = Util.getIndexForInstruction(info.getCurrentNode().getIR(), lastInstr);
+    Util.Print(info.getCurrentNode().getIR());
+    
+    int[] casesAndLabels = instr.getCasesAndLabels();
+    for (int i = 0; i < casesAndLabels.length; i += 2) {
+      // find the switch cases that dispatch to this label
+      if (casesAndLabels[i + 1] == label) {
+        // create a path constraint based on this label
+        Util.Print("constraint " + info.getCurrentNode().getMethod().getName() + "-" + instr.getUse(0) + " == " + casesAndLabels[i]);
+      }
+    }
+    
+    // merging switch: if not all cases are accounted for, add constraint for each
+    // if they're all the same,
+     */ 
+    return true;
+  }
+  
   /**
    * special branch point-creating visitor for conditional branch instructions
    */
@@ -255,6 +285,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     Util.Debug("visiting call " + instr.getDeclaredTarget() + " in loop head on path " + path.getPathId());
     int startingCallStackDepth = path.getCallStackDepth();
     final CGNode startingNode = path.getCurrentNode();
+    
+    int pathListSize = this.pathsToExplore.size(), branchStackSize = this.branchPointStack.size();
     addPathAndBranchPlaceholders();
   
     Set<IPathInfo> extraPaths = HashSetFactory.make();
@@ -292,6 +324,8 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         Util.Assert(checkMe.isFeasible());
         Util.Assert(checkMe.getCurrentNode().equals(startingNode));
       }
+      Util.Assert(this.pathsToExplore.size() == pathListSize, "shouldn't add or remove paths!");
+      Util.Assert(this.branchPointStack.size() == branchStackSize, "shouldn't add or remove branches!");
     }
     //if (extraPaths.isEmpty()) extraPaths.add(path);
     Util.Debug("returning " + extraPaths.size() + " paths.");
@@ -687,6 +721,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     if (Options.DEBUG) Util.Debug("merging branch point in method " + point.getMethod().getMethod().getName() + ": " + point);
 
     if (point.isLoopHead()) {
+      Util.Assert(WALACFGUtil.isLoopHead(point.getBlock(), point.getIR()));
       // Util.visualizeIR(Options.DEBUG_cha, point.getIR(), "TEST");
       // loops are a special case here...may need to drop constraints
       return mergeLoop(truePaths, falsePaths, point.getBlock()); 

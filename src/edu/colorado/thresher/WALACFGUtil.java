@@ -157,7 +157,13 @@ public class WALACFGUtil {
                                                              // it's not in the
                                                              // loop...
         // and it transitions directly to the loop head
-        isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph())) {
+        (isDirectlyReachableFrom(loopHead, suspectedEscapeBlock, ir.getControlFlowGraph()) ||  
+         isConditionalBlockThatTransitionsTo(suspectedEscapeBlock, loopHead, ir.getControlFlowGraph()))) {
+      
+        // really, we want "reachable without back edge" 
+      
+        // if (b) { while (e) s1 }
+      
         // dominator relationship doesn't hold for code like
         // if (e) s1 else s2; while (e) s3. s1 and s2 are both loop escape blocks
         //domInfo.isDominatedBy(loopHead, suspectedEscapeBlock)) { // ... and it
@@ -508,14 +514,12 @@ public class WALACFGUtil {
   }
 
   public static boolean isDirectlyReachableFromLoopHead(SSACFG.BasicBlock dstBlk, IR ir) {
-    Util.Debug("checking if " + dstBlk + " is reachable from loop head");
     MutableIntSet headers = getLoopHeaders(ir);
     SSACFG cfg = ir.getControlFlowGraph();
     for (IntIterator iter = headers.intIterator(); iter.hasNext();) {
       SSACFG.BasicBlock loopHead = cfg.getBasicBlock(iter.next());
       //if (isDirectlyReachableFrom(loopHead, dstBlk, cfg)) {
       if (isDirectlyReachableFrom(dstBlk, loopHead, cfg)) {
-        Util.Debug("directly reachable from loop head " + loopHead);
         return true;
       }
     }
@@ -627,7 +631,15 @@ public class WALACFGUtil {
       succs = cfg.getNormalSuccessors(src);
       src = (SSACFG.BasicBlock) succs.iterator().next();
     } while (succs.size() == 1);
-    Util.Debug("false");
+    return false;
+  }
+  
+  public static boolean isConditionalBlockThatTransitionsTo(SSACFG.BasicBlock src, SSACFG.BasicBlock dst, SSACFG cfg) {
+    // if this instruction is not a conditional
+    if (src.getLastInstructionIndex() != -1 && 
+        (src.getLastInstruction() instanceof SSAConditionalBranchInstruction)) {
+      return cfg.getNormalSuccessors(src).contains(dst);
+    }
     return false;
   }
   

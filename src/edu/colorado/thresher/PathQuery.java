@@ -504,6 +504,12 @@ public class PathQuery implements IQuery {
     }
     return true;
   }
+  
+  boolean visit(SSASwitchInstruction instr, CGNode node, IPathInfo path) {
+    
+    
+    return true;
+  }
 
   // comparing floats, longs, or doubles. TODO: implement this
   boolean visit(SSAComparisonInstruction instr, CGNode node, SymbolTable tbl) {
@@ -664,7 +670,7 @@ public class PathQuery implements IQuery {
     }
     return true;
   }
-
+  
   // TODO: track catches so that thrown exceptions aren't necessarily an instant
   // refutation
   public boolean visit(SSAThrowInstruction instr, CGNode node) {
@@ -1305,6 +1311,7 @@ public class PathQuery implements IQuery {
     else if (instr instanceof SSAGotoInstruction)
       return IQuery.FEASIBLE; // goto's are a nop for us
     else if (instr instanceof SSASwitchInstruction)
+      //result = visit((SSASwitchInstruction) instr, node, tbl);
       return IQuery.FEASIBLE; // switch is a nop
     else if (instr instanceof SSALoadMetadataInstruction)
       result = visit((SSALoadMetadataInstruction) instr, node);

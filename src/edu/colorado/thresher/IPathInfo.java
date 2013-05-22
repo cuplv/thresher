@@ -45,8 +45,7 @@ public class IPathInfo { // implements Comparable {
   private SSACFG.BasicBlock currentBlock;
   // the block we previously came from
   private SSACFG.BasicBlock lastBlock;
-  // index into into the current block corresponding to next instruction to
-  // execute
+  // index into into the current block corresponding to next instruction to execute
   private int currentLineNum;
 
   private final LinkedList<IStackFrame> callStack;
@@ -169,7 +168,7 @@ public class IPathInfo { // implements Comparable {
   public boolean addConstraintFromBranchPoint(IBranchPoint point, boolean trueBranch) {
     return query.addConstraintFromBranchPoint(point, trueBranch);
   }
-
+  
   public boolean simulateQueryReturnFromCall(SSAInvokeInstruction instruction, CGNode callee) {
     // Util.Debug("simulating return from callee " + callee + " via call instr "
     // + instruction);

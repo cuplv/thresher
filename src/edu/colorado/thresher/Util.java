@@ -1048,6 +1048,24 @@ public class Util {
     }
   }
 
+  /** 
+   * @return the index of instruction @param instr in IR @param ir, -1 if not found
+   */
+  public static int getIndexForInstruction(IR ir, SSAInstruction instr) {
+    SSAInstruction[] instrs = ir.getInstructions();
+    for (int i = 0; i < instrs.length; i++) {
+      if (instrs[i] == instr) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * @return the program source code line number for instruction @param instr, -1 if not found
+   */
+  public static int getSourceLineNumber(IR ir, SSAInstruction instr) {
+    return getSourceLineNumber(ir, getIndexForInstruction(ir, instr));
+  }
+  
   public static int getSourceLineNumber(IR ir, int instrNum) {
     int lineNum = -1;
     try {

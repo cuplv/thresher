@@ -23,6 +23,7 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
@@ -688,6 +689,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       return visitInvokeAsCallee((SSAAbstractInvokeInstruction) instr, info);
     } else if (instr instanceof SSAConditionalBranchInstruction) {
       return visitConditional((SSAConditionalBranchInstruction) instr, info);
+    } else if (instr instanceof SSASwitchInstruction) {
+      return visitSwitch((SSASwitchInstruction) instr, info);
     } else {
       return visitIPathInfoWrapper(instr, info);
     }
@@ -828,6 +831,13 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * override to customize conditional visiting
    */
   boolean visitConditional(SSAConditionalBranchInstruction instr, IPathInfo info) {
+    return true;
+  }
+  
+  /**
+   * override to customize switch visiting
+   */
+  boolean visitSwitch(SSASwitchInstruction instr, IPathInfo info) {
     return true;
   }
 

@@ -37,6 +37,7 @@ public class SymbolicPointerVariable implements PointerVariable {
     Set<InstanceKey> newVals = Util.deepCopySet(var0.getPossibleValues());
     newVals.retainAll(var1.getPossibleValues());
     if (newVals.size() == 0) return null;
+    if (Options.DEBUG) Util.Debug("merged " + var0 + " and " + var1 + " into " + (symbCounter + 1) + "symb");
     return makeSymbolicVar(newVals);
   }
 

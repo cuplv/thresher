@@ -63,10 +63,6 @@ public class IBranchPoint {
   }
 
   private IBranchPoint(SSAInstruction instr, int lineNum, SSACFG.BasicBlock blk, CGNode node, boolean loopHead, int id) {
-    SSACFG cfg = node.getIR().getControlFlowGraph();
-    // Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors(blk);
-    // Util.Assert(succs.size() == 2, "branch should go exactly two ways; " +
-    // blk + " goes " + succs.size());
     this.instr = instr;
     this.lineNum = lineNum;
     this.blk = blk;
