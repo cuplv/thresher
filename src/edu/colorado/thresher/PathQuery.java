@@ -11,12 +11,14 @@ import z3.java.Z3AST;
 import z3.java.Z3Config;
 import z3.java.Z3Context;
 
+import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.shrikeBT.IComparisonInstruction.Operator;
@@ -505,12 +507,6 @@ public class PathQuery implements IQuery {
     return true;
   }
   
-  boolean visit(SSASwitchInstruction instr, CGNode node, IPathInfo path) {
-    
-    
-    return true;
-  }
-
   // comparing floats, longs, or doubles. TODO: implement this
   boolean visit(SSAComparisonInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
@@ -1433,33 +1429,25 @@ public class PathQuery implements IQuery {
   }
   
   @Override
-  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
-    // TODO: fix
-    return Collections.EMPTY_MAP;
-    //return getModifiersForQuery();
-  }
-  
-  @Override
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {
     Util.Pre(lastBlock.getFirstInstructionIndex() != -1);
     IR ir = currentNode.getIR();
+    SSACFG cfg = ir.getControlFlowGraph();
+    Util.Print(ir);
     SymbolTable tbl = ir.getSymbolTable();
     // TODO: handle the easy case where we switch on a constant
     Util.Assert(!tbl.isConstant(instr.getUse(0)));
     // TODO: exclude string/byte/enum cases?
-    
-    SSAInstruction lastInstr =lastBlock.getAllInstructions().get(0);
+
     // instr is switch(switchTarget)
     PointerVariable switchTarget = new ConcretePointerVariable(currentNode, instr.getUse(0), this.heapModel);
     SimplePathTerm switchTargetTerm = new SimplePathTerm(switchTarget);
-    
-    // the IR index of the last instruction this path executed before the switch()
-    int label = Util.getIndexForInstruction(ir, lastInstr);
+           
     List<IQuery> cases = new ArrayList<IQuery>();
     int[] casesAndLabels = instr.getCasesAndLabels();
     
-    // for default label, add negation of all other cases
-    if (label == instr.getDefault()) { 
+    // this is the default label. add negation of all other cases
+    if (cfg.getBlockForInstruction(instr.getDefault()) == lastBlock) { 
       for (int i = 0; i < casesAndLabels.length; i += 2) {
         AtomicPathConstraint negated = new AtomicPathConstraint(switchTargetTerm, new SimplePathTerm(casesAndLabels[i]), 
             ConditionalBranchInstruction.Operator.NE); 
@@ -1473,8 +1461,8 @@ public class PathQuery implements IQuery {
     // copy to make copies of
     PathQuery original = this.deepCopy();
     for (int i = 0; i < casesAndLabels.length; i += 2) {
-      // find the switch cases that dispatch to this label
-      if (casesAndLabels[i + 1] == label) {
+      // find the switch cases that dispatch to the last block we visited
+      if (cfg.getBlockForInstruction(casesAndLabels[i + 1]) == lastBlock) {
         found = true;
         PathQuery copy;
         if (first) {
@@ -1493,6 +1481,7 @@ public class PathQuery implements IQuery {
         Util.Assert(copy.isFeasible()); // need to do something fancier if one of these is infeasible
       }
     }
+  
     Util.Assert(found, "couldn't find label for " + this + " last block " + lastBlock + " IR " + ir);
     return cases;
   }
@@ -1517,6 +1506,37 @@ public class PathQuery implements IQuery {
 
     return constraintModMap;
   }
+  
+  @Override
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
+    IClassHierarchy cha = this.depRuleGenerator.getClassHierarchy();
+    HeapGraph hg = this.depRuleGenerator.getHeapGraph();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      Set<CGNode> nodes = HashSetFactory.make();
+      for (SimplePathTerm term : constraint.getTerms()) {
+        if (!term.isIntegerConstant()) {
+          // TODO: how to handle multiple fields?
+          Util.Assert(term.getFields() == null || term.getFields().size() == 1);
+          PointerVariable var = term.getObject();
+          
+          FieldReference field = term.getFirstField();
+          if (field != null) {
+            IField fld = cha.resolveField(field);
+            if (fld == null) Util.Debug("couldn't resolve field " + fld);
+            nodes.addAll(Util.getRelevantForFieldWrite(var, fld, hg));
+          } else {
+            // it's a local. only the current node is relevant
+            nodes.add(var.getNode());
+          }
+        } 
+      }
+      constraintRelevantMap.put(constraint, nodes);
+    }    
+    return constraintRelevantMap;
+    //return getModifiersForQuery();
+  }
+  
 
   void makeUnsatCore(AtomicPathConstraint constraint) {
     unsatCore = new LinkedList<AtomicPathConstraint>();
