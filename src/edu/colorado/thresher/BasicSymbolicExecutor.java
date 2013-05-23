@@ -12,7 +12,6 @@ import z3.java.Z3Context;
 import z3.java.Z3Model;
 
 import com.ibm.wala.classLoader.CallSiteReference;
-import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -24,12 +23,12 @@ import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
-import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.Selector;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
+import com.ibm.wala.util.graph.impl.GraphInverter;
+import com.ibm.wala.util.graph.traverse.BFSIterator;
+import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 
@@ -244,6 +243,42 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     if (Options.DEBUG) Util.Debug("at function boundary for path " + path.getCurrentNode());
 
     if (isPathInSummary(path)) return false; // summary makes path redundant
+    
+    // TMP
+    /*
+    Graph<CGNode> reversed = GraphInverter.invert(this.callGraph);
+    // assume single entrypoint node
+    BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(reversed, path.getCurrentNode(), this.callGraph.getFakeRootNode());
+    List<CGNode> cgPath = finder.find();
+    Util.Debug("Path to root " + Util.printCollection(cgPath));
+    Util.Debug(cgPath.size() + " nodes in shortest path.");
+    
+    int count = 0;
+    BFSIterator<CGNode> iter = new BFSIterator<CGNode>(reversed, path.getCurrentNode());
+    while (iter.hasNext()) {
+      CGNode next = iter.next();
+      Util.Debug("node is " + next);
+      count++;
+    }
+    Util.Debug(count + " nodes in UP set.");
+    
+    Map<Constraint,Set<CGNode>> constraintModMap = path.query.getRelevantNodes();//path.getModifiersForQuery();
+    // get potential producers for constraints
+    Set<CGNode> producers = Util.flatten(constraintModMap.values());
+    if (Options.DEBUG) {
+      Util.Debug("MAP: ");
+      for (Constraint constraint : constraintModMap.keySet()) {
+        Util.Debug(constraint + " ===>\n" + Util.printCollection(constraintModMap.get(constraint)));
+      }
+      
+      for (CGNode producer : producers) {
+        Util.Debug("producer: " + producer);
+      }
+
+    }
+    */
+    // END TMP
+    
 
     CGNode callee = path.getCurrentNode();
 
@@ -749,7 +784,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
     List<IPathInfo> caseSplits = info.enterCall((SSAInvokeInstruction) instr, callGraph, callee);
     if (caseSplits == null) return false; // infeasible
     for (IPathInfo path : caseSplits) {
-      Util.Debug("adding case split path");
       addPath(path);
     }
     return true;

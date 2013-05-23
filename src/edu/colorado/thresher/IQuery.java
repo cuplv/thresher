@@ -13,6 +13,7 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
 
 public interface IQuery { // extends Comparable {
 
@@ -38,6 +39,9 @@ public interface IQuery { // extends Comparable {
    *         otherwise
    */
   public boolean addConstraintFromBranchPoint(IBranchPoint point, boolean trueBranchFeasible);
+  
+  public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode);
+
 
   public IQuery deepCopy();
 
@@ -180,6 +184,8 @@ public interface IQuery { // extends Comparable {
   public void enterCallFromJump(CGNode callee);
 
   public List<DependencyRule> getWitnessList();
+  
+  public Map<Constraint, Set<CGNode>> getRelevantNodes();
   
   public void dispose();
 

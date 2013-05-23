@@ -1,6 +1,7 @@
 package edu.colorado.thresher;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.shrikeBT.IComparisonInstruction.Operator;
 import com.ibm.wala.shrikeBT.IUnaryOpInstruction;
+import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAArrayLengthInstruction;
 import com.ibm.wala.ssa.SSAArrayLoadInstruction;
 import com.ibm.wala.ssa.SSAArrayStoreInstruction;
@@ -45,9 +47,7 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.ssa.SSAUnaryOpInstruction;
 import com.ibm.wala.ssa.SymbolTable;
-import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 
@@ -221,10 +221,10 @@ public class PathQuery implements IQuery {
   }
 
   public boolean visit(SSAArrayLengthInstruction instr, CGNode node) {
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
       SimplePathTerm arrLength = new SimplePathTerm(new ConcretePointerVariable(node, instr.getUse(0),
-          this.depRuleGenerator.getHeapModel()), SimplePathTerm.LENGTH);
+          this.heapModel), SimplePathTerm.LENGTH);
       substituteExpForVar(arrLength, varName);
       return isFeasible();
     }
@@ -233,12 +233,12 @@ public class PathQuery implements IQuery {
 
   boolean visit(SSAGetInstruction instr, CGNode node) {
     Util.Assert(instr.getNumberOfDefs() == 1, "Expecting only 1 def!");
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
       SimplePathTerm toSub = null;
       if (instr.isStatic()) { // static field get
         IField staticField = depRuleGenerator.getCallGraph().getClassHierarchy().resolveField(instr.getDeclaredField());
-        PointerKey key = depRuleGenerator.getHeapModel().getPointerKeyForStaticField(staticField);
+        PointerKey key = this.heapModel.getPointerKeyForStaticField(staticField);
         PointerVariable var = Util.makePointerVariable(key);
         toSub = new SimplePathTerm(var);
       } else { // non-static get
@@ -262,7 +262,7 @@ public class PathQuery implements IQuery {
                                // does. uncomment and try on NPR app 
       return true;
     }
-    PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(
+    PointerVariable staticFieldVar = Util.makePointerVariable(this.heapModel.getPointerKeyForStaticField(
         staticField));
     if (pathVars.contains(staticFieldVar)) {
       int use = instr.getUse(0);
@@ -283,8 +283,8 @@ public class PathQuery implements IQuery {
         }
       } else { // assigning var to field
         // PointerVariable rhsVarName = new ConcretePointerVariable(node,
-        // instr.getUse(1), this.depRuleGenerator.getHeapModel());
-        PointerVariable rhsVarName = new ConcretePointerVariable(node, use, this.depRuleGenerator.getHeapModel());
+        // instr.getUse(1), this.heapModel);
+        PointerVariable rhsVarName = new ConcretePointerVariable(node, use, this.heapModel);
         substituteExpForVar(new SimplePathTerm(rhsVarName), staticFieldVar);
       }
       return isFeasible();
@@ -295,7 +295,7 @@ public class PathQuery implements IQuery {
   boolean visit(SSAPutInstruction instr, CGNode node, SymbolTable tbl) {
     if (instr.isStatic()) return visitStaticPut(instr, node, tbl); // static field
     // else, non-static field
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()); 
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel); 
     if (pathVars.contains(varName)) {
       FieldReference fieldName = instr.getDeclaredField();
       int use = instr.getUse(1);
@@ -328,7 +328,7 @@ public class PathQuery implements IQuery {
         }
       } else { // assigning var to field
         // TODO: write test where name being substituted is active at multiple locations
-        PointerVariable rhsVarName = new ConcretePointerVariable(node, instr.getUse(1), this.depRuleGenerator.getHeapModel());
+        PointerVariable rhsVarName = new ConcretePointerVariable(node, instr.getUse(1), this.heapModel);
         substituteExpForFieldRead(new SimplePathTerm(rhsVarName), varName, fieldName);
       }
       return isFeasible();
@@ -338,12 +338,12 @@ public class PathQuery implements IQuery {
 
   boolean visit(SSAInvokeInstruction instr, CGNode callee, CGNode caller) {
     if (instr.hasDef()) {
-      PointerVariable returnValue = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
+      PointerVariable returnValue = new ConcretePointerVariable(caller, instr.getDef(), this.heapModel);
       if (pathVars.contains((returnValue))) {
         // substituteExpForVar(new
         // SimplePathTerm(Util.makeReturnValuePointer(instr.getDeclaredTarget())),
         // returnValue);
-        substituteExpForVar(new SimplePathTerm(Util.makeReturnValuePointer(callee, this.depRuleGenerator.getHeapModel())),
+        substituteExpForVar(new SimplePathTerm(Util.makeReturnValuePointer(callee, this.heapModel)),
             returnValue);
         return isFeasible();
       }
@@ -354,7 +354,7 @@ public class PathQuery implements IQuery {
   boolean visit(SSAReturnInstruction instr, CGNode node, SymbolTable tbl) {
     int resultNum = instr.getResult();
     if (resultNum >= 0) { // if the function is a non-void function
-      PointerVariable retvalName = Util.makeReturnValuePointer(node, this.depRuleGenerator.getHeapModel());
+      PointerVariable retvalName = Util.makeReturnValuePointer(node, this.heapModel);
       if (pathVars.contains(retvalName)) {
         if (tbl.isConstant(resultNum)) {
           if (tbl.isIntegerConstant(resultNum)) {
@@ -371,7 +371,7 @@ public class PathQuery implements IQuery {
           else
             Util.Unimp("subbing non-integer constants");
         } else {
-          PointerVariable result = new ConcretePointerVariable(node, resultNum, this.depRuleGenerator.getHeapModel());
+          PointerVariable result = new ConcretePointerVariable(node, resultNum, this.heapModel);
           substituteExpForVar(new SimplePathTerm(result), retvalName);
         }
         return isFeasible();
@@ -381,7 +381,7 @@ public class PathQuery implements IQuery {
   }
 
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
-    PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(local)) {
       if (instr.getNewSite().getDeclaredType().isArrayType()) { // special case
                                                                 // for arrays
@@ -390,7 +390,7 @@ public class PathQuery implements IQuery {
         if (tbl.isConstant(instr.getUse(0)))
           arrLength = new SimplePathTerm(tbl.getIntValue(instr.getUse(0)));
         else
-          arrLength = new SimplePathTerm(new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel()));
+          arrLength = new SimplePathTerm(new ConcretePointerVariable(node, instr.getUse(0), this.heapModel));
         substituteExpForFieldRead(arrLength, local, SimplePathTerm.LENGTH);
 
       } else { // not an array
@@ -404,9 +404,9 @@ public class PathQuery implements IQuery {
   }
 
   boolean visit(SSAUnaryOpInstruction instr, CGNode node) {
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
-      PointerVariable negated = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
+      PointerVariable negated = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
       IUnaryOpInstruction.IOperator op = instr.getOpcode();
       if (op == IUnaryOpInstruction.Operator.NEG) {
         // replace x with 0 - x
@@ -422,7 +422,7 @@ public class PathQuery implements IQuery {
   boolean visit(SSABinaryOpInstruction instr, CGNode node, SymbolTable tbl) {
     Util.Assert(instr.getNumberOfDefs() == 1, "Expecting only 1 def; found " + instr.getNumberOfDefs());
     Util.Assert(instr.getNumberOfUses() == 2, "Expecting only 2 uses; found " + instr.getNumberOfUses());
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
 
       if (!(instr.getOperator() instanceof BinaryOpInstruction.Operator)) {
@@ -489,15 +489,15 @@ public class PathQuery implements IQuery {
         }
       } else if (lhsConstant) { // constant on left side of binary operator only
         PathTermWithBinOp binExp = new PathTermWithBinOp(tbl.getIntValue(instr.getUse(0)), new ConcretePointerVariable(node,
-            instr.getUse(1), this.depRuleGenerator.getHeapModel()), op);
+            instr.getUse(1), this.heapModel), op);
         substituteExpForVar(binExp, varName);
       } else if (rhsConstant) { // constant on right of binary operator only
         PathTermWithBinOp binExp = new PathTermWithBinOp(new ConcretePointerVariable(node, instr.getUse(0),
-            this.depRuleGenerator.getHeapModel()), tbl.getIntValue(instr.getUse(1)), op);
+            this.heapModel), tbl.getIntValue(instr.getUse(1)), op);
         substituteExpForVar(binExp, varName);
       } else { // no constants
-        PointerVariable lhs = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
-        PointerVariable rhs = new ConcretePointerVariable(node, instr.getUse(1), this.depRuleGenerator.getHeapModel());
+        PointerVariable lhs = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
+        PointerVariable rhs = new ConcretePointerVariable(node, instr.getUse(1), this.heapModel);
         substituteExpForVar(new PathTermWithBinOp(lhs, rhs, op), varName);
       }
       return isFeasible();
@@ -513,7 +513,7 @@ public class PathQuery implements IQuery {
 
   // comparing floats, longs, or doubles. TODO: implement this
   boolean visit(SSAComparisonInstruction instr, CGNode node, SymbolTable tbl) {
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
       int use0 = instr.getUse(0), use1 = instr.getUse(1);
       if (tbl.isConstant(use0) && tbl.isConstant(use1)) { // comparison of
@@ -597,7 +597,7 @@ public class PathQuery implements IQuery {
   }
 
   boolean visit(SSAArrayLoadInstruction instr, CGNode node, SymbolTable tbl) {
-    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable varName = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(varName)) {
       // can model array write as (array name).array.i, where i is the index of
       // interest
@@ -614,7 +614,7 @@ public class PathQuery implements IQuery {
   }
 
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
-    PointerVariable stored = new ConcretePointerVariable(node, instr.getUse(2), this.depRuleGenerator.getHeapModel());
+    PointerVariable stored = new ConcretePointerVariable(node, instr.getUse(2), this.heapModel);
     if (pathVars.contains(stored)) {
       // TODO: add constraints for array stores
       // Util.Unimp("path queries with arrays. this arrayStore instruction " +
@@ -630,10 +630,10 @@ public class PathQuery implements IQuery {
   
   // TODO: just assuming conversion goes through and is for integers at this point--should add check
   public boolean visit(SSAConversionInstruction instr, CGNode node) {
-    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
       // for now conversions are unchecked; just sub the rhs for the lhs
-      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
+      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
       substituteExpForVar(new SimplePathTerm(rhsVar), lhsVar);
     }
     return true;
@@ -641,7 +641,7 @@ public class PathQuery implements IQuery {
 
   // drop constraints
   public boolean visit(SSALoadMetadataInstruction instr, CGNode node) {
-    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
         dropConstraintsContaining(lhsVar);
     }
@@ -650,11 +650,11 @@ public class PathQuery implements IQuery {
 
 
   public boolean visit(SSACheckCastInstruction instr, CGNode node) {
-    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
       // TODO: add constraint for checking casts
       // for now casts are unchecked; just sub the rhs for the lhs
-      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.depRuleGenerator.getHeapModel());
+      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
       substituteExpForVar(new SimplePathTerm(rhsVar), lhsVar);
       return isFeasible();
     }
@@ -662,7 +662,7 @@ public class PathQuery implements IQuery {
   }
 
   public boolean visit(SSAInstanceofInstruction instr, CGNode node) {
-    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
       // TODO: we don't have enough type information to check this constraint
       // right now, so just drop it
@@ -797,7 +797,7 @@ public class PathQuery implements IQuery {
       // initialize all untouched fields to their default values
       // the "this" var is always v1
       final int THIS = 1;
-      PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.depRuleGenerator.getHeapModel()); 
+      PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.heapModel); 
       List<FieldReference> toSub = new LinkedList<FieldReference>();
       for (AtomicPathConstraint constraint : constraints) {
         Set<SimplePathTerm> terms = constraint.getTerms();
@@ -866,7 +866,7 @@ public class PathQuery implements IQuery {
   public boolean isDispatchFeasible(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
     if (!callee.getMethod().isStatic()) {
       PointerVariable receiver = Util.makePointerVariable(
-          this.depRuleGenerator.getHeapModel().getPointerKeyForLocal(caller, instr.getReceiver()));
+          this.heapModel.getPointerKeyForLocal(caller, instr.getReceiver()));
       if (this.pathVars.contains(receiver)) {
         // check for null constraint on receiver
         for (AtomicPathConstraint constraint : this.constraints) {
@@ -1135,10 +1135,10 @@ public class PathQuery implements IQuery {
       op = (ConditionalBranchInstruction.Operator) instruction.getOperator();
 
     if (tbl.isNullConstant(use0)) {
-      PointerVariable var1 = new ConcretePointerVariable(node, use1, this.depRuleGenerator.getHeapModel());
+      PointerVariable var1 = new ConcretePointerVariable(node, use1, this.heapModel);
       constraint = new AtomicPathConstraint(SimplePathTerm.NULL, new SimplePathTerm(var1), op);
     } else if (tbl.isNullConstant(use1)) {
-      PointerVariable var0 = new ConcretePointerVariable(node, use0, this.depRuleGenerator.getHeapModel());
+      PointerVariable var0 = new ConcretePointerVariable(node, use0, this.heapModel);
       constraint = new AtomicPathConstraint(new SimplePathTerm(var0), SimplePathTerm.NULL, op);
     } else if (tbl.isIntegerConstant(use0)) { // lhs is integer constant
       PointerVariable var1 = makeVarFromUse(node, use1);
@@ -1162,7 +1162,7 @@ public class PathQuery implements IQuery {
   }
 
   PointerVariable makeVarFromUse(CGNode node, int useNum) {
-    return new ConcretePointerVariable(node, useNum, this.depRuleGenerator.getHeapModel());
+    return new ConcretePointerVariable(node, useNum, this.heapModel);
   }
 
   /**
@@ -1178,7 +1178,7 @@ public class PathQuery implements IQuery {
     if (Options.DEBUG)
       Util.Debug("substituting actuals for formals in path query");
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
-      PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.depRuleGenerator.getHeapModel());
+      PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.heapModel);
       int use = instr.getUse(i);
       if (i == -1)
         continue; // insurance for WALA crash that sometimes happens here
@@ -1196,7 +1196,7 @@ public class PathQuery implements IQuery {
         continue;
       } else
         actual = new SimplePathTerm(
-            new ConcretePointerVariable(callerMethod, instr.getUse(i), this.depRuleGenerator.getHeapModel()));
+            new ConcretePointerVariable(callerMethod, instr.getUse(i), this.heapModel));
       if (Options.DEBUG)
         Util.Debug("subbing " + actual + " for " + formal);
       substituteExpForVar(actual, formal);
@@ -1213,8 +1213,8 @@ public class PathQuery implements IQuery {
     if (Options.DEBUG)
       Util.Debug("substituting formals for actuals in path query");
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
-      PointerVariable actual = new ConcretePointerVariable(callerMethod, instr.getUse(i), this.depRuleGenerator.getHeapModel());
-      PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.depRuleGenerator.getHeapModel());
+      PointerVariable actual = new ConcretePointerVariable(callerMethod, instr.getUse(i), this.heapModel);
+      PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.heapModel);
       SimplePathTerm formalTerm = new SimplePathTerm(formal);
       substituteExpForVar(formalTerm, actual);
     }
@@ -1240,7 +1240,7 @@ public class PathQuery implements IQuery {
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {
     CGNode currentMethod = currentPath.getCurrentNode();
     // lhsVar is the x in x = phi(y,z)
-    PointerVariable lhsVar = new ConcretePointerVariable(currentMethod, instr.getDef(), this.depRuleGenerator.getHeapModel()); 
+    PointerVariable lhsVar = new ConcretePointerVariable(currentMethod, instr.getDef(), this.heapModel); 
 
     if (pathVars.contains(lhsVar)) {
       Util.Assert(instr.getNumberOfDefs() == 1, "expecting one def");
@@ -1258,7 +1258,7 @@ public class PathQuery implements IQuery {
         Util.Unimp("other kinds of constants"); // TODO: support other constants
       // one of the y_i's in x = phi(y_1,y_2,...)
       else
-        toSub = new SimplePathTerm(new ConcretePointerVariable(currentMethod, use, this.depRuleGenerator.getHeapModel()));
+        toSub = new SimplePathTerm(new ConcretePointerVariable(currentMethod, use, this.heapModel));
       substituteExpForVar(toSub, lhsVar); // sub the LHS of the phi for the
                                           // appropriate term on the right
       if (!isFeasible()) {
@@ -1273,7 +1273,7 @@ public class PathQuery implements IQuery {
     Util.Pre(Options.SYNTHESIS);
     if (instr.hasDef()) {
       Util.Assert(!instr.isStatic()); // unimplemented for now
-      HeapModel hm = this.depRuleGenerator.getHeapModel();
+      HeapModel hm = this.heapModel;
    
       ConcretePointerVariable receiver = new ConcretePointerVariable(currentNode, instr.getUse(0), hm);
       // special ghost variable corresponding to the call
@@ -1431,7 +1431,72 @@ public class PathQuery implements IQuery {
       substituteExpForVar(new SimplePathTerm(0), var);
     }
   }
-
+  
+  @Override
+  public Map<Constraint, Set<CGNode>> getRelevantNodes() {
+    // TODO: fix
+    return Collections.EMPTY_MAP;
+    //return getModifiersForQuery();
+  }
+  
+  @Override
+  public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {
+    Util.Pre(lastBlock.getFirstInstructionIndex() != -1);
+    IR ir = currentNode.getIR();
+    SymbolTable tbl = ir.getSymbolTable();
+    // TODO: handle the easy case where we switch on a constant
+    Util.Assert(!tbl.isConstant(instr.getUse(0)));
+    // TODO: exclude string/byte/enum cases?
+    
+    SSAInstruction lastInstr =lastBlock.getAllInstructions().get(0);
+    // instr is switch(switchTarget)
+    PointerVariable switchTarget = new ConcretePointerVariable(currentNode, instr.getUse(0), this.heapModel);
+    SimplePathTerm switchTargetTerm = new SimplePathTerm(switchTarget);
+    
+    // the IR index of the last instruction this path executed before the switch()
+    int label = Util.getIndexForInstruction(ir, lastInstr);
+    List<IQuery> cases = new ArrayList<IQuery>();
+    int[] casesAndLabels = instr.getCasesAndLabels();
+    
+    // for default label, add negation of all other cases
+    if (label == instr.getDefault()) { 
+      for (int i = 0; i < casesAndLabels.length; i += 2) {
+        AtomicPathConstraint negated = new AtomicPathConstraint(switchTargetTerm, new SimplePathTerm(casesAndLabels[i]), 
+            ConditionalBranchInstruction.Operator.NE); 
+        this.addConstraint(negated);
+      }
+      if (isFeasible()) return IQuery.FEASIBLE;
+      return IQuery.INFEASIBLE;
+    } // else, not the default label
+    
+    boolean first = true, found = false;
+    // copy to make copies of
+    PathQuery original = this.deepCopy();
+    for (int i = 0; i < casesAndLabels.length; i += 2) {
+      // find the switch cases that dispatch to this label
+      if (casesAndLabels[i + 1] == label) {
+        found = true;
+        PathQuery copy;
+        if (first) {
+          copy = this;
+          first = false;
+        } else {
+          copy = original.deepCopy();
+          cases.add(copy);
+        }
+        
+        // create a path constraint based on this label        
+        AtomicPathConstraint switchConstraint = new AtomicPathConstraint(switchTargetTerm, new SimplePathTerm(casesAndLabels[i]), 
+                                                                         ConditionalBranchInstruction.Operator.EQ);
+        if (Options.DEBUG) Util.Debug("adding switch constraint " + switchConstraint);
+        copy.addConstraint(switchConstraint);
+        Util.Assert(copy.isFeasible()); // need to do something fancier if one of these is infeasible
+      }
+    }
+    Util.Assert(found, "couldn't find label for " + this + " last block " + lastBlock + " IR " + ir);
+    return cases;
+  }
+  
   /**
    * return the set of methods that can potentially produce / affect some part
    * of this query
@@ -1439,9 +1504,9 @@ public class PathQuery implements IQuery {
   @Override
   public Map<Constraint, Set<CGNode>> getModifiersForQuery() {
     Map<PointerKey, Set<CGNode>> reversedModRef = this.depRuleGenerator.getReversedModRef();
-    Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make(); //new HashMap<Constraint, Set<CGNode>>();
+    Map<Constraint, Set<CGNode>> constraintModMap = HashMapFactory.make(); 
     for (AtomicPathConstraint constraint : this.constraints) {
-      Set<CGNode> nodes = HashSetFactory.make();//new HashSet<CGNode>();
+      Set<CGNode> nodes = HashSetFactory.make();
       Util.Debug("getting pointer keys for " + constraint);
       for (PointerKey key : constraint.getPointerKeys(this.depRuleGenerator)) {
         Util.Debug("POINTER KEY " + key);

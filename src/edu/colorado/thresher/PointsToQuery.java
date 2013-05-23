@@ -34,6 +34,7 @@ import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSAReturnInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
@@ -1862,37 +1863,14 @@ public class PointsToQuery implements IQuery {
     if (Options.PIECEWISE_EXECUTION) this.produced.clear(); 
   }
   
+  @Override
   public Map<Constraint, Set<CGNode>> getRelevantNodes() {
-    /*
-    Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
-    HeapGraph hg = depRuleGenerator.getHeapGraph();
-    for (PointsToEdge edge : constraints) {
-      Set<CGNode> nodes = HashSetFactory.make();
-      PointerVariable var = edge.getSource();
-      if (var.isLocalVar()) nodes.add(var.getNode());
-      else if (var.getPossibleValues() != null) {
-        for (InstanceKey key : var.getPossibleValues()) {
-          //key.getCreationSites(CG);
-          for (Iterator<Object> preds = hg.getPredNodes(key); preds.hasNext();) {
-            Object pred = preds.next();
-            if (pred instanceof LocalPointerKey) {
-              LocalPointerKey lpk = (LocalPointerKey) pred;
-              nodes.add(lpk.getNode());
-            }
-          }
-        }
-      } else {
-        Util.Debug("weird ptr variable " + var + "; possible values null");
-      }
-      constraintRelevantMap.put(edge, nodes);
-    }
-    return constraintRelevantMap;
-    */
     Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
     HeapGraph hg = depRuleGenerator.getHeapGraph();
     for (PointsToEdge edge : constraints) {
       
       Set<CGNode> nodes = getRelevantNodesForVar(edge.getSource(), hg);
+      // TODO: may not want to do this. this gets gens, but not kills
       // take the intersection--a node must point to both in order to do a write
       nodes.retainAll(getRelevantNodesForVar(edge.getSink(), hg));
 
@@ -2111,6 +2089,11 @@ public class PointsToQuery implements IQuery {
     copy.intersect(startConstraints);
     Util.Unimp("non-destructive difference");
     return null;
+  }
+  
+  @Override
+  public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {
+    return IQuery.FEASIBLE;
   }
 
   @Override

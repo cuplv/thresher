@@ -317,7 +317,7 @@ public class Main {
     String[] tests = new String[] { "BasicCastRefute", "BasicCastNoRefute", "InstanceOfRefute", "InstanceOfNoRefute", 
                                     "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute", "FieldCastRefute", "FieldCastNoRefute",
                                     "ArrayListRefute", "ArrayListNoRefute", "IteratorRefute", "IteratorNoRefute", 
-                                    "HashtableEnumeratorRefute", "HashtableEnumeratorNoRefute" };
+                                    "HashtableEnumeratorRefute", "HashtableEnumeratorNoRefute", "SwitchRefute", "SwitchNoRefute" };
     // results for tests whose casts are not all safe or all unsafe
     Map<String,CastCheckingResults> resultsMap = HashMapFactory.make();
     resultsMap.put("IteratorRefute", new CastCheckingResults(2, 2, 2));

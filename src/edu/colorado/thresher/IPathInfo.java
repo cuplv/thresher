@@ -14,6 +14,7 @@ import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
+import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 
@@ -169,38 +170,15 @@ public class IPathInfo { // implements Comparable {
     return query.addConstraintFromBranchPoint(point, trueBranch);
   }
   
+  public List<IPathInfo> addPathConstraintFromSwitch(SSASwitchInstruction instr) {
+    return handleQueryCaseSplitReturn(query.addPathConstraintFromSwitch(instr, this.lastBlock, this.currentNode));
+  }
+  
   public boolean simulateQueryReturnFromCall(SSAInvokeInstruction instruction, CGNode callee) {
     // Util.Debug("simulating return from callee " + callee + " via call instr "
     // + instruction);
     List<IQuery> caseSplits = this.query.returnFromCall(instruction, callee, this);
     return caseSplits == IQuery.INFEASIBLE ? false : true;
-  }
-
-  // TODO: hack!
-  public boolean addSizeConstraint(SSAInvokeInstruction instr, CGNode caller) {
-    if (query instanceof CombinedPathAndPointsToQuery) {
-      CombinedPathAndPointsToQuery combined = (CombinedPathAndPointsToQuery) query;
-      if (instr.hasDef()) {
-        int MAX_COLLECTION_SIZE = 1073741824; // taken from HashMap
-        PointerVariable returnValue = new ConcretePointerVariable(caller, instr.getDef(), combined.depRuleGenerator.getHeapModel());
-        if (combined.pathVars.contains((returnValue))) {
-          // bypass constraint limits for these
-          combined.constraints.add(new AtomicPathConstraint(new SimplePathTerm(returnValue), new SimplePathTerm(0),
-              ConditionalBranchInstruction.Operator.GE));
-          combined.constraints.add(new AtomicPathConstraint(new SimplePathTerm(returnValue),
-              new SimplePathTerm(MAX_COLLECTION_SIZE), ConditionalBranchInstruction.Operator.LT));
-          return combined.isFeasible();
-          // substituteExpForVar(new
-          // SimplePathTerm(Util.makeReturnValuePointer(instr.getDeclaredTarget())),
-          // returnValue);
-          // substituteExpForVar(new
-          // SimplePathTerm(Util.makeReturnValuePointer(callee,
-          // this.depRuleGenerator.getHeapModel())), returnValue);
-          // return isFeasible();
-        }
-      }
-    }
-    return true;
   }
 
   /**
@@ -347,8 +325,7 @@ public class IPathInfo { // implements Comparable {
           paths.add(this.deepCopyWithQuery(query));
         }
       }
-      if (paths.isEmpty())
-        return IPathInfo.INFEASIBLE;
+      if (paths.isEmpty()) return IPathInfo.INFEASIBLE;
       Util.Assert(!paths.isEmpty(), "should be nonempty here!");
       return paths;
     }

@@ -182,25 +182,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   // TODO: do branch points for switch? add cases for switch?
   // TODO: do we even want to add path constraints from switch?
   boolean visitSwitch(SSASwitchInstruction instr, IPathInfo info) {
-    /*
-    Util.Assert(info.getLastBlock().getFirstInstructionIndex() != -1);
-    SSAInstruction lastInstr = info.getLastBlock().getAllInstructions().get(0);
-    // the IR index of the last instruction this path executed before the switch()
-    int label = Util.getIndexForInstruction(info.getCurrentNode().getIR(), lastInstr);
-    Util.Print(info.getCurrentNode().getIR());
-    
-    int[] casesAndLabels = instr.getCasesAndLabels();
-    for (int i = 0; i < casesAndLabels.length; i += 2) {
-      // find the switch cases that dispatch to this label
-      if (casesAndLabels[i + 1] == label) {
-        // create a path constraint based on this label
-        Util.Print("constraint " + info.getCurrentNode().getMethod().getName() + "-" + instr.getUse(0) + " == " + casesAndLabels[i]);
-      }
-    }
-    
-    // merging switch: if not all cases are accounted for, add constraint for each
-    // if they're all the same,
-     */ 
+    List<IPathInfo> cases = info.addPathConstraintFromSwitch(instr);
+    if (cases == IPathInfo.INFEASIBLE) return false;
+    for (IPathInfo _case : cases) addPath(_case);
     return true;
   }
   
