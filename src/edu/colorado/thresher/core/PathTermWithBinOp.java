@@ -5,13 +5,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.ArithExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.IntExpr;
+import com.microsoft.z3.Z3Exception;
 
 public class PathTermWithBinOp implements PathTerm {
 
@@ -209,42 +211,54 @@ public class PathTermWithBinOp implements PathTerm {
     }
   }
 
-  public Z3AST toZ3AST(Z3Context ctx, boolean boolVar) {
-    Z3AST binOpLHS = lhs.toZ3AST(ctx, boolVar);
-    Z3AST binOpRHS = rhs.toZ3AST(ctx, boolVar);
-    switch (this.binOp) {
-      case ADD:
-        return ctx.mkAdd(binOpLHS, binOpRHS);
-      case SUB:
-        return ctx.mkSub(binOpLHS, binOpRHS);
-      case MUL:
-        return ctx.mkMul(binOpLHS, binOpRHS);
-      case DIV:
-        return ctx.mkDiv(binOpLHS, binOpRHS);
-      case AND:
-        Util.Unimp("bw and");
-        // make boolean vars, not int vars
-        binOpLHS = lhs.toZ3AST(ctx, true);
-        binOpRHS = rhs.toZ3AST(ctx, true);
-        return ctx.mkAnd(binOpLHS, binOpRHS);
-      case OR: {
-        Util.Unimp("bw or");
-        // make boolean vars, not int vars
-        binOpLHS = lhs.toZ3AST(ctx, true);
-        binOpRHS = rhs.toZ3AST(ctx, true);
-        return ctx.mkOr(binOpLHS, binOpRHS);
+  public AST toZ3AST(Context ctx, boolean boolVar) {
+    AST binOpLHS = lhs.toZ3AST(ctx, boolVar);
+    AST binOpRHS = rhs.toZ3AST(ctx, boolVar);
+    try {
+      switch (this.binOp) {
+        case ADD:
+          return ctx.MkAdd(new ArithExpr[] { (ArithExpr) binOpLHS, (ArithExpr) binOpRHS } );
+          //return ctx.mkAdd(binOpLHS, binOpRHS);
+        case SUB:
+          return ctx.MkSub(new ArithExpr[] { (ArithExpr) binOpLHS, (ArithExpr) binOpRHS } );
+          //return ctx.mkSub(binOpLHS, binOpRHS);
+        case MUL:
+          return ctx.MkMul(new ArithExpr[] { (ArithExpr) binOpLHS, (ArithExpr) binOpRHS } );
+          //return ctx.mkMul(binOpLHS, binOpRHS);
+        case DIV:
+          return ctx.MkDiv((ArithExpr) binOpLHS, (ArithExpr) binOpRHS);
+          //return ctx.mkDiv(binOpLHS, binOpRHS);
+        case AND:
+          Util.Unimp("bw and");
+          // make boolean vars, not int vars
+          binOpLHS = lhs.toZ3AST(ctx, true);
+          binOpRHS = rhs.toZ3AST(ctx, true);
+          //return ctx.mkAnd(binOpLHS, binOpRHS);
+          return null;
+        case OR: {
+          Util.Unimp("bw or");
+          // make boolean vars, not int vars
+          binOpLHS = lhs.toZ3AST(ctx, true);
+          binOpRHS = rhs.toZ3AST(ctx, true);
+          //return ctx.mkOr(binOpLHS, binOpRHS);
+          return null;
+        }
+        case XOR: {
+          Util.Unimp("xor");
+          // make boolean vars, not int vars
+          binOpLHS = lhs.toZ3AST(ctx, true);
+          binOpRHS = rhs.toZ3AST(ctx, true);
+          //return ctx.mkXor(binOpLHS, binOpRHS);
+          return null;
+        }
+        case REM:
+          return ctx.MkRem((IntExpr) binOpLHS, (IntExpr) binOpRHS);
+          //return ctx.mkRem(binOpLHS, binOpRHS);
+        default:
+          Util.Unimp("unsupported bin op " + binOp);
       }
-      case XOR: {
-        Util.Unimp("xor");
-        // make boolean vars, not int vars
-        binOpLHS = lhs.toZ3AST(ctx, true);
-        binOpRHS = rhs.toZ3AST(ctx, true);
-        return ctx.mkXor(binOpLHS, binOpRHS);
-      }
-      case REM:
-        return ctx.mkRem(binOpLHS, binOpRHS);
-      default:
-        Util.Unimp("unsupported bin op " + binOp);
+    } catch (Z3Exception e) {
+      Util.Assert(false, "problem with z3 " + e);
     }
     return null;
   }

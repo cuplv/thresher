@@ -6,14 +6,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Z3Exception;
 
 // a path variable is one of three things: a constant, an object, or an object and an access path
 public class SimplePathTerm implements PathTerm {
@@ -491,13 +491,22 @@ public class SimplePathTerm implements PathTerm {
     }
   }
 
-  public Z3AST toZ3AST(Z3Context ctx, boolean boolVar) {
-    if (this.isIntegerConstant())
-      return Util.makeIntConst(this.constant, ctx);
-    else if (boolVar)
-      return Util.makePropositionalVar(this.toString(), ctx);
-    else
-      return Util.makeIntVar(this.toString(), ctx);
+  public AST toZ3AST(Context ctx, boolean boolVar) {
+    try {
+      if (this.isIntegerConstant()) {
+        return ctx.MkInt(this.constant);
+        //return Util.makeIntConst(this.constant, ctx);
+      } else if (boolVar) {
+        return ctx.MkBoolConst(this.toString());
+        //return Util.makePropositionalVar(this.toString(), ctx);
+      } else {
+        return ctx.MkIntConst(this.toString());
+        //return Util.makeIntVar(this.toString(), ctx);
+      }
+    } catch (Z3Exception e) {
+      Util.Assert(false, "problem with z3 " + e);
+      return null;
+    }
   }
 
   public Set<PointerVariable> getVars() {

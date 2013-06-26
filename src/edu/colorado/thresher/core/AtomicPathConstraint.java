@@ -4,9 +4,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
@@ -17,6 +14,11 @@ import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.ArithExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Expr;
+import com.microsoft.z3.Z3Exception;
 
 /**
  * disjunct-free path constraint
@@ -322,25 +324,29 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     return true;
   }
 
-  public Z3AST toZ3AST(Z3Context ctx) {
-    Z3AST z3LHS = lhs.toZ3AST(ctx, false);
-    Z3AST z3RHS = rhs.toZ3AST(ctx, false);
-
-    switch (this.op) {
-      case LT:
-        return ctx.mkLT(z3LHS, z3RHS);
-      case LE:
-        return ctx.mkLE(z3LHS, z3RHS);
-      case GT:
-        return ctx.mkGT(z3LHS, z3RHS);
-      case GE:
-        return ctx.mkGE(z3LHS, z3RHS);
-      case EQ:
-        return ctx.mkEq(z3LHS, z3RHS);
-      case NE:
-        return ctx.mkNot(ctx.mkEq(z3LHS, z3RHS));
-      default:
-        Util.Assert(false, "Unsupported op!");
+  public AST toZ3AST(Context ctx) {
+    AST z3LHS = lhs.toZ3AST(ctx, false);
+    AST z3RHS = rhs.toZ3AST(ctx, false);
+    try {
+      switch (this.op) {
+        case LT:
+          //return ctx.mkLT(z3LHS, z3RHS);
+          return ctx.MkLt((ArithExpr) z3LHS, (ArithExpr) z3RHS);
+        case LE:
+          return ctx.MkLe((ArithExpr) z3LHS, (ArithExpr) z3RHS);
+        case GT:
+          return ctx.MkGt((ArithExpr) z3LHS, (ArithExpr) z3RHS);
+        case GE:
+          return ctx.MkGe((ArithExpr) z3LHS, (ArithExpr) z3RHS);
+        case EQ:
+          return ctx.MkEq((Expr) z3LHS, (Expr) z3RHS);
+        case NE:
+          return ctx.MkNot(ctx.MkEq((Expr) z3LHS, (Expr) z3RHS));
+        default:
+          Util.Assert(false, "Unsupported op!");
+      }
+    } catch (Z3Exception e) {
+      Util.Assert(false, "z3 problem " + e);
     }
     return null;
   }

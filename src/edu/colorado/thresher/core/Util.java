@@ -13,9 +13,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-import z3.java.Z3Sort;
+//import z3.java.Z3AST;
+//import z3.java.Z3Context;
+//import z3.java.Z3Sort;
 
 import com.ibm.wala.analysis.pointers.BasicHeapGraph;
 import com.ibm.wala.analysis.pointers.HeapGraph;
@@ -26,7 +26,6 @@ import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.ipa.callgraph.CallGraphTransitiveClosure;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSite;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -65,13 +64,15 @@ import com.ibm.wala.util.WalaException;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
-import com.ibm.wala.util.functions.Function;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
 import com.ibm.wala.viz.DotUtil;
 import com.ibm.wala.viz.PDFViewUtil;
+import com.microsoft.z3.BoolExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Z3Exception;
 
 public class Util {
 
@@ -1139,6 +1140,7 @@ public class Util {
     return "{" + edgeSet + "}";
   }
 
+  /*
   private static Z3AST makeUnboundAssumptionForVar(String varName, Z3Context ctx) {
     String boundVar = varName + "_unbound";
     // System.err.println("adding assumption ~" + boundVar);
@@ -1195,6 +1197,7 @@ public class Util {
         ctx.mkNot(ctx.mkEq(ctx.mkInt(rhs0, intSort), ctx.mkConst(ctx.mkStringSymbol(rhs1), intSort)))));
 
   }
+  */
 
   /*
    * public static String valueFromPointsToConstraints(String rhs, String
@@ -1295,6 +1298,7 @@ public class Util {
     }
   }
 
+  /*
   public static Z3AST makeIntConst(int i, Z3Context ctx) {
     return ctx.mkInt(i, ctx.mkIntSort());
   }
@@ -1306,14 +1310,16 @@ public class Util {
   public static Z3AST makePropositionalVar(String name, Z3Context ctx) {
     return ctx.mkConst(ctx.mkStringSymbol(name), ctx.mkBoolSort());
   }
+  */
 
   /*
    * private static Z3AST makeNegatedPropositionalVar(String name, Z3Context
    * ctx) { return ctx.mkNot(makePropositionalVar(name, ctx)); }
    */
 
-  public static Z3AST makeFreshPropositionalVar(Z3Context ctx) {
-    return makePropositionalVar(newTmpVar(), ctx);
+  public static BoolExpr makeFreshPropositionalVar(Context ctx) throws Z3Exception {
+    return ctx.MkBoolConst(newTmpVar());
+    //return makePropositionalVar(newTmpVar(), ctx);
   }
 
   // public static String makeLocalVarName(MethodReference method, int localNum)

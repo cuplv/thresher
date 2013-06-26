@@ -130,17 +130,17 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   CombinedPathAndPointsToQuery(PointsToQueryWrapper pointsToQuery, PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx, pathQuery.solver);
     this.pointsToQuery = pointsToQuery.deepCopy(this);
   }
   
   CombinedPathAndPointsToQuery(PointsToQuery ptQuery, PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx, pathQuery.solver);
     this.pointsToQuery = new PointsToQueryWrapper(ptQuery, this);
   }
   
   CombinedPathAndPointsToQuery(PathQuery pathQuery) {
-    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx);
+    super(pathQuery.constraints, pathQuery.pathVars, pathQuery.witnessList, pathQuery.depRuleGenerator, pathQuery.ctx, pathQuery.solver);
     Set<PointsToEdge> ptConstraints = HashSetFactory.make();
     Set<PointsToEdge> ptProduced = HashSetFactory.make();
     this.pointsToQuery = new PointsToQueryWrapper(ptConstraints, ptProduced, new ArrayList<DependencyRule>(),
@@ -148,7 +148,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   CombinedPathAndPointsToQuery(CombinedPathAndPointsToQuery query) {
-    super(query.constraints, query.pathVars, query.witnessList, query.depRuleGenerator, query.ctx);
+    super(query.constraints, query.pathVars, query.witnessList, query.depRuleGenerator, query.ctx, query.solver);
     this.pointsToQuery = query.pointsToQuery;
   }
 

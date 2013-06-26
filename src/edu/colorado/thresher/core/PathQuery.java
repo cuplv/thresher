@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import z3.java.Z3AST;
-import z3.java.Z3Config;
-import z3.java.Z3Context;
+//import z3.java.Z3AST;
+//import z3.java.Z3Config;
+//import z3.java.Z3Context;
+import com.microsoft.z3.*;
+
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
@@ -82,11 +84,14 @@ public class PathQuery implements IQuery {
   final Set<PointerVariable> pathVars;
 
   // Z3Context shared among all paths. do not make copies of this unless you dispose of them properly!
-  final Z3Context ctx; 
+  //final Z3Context ctx;
+  final Context ctx;
+  final Solver solver;
   
   // a z3 representation of the z3 assumption tied to the current path
   // constraints
-  Z3AST currentPathAssumption;
+  //Z3AST currentPathAssumption;
+  BoolExpr currentPathAssumption;
 
   boolean fakeWitness = false;
   boolean feasible = true;
@@ -96,7 +101,17 @@ public class PathQuery implements IQuery {
     this.depRuleGenerator = depRuleGenerator;
     this.heapModel = depRuleGenerator.getHeapModel();
     // this should be the only place Z3Context's are created unless they are disposed of carefully
-    this.ctx = new Z3Context(new Z3Config());
+    //this.ctx = new Z3Context(new Z3Config());
+    Context tmpCtx = null;
+    Solver tmpSolver = null;
+    try {
+      tmpCtx = new Context();
+      tmpSolver = tmpCtx.MkSolver();
+    } catch (Z3Exception e) {
+      Util.Assert(false, "problem with z3 " + e);      
+    }
+    this.ctx = tmpCtx;
+    this.solver = tmpSolver;
     this.constraints = HashSetFactory.make(); 
     this.pathVars = HashSetFactory.make(); 
     this.witnessList = new LinkedList<AtomicPathConstraint>();
@@ -104,19 +119,20 @@ public class PathQuery implements IQuery {
   }
   
   // if the context is not copied, this will clear all memory Z3 is using
-  public void dispose() { ctx.delete(); }
+  public void dispose() { ctx.Dispose(); } //ctx.delete(); }
 
   // constructor for deep copying only
   // PathQuery(TreeSet<AtomicPathConstraint> constraints, Set<PointerVariable>
   // pathVars, List<AtomicPathConstraint> witnessList,
   PathQuery(Set<AtomicPathConstraint> constraints, Set<PointerVariable> pathVars, List<AtomicPathConstraint> witnessList,
-      AbstractDependencyRuleGenerator depRuleGenerator, Z3Context ctx) {
+      AbstractDependencyRuleGenerator depRuleGenerator, Context ctx, Solver solver) {
     this.constraints = constraints;
     this.pathVars = pathVars;
     this.witnessList = witnessList;
     this.depRuleGenerator = depRuleGenerator;
     this.heapModel = depRuleGenerator.getHeapModel();
     this.ctx = ctx; 
+    this.solver = solver;
     this.currentPathAssumption = null;
     rebuildZ3Constraints();
   }
@@ -127,7 +143,7 @@ public class PathQuery implements IQuery {
     // Util.deepCopySet(pathVars), Util.deepCopyList(witnessList),
     // depRuleGenerator);//, ctx);
     return new PathQuery(Util.deepCopySet(constraints), Util.deepCopySet(pathVars), Util.deepCopyList(witnessList),
-        depRuleGenerator, ctx);// , ctx);
+        depRuleGenerator, ctx, solver);// , ctx);
   }
 
   @Override
@@ -208,17 +224,25 @@ public class PathQuery implements IQuery {
     pathVars.clear();
     if (constraints.size() > 0) {
       // ctx.delete();
-      Z3AST[] constraintsArr = new Z3AST[constraints.size()];
+      //AST[] constraintsArr = new AST[constraints.size()];
+      BoolExpr[] constraintsArr = new BoolExpr[constraints.size()];
       int i = 0;
       for (AtomicPathConstraint constraint : constraints) {
         pathVars.addAll(constraint.getVars());
-        Z3AST z3Constraint = constraint.toZ3AST(ctx);
-        constraintsArr[i++] = z3Constraint;
+        AST z3Constraint = constraint.toZ3AST(ctx);
+        constraintsArr[i++] = (BoolExpr) z3Constraint;
       }
-      Z3AST pathConstraint = ctx.mkAnd(constraintsArr);
-      Z3AST newAssumption = Util.makeFreshPropositionalVar(ctx);
-      ctx.assertCnstr(ctx.mkImplies(newAssumption, pathConstraint));
-      this.currentPathAssumption = newAssumption;
+      try {
+        //AST pathConstraint = ctx.mkAnd(constraintsArr);
+        BoolExpr pathConstraint = ctx.MkAnd(constraintsArr);
+        BoolExpr newAssumption = Util.makeFreshPropositionalVar(ctx);
+        solver.Assert(ctx.MkImplies(newAssumption, pathConstraint));
+        //ctx.assertCnstr(ctx.mkImplies(newAssumption, pathConstraint));
+        this.currentPathAssumption = newAssumption;
+      } catch (Z3Exception e) {
+        Util.Assert(false, "problem with z3 " + e);
+      }
+      
     } // else, do nothing; no constraints to work with
   }
 
@@ -902,22 +926,32 @@ public class PathQuery implements IQuery {
         
     if (currentPathAssumption == null) return true;
     // call Z3 to check for feasibility
-    Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };
-    Boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
-    if (result == null) {
+    //Z3AST[] assumptionsArr = new Z3AST[] { currentPathAssumption };
+    //Boolean result = ctx.checkAssumptionsNoModel(assumptionsArr);
+    Expr[] assumptionsArr = new Expr[] { currentPathAssumption };
+    Status status = null;
+    try {
+      status = solver.Check(assumptionsArr);
+    } catch (Z3Exception e) {
+      Util.Assert(false, "problem with z3 " + e);
+    }
+    
+    //if (result == null) {
+    if (status == Status.UNKNOWN) {
       if (Options.DEBUG) Util.Debug("Z3 decidability problem. giving up on z3 checking");
       // z3 can't solve our current constraints. give up
       z3Panic = true;
       return true; 
-    }
-
-    if (!result) {
+    } else if (status == Status.UNSATISFIABLE) {
       this.feasible = false;
       if (Options.DEBUG) Util.Debug("refuted by path constraint!");
       //ctx.delete();
       // deleted = true;
+      return false;
     }
-    return result;
+    // else, sat
+    return true;
+    //return result;
   }
 
   @Override
@@ -1373,28 +1407,53 @@ public class PathQuery implements IQuery {
   public boolean symbContains(PathQuery other) {
     if (other.constraints.isEmpty()) return true;
     if (this.constraints.isEmpty()) return false;
-    // TODO: refactor to use existing context
-    // temporary context for performing implication checking
-    final Z3Context tmp = new Z3Context(new Z3Config());
-    final Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
-    int i = 0;
-    for (AtomicPathConstraint constraint : this.constraints) {
-      conjuncts0[i++] = constraint.toZ3AST(tmp);
-    }
-    i = 0;
-    for (AtomicPathConstraint constraint : other.constraints) {
-      conjuncts1[i++] = constraint.toZ3AST(tmp);
-    }
+    Status result = null;
+    try {
+      // TODO: refactor to use existing context
+      // temporary context for performing implication checking
+      //final Z3Context tmp = new Z3Context(new Z3Config());
+      Context tmp = new Context();
+      //final Z3AST[] conjuncts0 = new Z3AST[constraints.size()], conjuncts1 = new Z3AST[other.constraints.size()];
+      final BoolExpr[] conjuncts0 = new BoolExpr[constraints.size()], conjuncts1 = new BoolExpr[other.constraints.size()];
+      
+      int i = 0;
+      for (AtomicPathConstraint constraint : this.constraints) {
+        //conjuncts0[i++] = constraint.toZ3AST(tmp);
+        conjuncts0[i++] = (BoolExpr) constraint.toZ3AST(tmp);
+      }
+      i = 0;
+      for (AtomicPathConstraint constraint : other.constraints) {
+        //conjuncts1[i++] = constraint.toZ3AST(tmp);
+        conjuncts1[i++] = (BoolExpr) constraint.toZ3AST(tmp);
+      }
+   
+      //final Z3AST implLHS = tmp.mkAnd(conjuncts0);
+      //final Z3AST implRHS = tmp.mkAnd(conjuncts1);
+      final BoolExpr implLHS = tmp.MkAnd(conjuncts0), implRHS = tmp.MkAnd(conjuncts1);
+      // ask: is there some assignment for which LHS does not imply RHS?
+      Solver s = tmp.MkSolver();
+      s.Assert(tmp.MkNot(tmp.MkImplies(implLHS, implRHS)));
+      //tmp.assertCnstr(tmp.mkNot(tmp.mkImplies(implLHS, implRHS)));
+      // if not, then we know LHS => RHS for all values
+      //boolean result = !tmp.check();
+      result = s.Check();
 
-    final Z3AST implLHS = tmp.mkAnd(conjuncts0);
-    final Z3AST implRHS = tmp.mkAnd(conjuncts1);
-    //tmp.assertCnstr(implLHS);
-    // ask: is there some assignment for which LHS does not imply RHS?
-    tmp.assertCnstr(tmp.mkNot(tmp.mkImplies(implLHS, implRHS)));
-    // if not, then we know LHS => RHS for all values
-    boolean result = !tmp.check();
-    tmp.delete();
-    return result;//!tmp.check();
+      if (result == Status.UNKNOWN) {
+        Util.Assert(false, "z3 decidability problem");
+        return false;
+      } else {
+        boolean boolResult = result == Status.UNSATISFIABLE;
+        tmp.Dispose();
+        return boolResult;
+      }
+    } catch (Z3Exception e) {
+      Util.Assert(false, " problem with z3 " + e);
+      return false;
+    }
+    
+    
+    //tmp.delete();
+    //return result;//!tmp.check();
   }
 
   @Override

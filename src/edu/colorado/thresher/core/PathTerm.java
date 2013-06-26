@@ -3,11 +3,10 @@ package edu.colorado.thresher.core;
 import java.util.List;
 import java.util.Set;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.types.FieldReference;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.Context;
 
 public interface PathTerm extends Comparable {
 
@@ -15,7 +14,7 @@ public interface PathTerm extends Comparable {
 
   public String toHumanReadableString();
 
-  public Z3AST toZ3AST(Z3Context ctx, boolean boolVar);
+  public AST toZ3AST(Context ctx, boolean boolVar);
 
   public Set<PointerVariable> getVars();
 

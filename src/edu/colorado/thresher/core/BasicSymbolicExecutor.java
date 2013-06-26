@@ -7,10 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import z3.java.Z3AST;
-import z3.java.Z3Context;
-import z3.java.Z3Model;
-
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
@@ -26,12 +22,16 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.graph.Graph;
-import com.ibm.wala.util.graph.impl.GraphInverter;
-import com.ibm.wala.util.graph.traverse.BFSIterator;
-import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
-import com.ibm.wala.util.intset.OrdinalSet;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.BoolExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Expr;
+import com.microsoft.z3.Model;
+import com.microsoft.z3.Solver;
+import com.microsoft.z3.Status;
+import com.microsoft.z3.Z3Exception;
 
 /**
  * a very simple symbolic executor. interprocedurally explores all program paths
@@ -262,9 +262,10 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         }
         
         Util.Print("Beginning synthesis");
-        Z3Context ctx = qry.ctx;
+        //Z3Context ctx = qry.ctx;
+        Context ctx = qry.ctx;
         // map from free variables in our representation to free variables in the theorem prover
-        Map<SimplePathTerm,Z3AST> termVarMap = HashMapFactory.make();
+        Map<SimplePathTerm,AST> termVarMap = HashMapFactory.make();
         
         // prune irrelevant constraints
         // TODO: handle this in a more principled way
@@ -276,34 +277,43 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           }
         }
         
-        Util.Print("Constraints:");
-        for (AtomicPathConstraint constraint : qry.constraints) {
-          Util.Print(constraint);
-          for (SimplePathTerm term : constraint.getTerms()) {
-            if (!term.isIntegerConstant()) termVarMap.put(term, term.toZ3AST(ctx, false));
+        try {
+          Solver solver = ctx.MkSolver();
+          Util.Print("Constraints:");
+          for (AtomicPathConstraint constraint : qry.constraints) {
+            Util.Print(constraint);
+            for (SimplePathTerm term : constraint.getTerms()) {
+              if (!term.isIntegerConstant()) termVarMap.put(term, term.toZ3AST(ctx, false));
+            }
+            // give constraints to the prover
+            AST ast = constraint.toZ3AST(ctx);
+            solver.Assert((BoolExpr) ast);
+            //ctx.assertCnstr(ast);
           }
-          // give constraints to the prover
-          Z3AST ast = constraint.toZ3AST(ctx);
-          ctx.assertCnstr(ast);
+  
+          //Model model = qry.ctx.mkModel();
+          // get assignments for the free environment variables from the theorem prover
+          //if (qry.ctx.checkAndGetModel(model)) { // sat
+          if (solver.Check() == Status.SATISFIABLE) {
+            Model model = solver.Model();
+            // map from free variables -> the value they should be assigned according to the prover
+            Map<SimplePathTerm,String> termValMap = HashMapFactory.make();
+            for (SimplePathTerm term : termVarMap.keySet()) {
+            termValMap.put(term, "" + model.Evaluate((Expr) termVarMap.get(term), false)); // convert to string 
+            //termValMap.put(term, "" + model.evalAsInt(termVarMap.get(term))); // convert to string 
+            }
+            
+            IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
+            ClassSynthesizer synth = new ClassSynthesizer(cha);
+  
+            // call synthesizer with method signatures and values to assign
+            this.synthesizedClasses = synth.synthesize(termValMap);
+          } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat
+  
+          return true;
+        } catch (Z3Exception e) {
+          Util.Assert(false, "problem with z3 " + e);
         }
-
-        Z3Model model = qry.ctx.mkModel();
-        // get assignments for the free environment variables from the theorem prover
-        if (qry.ctx.checkAndGetModel(model)) { // sat
-          // map from free variables -> the value they should be assigned according to the prover
-          Map<SimplePathTerm,String> termValMap = HashMapFactory.make();
-          for (SimplePathTerm term : termVarMap.keySet()) {
-            termValMap.put(term, "" + model.evalAsInt(termVarMap.get(term))); // convert to string 
-          }
-          
-          IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
-          ClassSynthesizer synth = new ClassSynthesizer(cha);
-
-          // call synthesizer with method signatures and values to assign
-          this.synthesizedClasses = synth.synthesize(termValMap);
-        } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat
-
-        return true;
       }
       
       CGNode entrypoint = path.getCurrentNode();
