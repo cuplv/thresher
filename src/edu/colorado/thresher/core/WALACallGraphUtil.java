@@ -49,9 +49,11 @@ public final class WALACallGraphUtil {
     List<Pair<SSAInvokeInstruction,CGNode>> invokes = new ArrayList<Pair<SSAInvokeInstruction,CGNode>>();
     
     for (CGNode node : nodes) { 
+      Util.Print("node " + node);
       Iterator<CGNode> preds = cg.getPredNodes(node);
       while (preds.hasNext()) { // for each CGNode caller that may call callee in some context
         CGNode pred = preds.next();
+        Util.Print("pred " + pred);
         IR ir = pred.getIR();
         SSAInstruction[] instrs = ir.getInstructions();
         Iterator<CallSiteReference> sites = cg.getPossibleSites(pred, node);
@@ -76,6 +78,8 @@ public final class WALACallGraphUtil {
    */
   public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForMethod(MethodReference callee, CallGraph cg) {
     Set<CGNode> nodes = cg.getNodes(callee);
+    Util.Assert(!nodes.isEmpty(), "no nodes for " + callee);
+    Util.Print("callee " + callee + " nodes " + nodes.size());
     return getCallInstrsForNodes(nodes, cg);
   }
   

@@ -62,7 +62,6 @@ public class ClassSynthesizer {
     List<String> testCode = new ArrayList<String>();
     
     // map from method -> {param index -> param value} map for that method
-    //Map<IMethod,Map<Integer,Integer>> methodParamsMap = HashMapFactory.make();
     Map<IMethod,Map<Integer,String>> methodParamsMap = HashMapFactory.make();
     
     for (SimplePathTerm term : termValMap.keySet()) {

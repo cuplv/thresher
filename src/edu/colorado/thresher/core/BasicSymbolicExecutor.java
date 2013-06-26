@@ -261,7 +261,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
           return true;
         }
         
-        Util.Print("Beginning synthesis");
         //Z3Context ctx = qry.ctx;
         Context ctx = qry.ctx;
         // map from free variables in our representation to free variables in the theorem prover
@@ -279,7 +278,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         
         try {
           Solver solver = ctx.MkSolver();
-          Util.Print("Constraints:");
           for (AtomicPathConstraint constraint : qry.constraints) {
             Util.Print(constraint);
             for (SimplePathTerm term : constraint.getTerms()) {
@@ -299,15 +297,24 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
             // map from free variables -> the value they should be assigned according to the prover
             Map<SimplePathTerm,String> termValMap = HashMapFactory.make();
             for (SimplePathTerm term : termVarMap.keySet()) {
-            termValMap.put(term, "" + model.Evaluate((Expr) termVarMap.get(term), false)); // convert to string 
-            //termValMap.put(term, "" + model.evalAsInt(termVarMap.get(term))); // convert to string 
+              termValMap.put(term, "" + model.Evaluate((Expr) termVarMap.get(term), false)); // convert to string 
             }
             
-            IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
-            ClassSynthesizer synth = new ClassSynthesizer(cha);
-  
-            // call synthesizer with method signatures and values to assign
-            this.synthesizedClasses = synth.synthesize(termValMap);
+            System.out.println("Can fail if: ");
+            // print counterexample
+            for (Map.Entry<SimplePathTerm,String> entry : termValMap.entrySet()) {
+              SimplePathTerm term = entry.getKey();
+              IR ir = term.getObject().getNode().getIR();
+              System.out.println(entry.getKey() + " = " + entry.getValue());
+            }
+            
+            if (Options.GEN_TESTS) {
+              IClassHierarchy cha = qry.depRuleGenerator.getClassHierarchy();
+              ClassSynthesizer synth = new ClassSynthesizer(cha);
+    
+              // call synthesizer with method signatures and values to assign
+              this.synthesizedClasses = synth.synthesize(termValMap);
+            }
           } else Util.Unimp("Constraint system unsat! Can't synthesize"); // unsat
   
           return true;

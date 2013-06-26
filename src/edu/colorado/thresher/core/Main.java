@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarFile;
 
@@ -80,6 +81,7 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
+import com.microsoft.z3.Statistics.Entry;
 
 public class Main {
   
@@ -113,10 +115,14 @@ public class Main {
       File targetFile = new File(target);
       Util.Assert(targetFile.exists(), "Target file " + target + " does not exist, exiting");
       if (Options.IMMUTABILITY) runImmutabilityCheck(target);
-      else if (Options.SYNTHESIS) runSynthesizer(target);
+      //else if (Options.SYNTHESIS) runSynthesizer(target);
       else if (Options.ANDROID_UI) runAndroidBadMethodCheck(target);
       else if (Options.CHECK_CASTS) runCastChecker(target);
-      else runAnalysisAllStaticFields(target);
+      else {
+        checkAssertionsAndAnnotations(target, "Main", "foo");
+        System.exit(1);
+        runAnalysisAllStaticFields(target);
+      }
     }
   }
 
@@ -1374,9 +1380,10 @@ public class Main {
   }
   
   public static void runSynthesizerRegressionTests() throws Exception {
+    Options.GEN_TESTS = true;
     final String APP_PATH  = "apps/tests/synthesis/";
     final String GENERATED_TEST_NAME = "ThresherGeneratedTest";
-    final String ASSERTION_FAILURE = "Failed assertion!";
+    final String ASSERTION_FAILURE = "java.lang.NullPointerException: Failed assertion!";
     String[] tests = new String[] { "TrueAssertionNoTest", "FalseAssertion", "InputOnly", "MultiInput", "SimpleInterface", 
                                     "SimpleInterfaceIrrelevantMethod", "SimpleInterfaceTwoMethods", "SimpleInterfaceNullObject", 
                                     "SimpleInterfaceObject", "MixedObjAndInt", "SimpleField", "Nested", "NestedField",
@@ -1394,8 +1401,13 @@ public class Main {
         long testStart = System.currentTimeMillis();
         String filename = APP_PATH + test + "/";
         Options.APP = filename;
+        String mainClass = "Main", mainMethod = "foo";
+        if (test.contains("FakeMap")) {
+          mainClass = "FakeMap";
+          mainMethod = "<init>";
+        }
         // synthesize test program
-        Collection<String> synthesizedClasses = runSynthesizer(filename);
+        Collection<String> synthesizedClasses = checkAssertionsAndAnnotations(filename, mainClass, mainMethod);//runSynthesizer(filename);
         // tests with NoTest contain assertions that cannot fail, so no test should be generated
         if (test.contains("NoTest")) {
           Util.Assert(synthesizedClasses == null || synthesizedClasses.isEmpty());
@@ -1422,13 +1434,17 @@ public class Main {
         if (compiled) {
           // compiled successfully; now run the test and make sure the assertion fails
           Util.Print("compiled generated test.");
-          String s = "java -cp " + binDir + " " + GENERATED_TEST_NAME;
+          String s = "java -cp " + ".:bin/:" + binDir + " " + GENERATED_TEST_NAME;
+          Util.Print(s);
           Process p = Runtime.getRuntime().exec(s);
           InputStream stream = p.getInputStream();
           p.waitFor();
-          BufferedReader reader = new BufferedReader (new InputStreamReader(stream));
+          //BufferedReader reader = new BufferedReader (new InputStreamReader(stream));
+          BufferedReader reader = new BufferedReader (new InputStreamReader(p.getErrorStream()));
           String output = reader.readLine();
-          if (ASSERTION_FAILURE.equals(output)) {
+          System.out.println("output is " + output);
+          //if (ASSERTION_FAILURE.equals(output)) {
+          if (output.contains(ASSERTION_FAILURE)) {
             // running generated test triggered assertion failure
             Util.Print("generated test caused assertion failure!");
             Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
@@ -1470,6 +1486,145 @@ public class Main {
     }
   }
   
+  // directory containing binaries
+  private static final String ASSERTIONS_AND_ANNOTATIONS_BIN = "bin/edu/colorado/thresher/external";
+  
+  private static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
+      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
+    if (exclusionsFile.exists()) {
+      scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+    }
+    IClassHierarchy cha = ClassHierarchy.make(scope);
+    Collection<Entrypoint> entryPoints = new ArrayList<Entrypoint>();
+    for (Iterator<IClass> classes = cha.iterator(); classes.hasNext();) {
+      IClass c = classes.next();
+      // skip non-application classes
+      if (scope.isApplicationLoader(c.getClassLoader())
+          && c.getName().toString().contains(mainClass)) {
+        Util.Print("Found main class " + c.getName());
+        // for each method in the main class
+        for (IMethod m : c.getDeclaredMethods()) { 
+          Util.Print(m);
+          if (m.getName().toString().equals(mainMethod)) {
+            Util.Print("Found entrypoint " + m.getName());
+            entryPoints.add(new DefaultEntrypoint(m, cha));
+          }
+        }
+      }
+    }    
+    Util.Assert(!entryPoints.isEmpty(), "No entrypoints found! Class " + mainClass + " with method " + mainMethod + " does not exist");
+    Util.Print("Found " + entryPoints.size() + " entry point(s).");
+
+    // build callgraph and pointer analysis
+    Collection<? extends Entrypoint> e = entryPoints;
+    AnalysisOptions options = new AnalysisOptions(scope, e); 
+    // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
+    AnalysisCache cache = new AnalysisCache();
+    CallGraphBuilder builder = 
+        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options, cache, cha, scope);
+    Util.Print("Building call graph.");
+    CallGraph cg = builder.makeCallGraph(options, null);
+
+    PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
+    HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
+    HeapModel hm = pointerAnalysis.getHeapModel();
+    ModRef modref = ModRef.make();
+    Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
+    return new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
+  }
+  
+  private static Collection<String> checkAssertionsAndAnnotations(String appPath, String mainClass, String mainMethod) 
+      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    
+    AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(appPath, mainClass, mainMethod);
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    
+    // collect and check assertions
+    Options.SYNTHESIS = true;
+    Options.MAX_PATH_CONSTRAINT_SIZE = 50;
+    Options.SKIP_DYNAMIC_DISPATCH = false;
+    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = collectAssertions(cg);
+    
+    return checkAssertions(asserts, depRuleGenerator);
+    
+    //Options.restoreDefaults();
+  }
+  
+  static final MethodReference ASSERT = 
+      MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ledu/colorado/thresher/external/Assertions"), 
+                                   "Assert", "(Z)V");
+  
+  
+  public static Collection<Pair<SSAInvokeInstruction,CGNode>> collectAssertions(CallGraph cg) { 
+    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForMethod(ASSERT, cg);
+    Util.Print("Collected " + asserts.size() + " assertions.");
+    return asserts;
+  }
+  
+  public static Collection<String> checkAssertions(Collection<Pair<SSAInvokeInstruction,CGNode>> asserts, 
+                                       AbstractDependencyRuleGenerator depRuleGenerator) {
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    CallGraph cg = depRuleGenerator.getCallGraph();
+    Logger logger = new Logger();
+    
+    Set<String> synthesizedClasses = HashSetFactory.make();
+    
+    for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
+      SSAInvokeInstruction invoke = asser.fst;
+      CGNode node = asser.snd;
+      IR ir = node.getIR();
+      IBytecodeMethod method = (IBytecodeMethod) ir.getMethod();
+   
+      int sourceLineNum = method.getLineNumber(invoke.getProgramCounter());
+      String loc = method.getDeclaringClass().getName() + "." + method.getName() + "(): line " + sourceLineNum;
+      Util.Print("Checking assertion at " + loc);
+      
+      boolean foundWitness = true;
+      // handle trivial assert(true), assert(false) cases
+      SymbolTable tbl = ir.getSymbolTable();
+      if (tbl.isConstant(invoke.getUse(0))) {
+        if (tbl.getIntValue(invoke.getUse(0)) == 0) { // assert(false) case
+          foundWitness = true;
+        } else { // assert(true) case
+          foundWitness = false;
+        }
+      } 
+      
+      if (foundWitness) { // if there's a possibility the assertion could fail
+        PathQuery query = new PathQuery(depRuleGenerator);
+        // add constraint expressing that assertion *should* fail (we want a counterexample for the synthesizer)
+        query.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(node, invoke.getUse(0), hm)),
+                                                     new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ));
+        ISSABasicBlock[] blks = node.getIR().getBasicBlocksForCall(invoke.getCallSite());
+        Util.Assert(blks.length == 1);
+        SSACFG.BasicBlock startBlk = (SSACFG.BasicBlock) blks[0];
+        int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+        Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(invoke));
+        ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+        // start at line BEFORE call
+        Util.Print("Beginning symbolic execution.");
+        Util.Print(node.getIR());
+        foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
+        
+        Collection<String> synthesized = exec.getSynthesizedClasses();
+        if (synthesizedClasses != null && synthesized != null) {
+          synthesizedClasses.addAll(synthesized);  
+        }
+      }
+      
+      if (foundWitness) Util.Print("Warning: assertion at " + loc + " may fail.");
+      else Util.Print("Assertion at " + loc + " cannot fail.");
+    }
+    return synthesizedClasses;
+  }
+  
+  /*
   public static Collection<String> runSynthesizer(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.SYNTHESIS = true;
     Options.MAX_PATH_CONSTRAINT_SIZE = 50;
@@ -1481,6 +1636,8 @@ public class Main {
     scope.addToScope(scope.getPrimordialLoader(), androidJar);
     // add application code
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
+
     File exclusionsFile = new File("config/synthesis_exclusions.txt");
     if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
     
@@ -1517,21 +1674,16 @@ public class Main {
     HeapModel hm = pointerAnalysis.getHeapModel();
     ModRef modref = ModRef.make();
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
-    
-    final MethodReference ASSERT_PT_NULL = 
-        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
-                                     "Unmodifiable", "(Ljava/lang/Object;Ljava/lang/String;)V");
-    
-    final MethodReference ASSERT_PURE = 
-        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "LAssertions"), 
-                                     "Assert", "(Z)V");
 
     Logger logger = new Logger();
     AbstractDependencyRuleGenerator depRuleGenerator = 
         new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
     
+    AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(appPath, mainClass, mainMethod);
+
+    
     // collect pure assertions
-    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForMethod(ASSERT_PURE, cg);
+    Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = WALACallGraphUtil.getCallInstrsForMethod(ASSERT, cg);
     Util.Print("Collected " + asserts.size() + " assertions.");
     for (Pair<SSAInvokeInstruction,CGNode> asser : asserts) {
       SSAInvokeInstruction invoke = asser.fst;
@@ -1660,6 +1812,7 @@ public class Main {
     }
     return synthesizedClasses;
   }
+  */
   
   // thresher annotation types
   final static TypeReference NO_STATIC_REF = 
@@ -2140,6 +2293,10 @@ public class Main {
   }
   
   private static File getJVMLibFile() {
+    final String PATH = System.getProperty("java.home");
+    File file = new File(PATH + "/lib/rt.jar");
+    if (file.exists()) return file;
+    /*
     // path to JAR file containing core Java libraries
     String[] knownPaths = new String[] { "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar",  
                                          "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar" };
@@ -2148,6 +2305,7 @@ public class Main {
       File file = new File(path);
       if (file.exists()) return file;
     }
+    */
     Util.Assert(false, "Can't find path to Java core libraries--please add it to the known paths list.");
     return null;
   }

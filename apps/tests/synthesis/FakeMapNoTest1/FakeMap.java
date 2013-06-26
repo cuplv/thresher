@@ -1,3 +1,5 @@
+import edu.colorado.thresher.external.Assertions;
+
 import java.util.Map;
 import java.util.Map.Entry;
 

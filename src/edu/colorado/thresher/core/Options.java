@@ -59,6 +59,8 @@ public class Options {
   public static boolean CALLGRAPH_PRUNING = false;
 
   @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported)", _default = false)
+  public static boolean GEN_TESTS = false;
+  
   public static boolean SYNTHESIS = false;
   
   @boolOpt(description = "try to prove that Collections.unmodifiable* are actually immutable (currently unsupported)", _default = false)

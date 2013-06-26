@@ -1,6 +1,12 @@
+import edu.colorado.thresher.external.Assertions;
+
 public class Main {
 
-    public Main(SimpleInterface i) {
+    public Main() {
+
+    }
+
+    public void foo(SimpleInterface i) {
 	initialize(i);
     }
 

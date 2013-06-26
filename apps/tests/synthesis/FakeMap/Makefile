@@ -1,2 +1,2 @@
 all:
-	javac -d bin *.java -cp ../
+	javac -cp .:../../../../bin/ *.java -d bin
