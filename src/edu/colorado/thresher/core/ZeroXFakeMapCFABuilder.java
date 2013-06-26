@@ -1,0 +1,25 @@
+package edu.colorado.thresher.core;
+
+import com.ibm.wala.ipa.callgraph.*;
+import com.ibm.wala.ipa.callgraph.impl.*;
+import com.ibm.wala.ipa.callgraph.propagation.*;
+import com.ibm.wala.ipa.callgraph.propagation.cfa.*;
+import com.ibm.wala.ipa.cha.*;
+
+/** the other piece of a special context-sensitivity policy for test purposes only 
+ * 
+ * @author sam
+ */
+public class ZeroXFakeMapCFABuilder extends ZeroXCFABuilder {
+  public ZeroXFakeMapCFABuilder(IClassHierarchy cha, AnalysisOptions options, AnalysisCache cache,
+      ContextSelector appContextSelector, SSAContextInterpreter appContextInterpreter, int instancePolicy) {
+    super(cha, options, cache, appContextSelector, appContextInterpreter, instancePolicy);
+    ContextSelector CCS = makeFakeMapContextSelector(cha, (ZeroXInstanceKeys) getInstanceKeys());
+    DelegatingContextSelector DCS = new DelegatingContextSelector(CCS, contextSelector);
+    setContextSelector(DCS);
+  }
+
+  protected ContextSelector makeFakeMapContextSelector(IClassHierarchy cha, ZeroXInstanceKeys keys) {
+    return new FakeMapContextSelector();
+  }
+}

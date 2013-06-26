@@ -1,2 +1,2 @@
 all:
-	javac *.java && mv *.class bin
+	javac -cp .:../../../../bin/ *.java -d bin

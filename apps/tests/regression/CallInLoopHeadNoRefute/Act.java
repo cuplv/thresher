@@ -1,5 +1,6 @@
+import edu.colorado.thresher.external.Annotations.*;
 
-public class Act {
+@noStaticRef public class Act {
 
     public Act() {}
     

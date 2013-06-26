@@ -1,6 +1,7 @@
+import edu.colorado.thresher.external.Annotations.*;
 import java.util.WeakHashMap;
 
-public class Act {
+@noStaticRef public class Act {
 
     int size;
 

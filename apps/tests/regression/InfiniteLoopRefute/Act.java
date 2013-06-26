@@ -1,7 +1,8 @@
+import edu.colorado.thresher.external.Annotations.*;
 import java.util.LinkedList;
 import java.util.List;
 
-public class Act {
+@noStaticRef public class Act {
 
 
     public Act() {}
