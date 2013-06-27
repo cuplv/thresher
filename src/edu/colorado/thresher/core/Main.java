@@ -112,6 +112,13 @@ public class Main {
       File targetFile = new File(target);
       Util.Assert(targetFile.exists(), "Target file " + target + " does not exist, exiting");
       
+      // feature under development
+      if (Options.ANDROID_UI) {
+        runAndroidBadMethodCheck(target);
+        return;
+      }
+      
+      // developed features
       AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(target, Options.MAIN_CLASS, Options.MAIN_METHOD);
       
       //if (Options.IMMUTABILITY) runImmutabilityCheck(target);
@@ -120,7 +127,6 @@ public class Main {
       else if (Options.CHECK_CASTS) checkCasts(depRuleGenerator);
       else if (Options.ANDROID_LEAK) checkAnnotations(target, "Landroid/app/Activity", depRuleGenerator);
       //else if (Options.SYNTHESIS) runSynthesizer(target);
-      else if (Options.ANDROID_UI) runAndroidBadMethodCheck(target);
       else {
         Util.Print("No checker specfied...exiting");
         //checkAssertionsAndAnnotations(target, "Main", "foo");
@@ -437,8 +443,9 @@ public class Main {
             possibleOverrides.contains(m.getName().toString() +
                 m.getDescriptor().toString())) { // or this method is an override of an interface method
           Util.Assert(c.getClassLoader().getReference().equals(ClassLoaderReference.Application));
-          Util.Print("adding entrypoint " + m);
+          //Util.Print("adding entrypoint " + m);
           entryPoints.add(new DefaultEntrypoint(m, cha));
+          
           //entryPoints.add(new SameReceiverEntrypoint(m, cha));
         }
       }
@@ -531,7 +538,7 @@ public class Main {
     // get event handlers that override onClick for each button
     Set<String> handlers = HashSetFactory.make();
     for (AndroidUtils.AndroidButton button : buttons) {
-      Util.Print("Button: " + button);
+      Util.Print("found manifest-declared button: " + button);
       handlers.add(button.eventHandler);
     }
     
@@ -597,6 +604,16 @@ public class Main {
       if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
       IR ir = node.getIR();
       if (ir == null) continue;
+      
+      // TMP: should be nicer way to do this
+      // add hardcoded event listeners, if applicable
+      for (AndroidUtils.AndroidButton button : buttons) {
+        if (button.eventHandler.equals(node.getMethod().getName().toString())) {
+          //Util.Print("adding event handler node " + node + " to " + button);
+          button.eventHandlerNode = node; 
+        }
+      }
+      
       for (Iterator<CallSiteReference> callIter = ir.iterateCallSites(); callIter.hasNext();) { // for each call site
         CallSiteReference site = callIter.next();
         if (site.getDeclaredTarget().equals(SET_ON_CLICK_LISTENER)) {
@@ -671,7 +688,6 @@ public class Main {
         BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(cg, eventHandlerNode, badNodes.iterator());
         List<CGNode> path = finder.find();
         if (path != null) {
-          Util.Print("found path");
           //for (CGNode pathNode : path) Util.Print(pathNode);
           // explore one level down in the call graph... (that is, do symbolic execution bw from all relevant call sites in eventHandlerMethod)
           // TODO: this is a hack; we should get a call graph path, convert it to a call stack, and make it part of the query
@@ -686,6 +702,9 @@ public class Main {
           PointerKey paramKey = hm.getPointerKeyForLocal(eventHandlerNode, paramNum);
           PointerVariable lhs = Util.makePointerVariable(paramKey);
           PointerVariable rhs;
+          
+          warnings.add("Sensitive method " + badMethod.getDeclaringClass().getName() + "." + badMethod.getName() + 
+              " triggered by button with label \"" + button.label + "\"; is this ok?");
           
         }
         

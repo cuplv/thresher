@@ -55,7 +55,7 @@ public class AndroidUtils {
     }
     
     public String toString() {
-      return "ID " + id + ": " + intId + " Handler " + eventHandler + " Label " + label + " stringName " + buttonStringId;
+      return "ID: \"" + id + " " + intId + "\" Handler: \"" + eventHandler + "\" Label: \"" + label + "\" stringName: \"" + buttonStringId + "\"";
     }
     
     private final static String DEFAULT_LISTENER = "onClick";
