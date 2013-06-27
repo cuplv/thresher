@@ -14,7 +14,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarFile;
 
@@ -31,7 +30,6 @@ import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.demandpa.alg.DemandRefinementPointsTo;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -81,7 +79,6 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
-import com.microsoft.z3.Statistics.Entry;
 
 public class Main {
   
@@ -114,14 +111,22 @@ public class Main {
     } else {
       File targetFile = new File(target);
       Util.Assert(targetFile.exists(), "Target file " + target + " does not exist, exiting");
-      if (Options.IMMUTABILITY) runImmutabilityCheck(target);
+      
+      AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(target, Options.MAIN_CLASS, Options.MAIN_METHOD);
+      
+      //if (Options.IMMUTABILITY) runImmutabilityCheck(target);
+      if (Options.CHECK_ASSERTS) checkAssertions(depRuleGenerator);
+      else if (Options.CHECK_ANNOTATIONS) checkAnnotations(target, Options.MAIN_CLASS, depRuleGenerator);
+      else if (Options.CHECK_CASTS) checkCasts(depRuleGenerator);
+      else if (Options.ANDROID_LEAK) checkAnnotations(target, "Landroid/app/Activity", depRuleGenerator);
       //else if (Options.SYNTHESIS) runSynthesizer(target);
       else if (Options.ANDROID_UI) runAndroidBadMethodCheck(target);
-      else if (Options.CHECK_CASTS) runCastChecker(target);
       else {
-        checkAssertionsAndAnnotations(target, "Main", "foo");
-        System.exit(1);
-        runAnalysisAllStaticFields(target);
+        Util.Print("No checker specfied...exiting");
+        //checkAssertionsAndAnnotations(target, "Main", "foo");
+        //System.exit(1);
+        //runAnalysisAllStaticFields(target);
+        //checkAnnotations(target, "Landroid/app/Activity", "");
       }
     }
   }
@@ -134,7 +139,7 @@ public class Main {
     
     runAndroidLeakRegressionTests();
     Options.restoreDefaults();
-     runCastCheckingRegressionTests();
+    runCastCheckingRegressionTests();
     Options.restoreDefaults();
     runSynthesizerRegressionTests();
     Options.restoreDefaults();
@@ -145,7 +150,8 @@ public class Main {
   public static void runAndroidLeakRegressionTests() throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
     CallGraphBuilderCancelException {
     Options.ANDROID_JAR = "android/android-2.3.jar"; // use non-annotated JAR
-    final String[] fakeMapTests = new String[] { "IntraproceduralStrongUpdate", "SimpleNoRefute", "FunctionCallRefute",
+    Options.ANDROID_LEAK = true;
+    final String[] tests = new String[] { "IntraproceduralStrongUpdate", "SimpleNoRefute", "FunctionCallRefute",
         "FunctionCallNoRefute", "BranchRefute", "BranchNoRefute", "HeapRefute", "HeapNoRefute", "InterproceduralRefute",
         "PathValueUpdateRefute", "PathValueUpdateNoRefute", "SharedStaticMapNoRefute", "ManuNoRefute2", "MultiWayBranchNoRefute",
         "MultiWayBranchRefute", "SubBranchRefute", "MultiBranchUpdateRefute", "IrrelevantLoopRefute", "IrrelevantLoopNoRefute",
@@ -158,7 +164,8 @@ public class Main {
         "StartInLoopNoRefute", "CallInLoopHeadRefute", "CallInLoopHeadNoRefute", "LoopProcRefute", "LoopProcNoRefute",
         "ForEachLoopRefute", "ForEachLoopNoRefute", "InfiniteLoopRefute", "StraightLineCaseSplitNoRefute", "ManuLoopNoRefute",
         "CallPruningNoRefute", "SingletonNoRefute", "ForEachLoopArrRefute", "CheckCastNoRefute", "DoLoopRefute",
-         "SimpleAliasingNoRefute" };
+         "SimpleAliasingNoRefute", "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
+         "ContainsKeyNoRefute" };
 
     // tests that we expect to fail under piecewise execution
     final Set<String> piecewiseExceptions = HashSetFactory.make(); //new HashSet<String>();
@@ -168,16 +175,6 @@ public class Main {
     piecewiseExceptions.add("SimpleConjunctiveRefute");
     piecewiseExceptions.add("MultiLevelParamPassRefute");
 
-    final String[] realHashMapTests = new String[] { "SimpleHashMapRefute", "SimpleHashMapNoRefute", "ContainsKeyRefute",
-        "ContainsKeyNoRefute" };
-    
-    final String[] fakeMapTests0 = new String[] {};
-    //final String[] fakeMapTests0 = new String[] { "StraightLineCaseSplitNoRefute" };
-    //final String[] fakeMapTests0 = new String[] { "InfiniteLoopRefute" };
-
-    //final String[] realHashMapTests0 = new String[] { };
-    final String[] realHashMapTests0 = new String[] { "SimpleHashMapNoRefute" };
-
     String regressionDir = "apps/tests/regression/";
     boolean result;
     int testNum = 0;
@@ -185,49 +182,15 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
 
-    for (String test : fakeMapTests) {
+    String mainClass = "LAct";
+    for (String test : tests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
-        result = runAnalysisActivityFieldsOnly(regressionDir + test, true, true);
-      } catch (Exception e) {
-        Util.Print("Test " + test + " (#" + (testNum++) + ") failed :(");
-        throw e;
-      }
-      Util.clear();
-
-      boolean expectedResult = false;
-      // HACK: tests that we aren't meant to refute have NoRefute in name 
-      if (test.contains("NoRefute")) {
-        expectedResult = true; 
-      }
-       
-      // some tests are expected not to pass with piecewise execution
-      if (Options.PIECEWISE_EXECUTION && piecewiseExceptions.contains(test)) {
-        result = !result;
-      }
-
-      if (result == expectedResult) {
-        Util.Print("Test " + test + " (# " + (testNum++) + ") passed!");
-        successes++;
-      } else {
-        Util.Print("Test " + test + " (#" + (testNum++) + ") failed :(");
-        failures++;
-        if (Options.EXIT_ON_FAIL)
-          System.exit(1);
-      }
-      long testEnd = System.currentTimeMillis();
-      Util.Print("Test took " + ((testEnd - testStart) / 1000) + " seconds.");
-      WALACFGUtil.clearCaches();
-    }
-
-    testNum = 0;
-
-    for (String test : realHashMapTests) {
-      Util.Print("Running test " + testNum + ": " + test);
-      long testStart = System.currentTimeMillis();
-      try {
-        result = runAnalysisActivityFieldsOnly(regressionDir + test, true, false);
+        String path = regressionDir + test;
+        AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(path, mainClass, "");
+        result = checkAnnotations(path, mainClass, depRuleGenerator);
+        //result = runAnalysisActivityFieldsOnly(regressionDir + test, true, false);
       } catch (Exception e) {
         System.err.println("Test " + test + " (#" + (testNum++) + ") failed :(");
         throw e;
@@ -262,7 +225,8 @@ public class Main {
 
     final String[] weakImmutabilityTests = new String[] { "BasicImmutableRefute", "BasicImmutableNoRefute", "HeapRefute", "HeapNoRefute",
                                                        "ArrayRefute", "ArrayNoRefute", "ArrayLoopRefute", "ArrayLoopNoRefute",
-                                                       "MapRefute", "MapNoRefute" }; 
+                                                       //"MapRefute", "MapNoRefute" TODO: TMP! 
+                                                       }; 
     
     //final String[] strongImmutabilityTests = new String[] { "BasicImmutableRefute", "HeapRefute", "ArrayRefute", "ArrayLoopRefute", 
                                                            //"MapRefute" };
@@ -342,7 +306,9 @@ public class Main {
       //long testStart = System.currentTimeMillis();
       CastCheckingResults results;
       try {
-         results = runCastChecker(regressionDir + test);
+         AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(regressionDir + test, "Main", "main");
+         results = checkCasts(depRuleGenerator);
+         //results = runCastChecker(regressionDir + test);
       } catch (Exception e) {
         Util.Print("Test " + test + " (#" + (testNum) + ") failed :(");
         throw e;
@@ -997,7 +963,6 @@ public class Main {
     
     // get local ptr to the unmodifiable container
     PointerKey unmodifiableLocal = hm.getPointerKeyForLocal(node, instr.getDef());
-    Util.Print("succ nodes " + hg.getSuccNodeCount(unmodifiableLocal));
     Iterator<Object> unmodifiableHeapLocs = hg.getSuccNodes(unmodifiableLocal);
     
     Set<PointsToEdge> toWitness = HashSetFactory.make();
@@ -1114,9 +1079,10 @@ public class Main {
     }
   }
   
-  public static CastCheckingResults runCastChecker(String appPath) 
-      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException, Exception {
+  //public static CastCheckingResults runCastChecker(String appPath) 
+  public static CastCheckingResults checkCasts(AbstractDependencyRuleGenerator depRuleGenerator) throws Exception {
     Options.FULL_WITNESSES = true;
+    /*
     String appName;
     // removing trailing slash if needed
     if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
@@ -1138,11 +1104,13 @@ public class Main {
       //List<Pair<CGNode, SSACheckCastInstruction>> mayFailCasts =
       failSet = DemandCastChecker.findFailingCasts(demandPair.fst.getBaseCallGraph(), demandPair.snd, demandPair.fst);
     }
+    */
     
-    AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
+    //AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
     HeapModel heapModel = depRuleGenerator.getHeapModel();
     PointerAnalysis pointerAnalysis = depRuleGenerator.getHeapGraph().getPointerAnalysis();
+    IClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     
     int numSafe = 0, numMightFail = 0, numThresherProvedSafe = 0, total = 0;
 /*
@@ -1230,11 +1198,11 @@ public class Main {
           //Util.Print("checking cast #" + ++total);
           ++total;
           //if (!REGRESSIONS && !failSet.contains(total)) {
-          if (!REGRESSIONS && total != 547) {
+          //if (!REGRESSIONS)  //&& total != 547) {
           //if (false) {
             //Util.Print("skipping");
-            continue;
-          }
+            //continue;
+          //}
           if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod() + 
                                         ", line " + Util.getSourceLineNumber(ir, i));
           PointerKey castPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
@@ -1406,8 +1374,9 @@ public class Main {
           mainClass = "FakeMap";
           mainMethod = "<init>";
         }
-        // synthesize test program
-        Collection<String> synthesizedClasses = checkAssertionsAndAnnotations(filename, mainClass, mainMethod);//runSynthesizer(filename);
+
+        AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(filename, mainClass, mainMethod);
+        Collection<String> synthesizedClasses = checkAssertions(depRuleGenerator);//runSynthesizer(filename);
         // tests with NoTest contain assertions that cannot fail, so no test should be generated
         if (test.contains("NoTest")) {
           Util.Assert(synthesizedClasses == null || synthesizedClasses.isEmpty());
@@ -1492,10 +1461,17 @@ public class Main {
   private static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
+    if (Options.ANDROID_LEAK) {
+      JarFile androidJar = new JarFile(Options.ANDROID_JAR);
+      // add Android code
+      scope.addToScope(scope.getPrimordialLoader(), androidJar);
+    } else {
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
+      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
+    }
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
-    File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
+    //File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
+    File exclusionsFile = new File("config/exclusions.txt");
     if (exclusionsFile.exists()) {
       scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
     }
@@ -1503,13 +1479,29 @@ public class Main {
     Collection<Entrypoint> entryPoints = new ArrayList<Entrypoint>();
     for (Iterator<IClass> classes = cha.iterator(); classes.hasNext();) {
       IClass c = classes.next();
+      
       // skip non-application classes
-      if (scope.isApplicationLoader(c.getClassLoader())
-          && c.getName().toString().contains(mainClass)) {
+      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
+
+      if (Options.ANDROID_LEAK) {
+        for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
+          if (REGRESSIONS) {
+            if (m.isPublic() || m.isProtected()) {
+              entryPoints.add(new DefaultEntrypoint(m, cha));
+            }
+          } else {
+            // add "on*" methods; they're the event handlers
+            if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) {
+              // use same receiver for all method calls
+              entryPoints.add(new SameReceiverEntrypoint(m, cha));
+              //entryPoints.add(new DefaultEntrypoint(m, cha));
+            }
+          }
+        } 
+      } else if (c.getName().toString().contains(mainClass)) {
         Util.Print("Found main class " + c.getName());
         // for each method in the main class
         for (IMethod m : c.getDeclaredMethods()) { 
-          Util.Print(m);
           if (m.getName().toString().equals(mainMethod)) {
             Util.Print("Found entrypoint " + m.getName());
             entryPoints.add(new DefaultEntrypoint(m, cha));
@@ -1526,8 +1518,11 @@ public class Main {
     // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
     options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
     AnalysisCache cache = new AnalysisCache();
-    CallGraphBuilder builder = 
-        com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options, cache, cha, scope);
+    
+    CallGraphBuilder builder;
+    if (Options.ANDROID_LEAK && REGRESSIONS) builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
+    else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    
     Util.Print("Building call graph.");
     CallGraph cg = builder.makeCallGraph(options, null);
 
@@ -1539,21 +1534,16 @@ public class Main {
     return new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
   }
   
-  private static Collection<String> checkAssertionsAndAnnotations(String appPath, String mainClass, String mainMethod) 
-      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    
-    AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(appPath, mainClass, mainMethod);
+  private static Collection<String> checkAssertions(AbstractDependencyRuleGenerator depRuleGenerator) {
     CallGraph cg = depRuleGenerator.getCallGraph();
     
     // collect and check assertions
     Options.SYNTHESIS = true;
-    Options.MAX_PATH_CONSTRAINT_SIZE = 50;
+    Options.MAX_PATH_CONSTRAINT_SIZE = 5;
     Options.SKIP_DYNAMIC_DISPATCH = false;
+    Options.FULL_WITNESSES = true;
     Collection<Pair<SSAInvokeInstruction,CGNode>> asserts = collectAssertions(cg);
-    
     return checkAssertions(asserts, depRuleGenerator);
-    
-    //Options.restoreDefaults();
   }
   
   static final MethodReference ASSERT = 
@@ -1817,6 +1807,117 @@ public class Main {
   // thresher annotation types
   final static TypeReference NO_STATIC_REF = 
       TypeReference.findOrCreate(ClassLoaderReference.Application, "Ledu/colorado/thresher/external/Annotations$noStaticRef");
+  
+  
+  private static boolean checkAnnotations(String appPath, String mainClass, AbstractDependencyRuleGenerator depRuleGenerator) 
+      throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
+    //AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(appPath, mainClass, mainMethod);
+    Set<IField> staticFields = HashSetFactory.make();
+    IClassHierarchy cha = depRuleGenerator.getClassHierarchy();
+    WEAK_REFERENCE = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ljava/lang/ref/WeakReference"));
+    
+    List<IClass> snkClasses = new LinkedList<IClass>();
+    if (Options.ANDROID_LEAK) {
+      IClass snkClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, mainClass));
+      if (Options.CHECK_ASSERTS) Util.Assert(snkClass != null, "couldn't find base class " + snkClass);
+      snkClasses.add(snkClass);
+    }
+   
+    for (Iterator<IClass> classes = cha.iterator(); classes.hasNext();) {
+      IClass c = classes.next();
+
+      if (!REGRESSIONS || c.getName().toString().contains(mainClass)) {
+        for (IField field : c.getAllStaticFields()) {
+          staticFields.add(field);
+        }
+      }
+      
+      for (Annotation a : c.getAnnotations()) {
+        if (a.getType().equals(NO_STATIC_REF)) {
+         Util.Print("found @noStaticRefAnnotation on class " + c);
+         //Util.Assert(a.getType().equals(NO_STATIC_REF), "unhandled annotation " + a);
+         snkClasses.add(c);
+       }
+      }
+    }
+    
+    Collection<IClass> subclasses = HashSetFactory.make();
+    for (IClass baseClass : snkClasses) {
+      subclasses.add(baseClass);
+      // find all subclasses of the base class
+      for (IClass subclass : cha.computeSubClasses(baseClass.getReference())) {
+        subclasses.add(subclass);
+      }
+    }
+    
+    HeapGraphWrapper hg = (HeapGraphWrapper) depRuleGenerator.getHeapGraph();
+    HeapModel hm = depRuleGenerator.getHeapModel();
+    Logger logger = new Logger();
+    
+    Set<Pair<Object, Object>> fieldErrorList = HashSetFactory.make();
+    // map from fields -> @noStaticRef's that leak via that field
+    Map<String, Set<IClass>> leakedActivities = HashMapFactory.make();
+    
+    for (IField f : staticFields) {
+      boolean skipThis = false;
+      for (String skip : blacklist) {
+        if (f.toString().contains(skip)) {
+          Util.Print("skipping " + f + " due to blacklist");
+          skipThis = true;
+          break;
+        }
+      }
+      if (skipThis)
+        continue;
+
+      PointerKey field = hm.getPointerKeyForStaticField(f);
+      BFSIterator<Object> iter = new BFSIterator<Object>(hg, field);
+      // see if an Activity is reachable from this static field
+      while (iter.hasNext()) {
+        Object node = iter.next();
+        IClass type = null;
+        if (node instanceof ConcreteTypeKey) {
+          type = ((ConcreteTypeKey) node).getConcreteType();
+        } else if (node instanceof AllocationSiteInNode) {
+          type = ((AllocationSiteInNode) node).getConcreteType();
+        }
+        // allow arbitrary number of errors per field
+        if (type != null && subclasses.contains(type)) {
+          // is there a path from the static field to the Activity?
+          if (findNewErrorPath(hg, field, node, cha) != null) {
+            Set<IClass> leaked = leakedActivities.get(field.toString());
+            if (leaked == null) {
+              leaked = HashSetFactory.make();
+              leakedActivities.put(field.toString(), leaked);
+              Util.Print("found field error " + field);
+              logger.logErrorField();
+            }
+            InstanceKey activityInstance = (InstanceKey) node;
+            // see if we already know that this Activity can leak via this field
+            if (leaked.add(activityInstance.getConcreteType())) { 
+              Pair<Object, Object> errPair = Pair.make((Object) field, node);
+              fieldErrorList.add(errPair);
+            }
+          }
+        }
+      }
+    }
+
+    Util.Print("found " + leakedActivities.keySet().size() + " potentially problematic fields");
+    Util.Print("found " + fieldErrorList.size() + " (field, error) pairs");
+    logger.logNumStaticFields(staticFields.size());
+    logger.logTotalErrors(fieldErrorList.size());
+    long refuteStart = System.currentTimeMillis();
+    boolean result = false;
+    if (!Options.FLOW_INSENSITIVE_ONLY) {
+      result = refuteFieldErrors(fieldErrorList, depRuleGenerator, logger);
+    }
+    long refuteEnd = System.currentTimeMillis();
+    Util.Print("Symbolic execution completed in " + ((refuteEnd - refuteStart) / 1000.0) + " seconds");
+    //Util.Print("Total time was " + ((refuteEnd - start) / 1000.0) + " seconds");
+    Util.Print("Done with " + appPath);
+    return result;
+  }
   
   /**
    * run Thresher on app
@@ -2293,19 +2394,24 @@ public class Main {
   }
   
   private static File getJVMLibFile() {
+    /*
+    // TODO: get rid of this -- just can't figure out the problems with the other JRE right now
+    if (REGRESSIONS) {
+      // path to JAR file containing core Java libraries
+      String[] knownPaths = new String[] { "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar",  
+                                           "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar" };
+    
+      for (String path : knownPaths) {
+        File file = new File(path);
+        if (file.exists()) return file;
+      }
+    }
+    */
+    
     final String PATH = System.getProperty("java.home");
     File file = new File(PATH + "/lib/rt.jar");
     if (file.exists()) return file;
-    /*
-    // path to JAR file containing core Java libraries
-    String[] knownPaths = new String[] { "/usr/lib/jvm/java-6-openjdk/jre/lib/rt.jar",  
-                                         "/usr/lib/jvm/java-6-openjdk-amd64/jre/lib/rt.jar" };
     
-    for (String path : knownPaths) {
-      File file = new File(path);
-      if (file.exists()) return file;
-    }
-    */
     Util.Assert(false, "Can't find path to Java core libraries--please add it to the known paths list.");
     return null;
   }

@@ -4,42 +4,45 @@ Installation
 
      make install-deps
 
-Go to step (4) if this works. Otherwise, go to step (2).
+Go to step (2) if this works. Otherwise, go to step (3).
 
 (2) Download WALA (git clone https://github.com/wala/WALA.git) and move it to /lib.
 
-(3) Download Z3 (git clone https://git01.codeplex.com/z3) and move it to /lib. If cloning the repository does not work, go to z3.codeplex.com and follow the instructions for downloading manually (place it in /lib/z3).
-
-(3) Download ScalaZ3 (git clone https://github.com/psuter/ScalaZ3.git) and move it to /lib.
-
-(4) Installation scripts *should* build everything, but have only been tested on Linux. You will need Scala and sbt to be installed on your system. Run:
+(3) Build dependencies by running:
 
     make deps
 
-If you are using a version of Scala other than 2.9.2 or a version of Z3 other than 4.3, you will need to update the SCALA_VERSION and Z3_VERSION variables in the top-level Makefile, ScalaZ3 Makefile, and thresher.sh.
+If this works, all dependencies have been installed and built and Thresher should build without a hitch.
 
-(5) Once all dependencies have been installed successfully, return to the top-level Thresher directory and run
+(5) Once all dependencies have been built successfully, return to the top-level Thresher directory and run
   
     make
     make tests
 
 to build Thresher and its regression tests. 
 
-Running Thresher on an Android app
------------------------------------
+Running Thresher
+----------------
 
-Run: 
+Right now, Thresher can do four things:
+
+(1) Check for Android Activity leaks (see our PLDI '13 paper). Run:
+
+     ./thresher.sh -android_leak -app <path_to_bin_dir_for_your_app>
+
+(2) Check downcast safety. Run: 
     
-    ./thresher.sh -app <path_to_bin_dir_for_your_app>. 
+    ./thresher.sh -check_casts -app <path_to_bin_dir> <path_to_bin_dir_for_your_app> -main_class <class_with_entrypoint_method> -main_method <entrypoint_method>
 
-It will compute a points-to graph for your app, find all heap paths from static fields to object instances of subtype Activity, and attempt to use symbolic execution to refute some of these paths. It will print all heap paths that might correspond to memory leaks between \<Err Path\> tags (better visualization coming soon!).
+(3) Check assertions from edu.colorado.external.Assertions.java. Run:
 
-Using a different version of Android
-------------------------------------
-By default, Thresher analyzes apps using the Android 2.3 (Gingerbread) source code (included in /android/android-2.3.jar). To use a different Android version, you can use the -android_jar \<path_to_jar\> flag. The Soot project has JAR files for most Android versions at https://github.com/Sable/android-platforms.
+    ./thresher.sh -check_assertions -app <path_to_bin_dir_for_your_app> -main_class <class_with_entrypoint_method> -main_method <entrypoint_method>
 
-WALA exclusions
----------------
-By default, Thresher ignores any code prefixed with org.apache.*, java.nio.charset.*, or java.util.concurrent.*. You can change this behavior by editing the config/exclusions.txt file (full information on the file format at wala.sf.net).
+(4) Check annotations from edu.colorado.external.Annotations.java. Run:
 
+    ./thresher.sh -check_annotations -app <path_to_bin_dir_for_your_app> -main_class <class_with_entrypoint_method> -main_method <entrypoint_method>
+   
+When Thresher says that a leak does not exits/cast cannot fail/assertion cannot fail/annotation holds, this is a "soundy" guarantee (modulo reflection, exceptions, and bugs in the implementation). When Thresher cannot prove any of the above, the program may contain either a real bug or a false alarm.
+
+Thresher works by using a coarse up-front points-to analysis to focus a precise symbolic analysis on the alarms reported by the points-to analysis. See our PLDI '13 paper for more details.
 

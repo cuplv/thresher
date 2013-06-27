@@ -162,7 +162,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
    */
   @Override
   public boolean executeBackwardsPathIntraprocedural(IPathInfo path) {
-    if (Options.CHECK_ASSERTS) {
+    if (Options.DEBUG_ASSERTS) {
       boolean result = executeBackwardsPathIntraproceduralImpl(path);
       // true return => path feasible && (found witness || at procedure boundary
       // || no preds for current block)
@@ -184,7 +184,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
 
   // wrapper to make it easy to write postcondition
   private boolean executeBackwardsPathIntraproceduralImpl(final IPathInfo path) {
-    if (Options.CHECK_ASSERTS) {
+    if (Options.DEBUG_ASSERTS) {
       Util.Pre(!path.isDummy(), "can't execute dummy path!");
       Util.Pre(!path.isLoopMergeIndicator(), "can't execute loop merge indicator!");
     }
@@ -222,7 +222,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
             addPath(choice);
           }
         }
-        if (Options.CHECK_ASSERTS)
+        if (Options.DEBUG_ASSERTS)
           split = true;
         return false; // path has split
       }
@@ -289,7 +289,7 @@ public class PathSensitiveSymbolicExecutor extends BasicSymbolicExecutor {
           }
           addPath(newPath);
         }
-        if (Options.CHECK_ASSERTS) split = true;
+        if (Options.DEBUG_ASSERTS) split = true;
         return false; // path has split
       }
     }

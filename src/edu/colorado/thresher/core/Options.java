@@ -30,7 +30,7 @@ public class Options {
   public static boolean DEBUG = false;
 
   @boolOpt(description = "perform runtime assertion checks inside Thresher", _default = true)
-  public static boolean CHECK_ASSERTS = true; // crashes when assertion checks
+  public static boolean DEBUG_ASSERTS = true; // crashes when assertion checks
                                               // fail if true
 
   @boolOpt(description = "log extra info (very little printing. this should probably go away)", _default = true)
@@ -58,9 +58,10 @@ public class Options {
   @boolOpt(description = "perform callgraph pruning based on constraint set at function boundaries", _default = false)
   public static boolean CALLGRAPH_PRUNING = false;
 
-  @boolOpt(description = "attempt to synthesize test cases for violations (currently unsupported)", _default = false)
+  @boolOpt(description = "attempt to generate test cases for violations (currently unsupported)", _default = false)
   public static boolean GEN_TESTS = false;
   
+  @boolOpt(description = "", _default = false)
   public static boolean SYNTHESIS = false;
   
   @boolOpt(description = "try to prove that Collections.unmodifiable* are actually immutable (currently unsupported)", _default = false)
@@ -69,7 +70,16 @@ public class Options {
   @boolOpt(description = "verification for Android UI components (currently unsupported)", _default = false)
   public static boolean ANDROID_UI = false;
   
-  @boolOpt(description = "check downcasts", _default = false)
+  @boolOpt(description = " check for Android Activity leaks", _default = false)
+  public static boolean ANDROID_LEAK = false;
+  
+  @boolOpt(description = "check user assrtions", _default = false)
+  public static boolean CHECK_ASSERTS = false;
+  
+  @boolOpt(description = "check user annotations", _default = false)
+  public static boolean CHECK_ANNOTATIONS = false;
+  
+  @boolOpt(description = "check downcast safety", _default = false)
   public static boolean CHECK_CASTS = false;
   
   @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)
@@ -131,7 +141,8 @@ public class Options {
   @boolOpt (description="do summary check at function boundaries and loop heads", _default = true)
   public static boolean USE_SUMMARIES = true;
 
-  @intOpt(description = "if the call stack is larger than this, we drop constraints that can be produced in callees rather than exploring them", _default = 2)
+  @intOpt(description = "if the call stack is larger than this, we drop constraints that can be produced in callees rather than exploring them",
+          _default = 3)
   public static int MAX_CALLSTACK_DEPTH = 3;
   
   @boolOpt(description = "skip all dispatch callees and drop related constraints", _default = true)
@@ -150,6 +161,12 @@ public class Options {
   @stringOpt(description = "usage: -android_jar <path to jar file for version of android libraries>", _default = "android/android-2.3_annotated.jar")
   public static String ANDROID_JAR = "android/android-2.3_annotated.jar";
 
+  @stringOpt(description = "Class containing entrypoint method for analysis", _default = "Main")
+  public static String MAIN_CLASS = "Main";
+  
+  @stringOpt(description = "Entrypoint method for analysis", _default = "main")
+  public static String MAIN_METHOD = "main";
+  
   @stringOpt(description = "run regression tests", _default = "")
   public static String REGRESSIONS;
 

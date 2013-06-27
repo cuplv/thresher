@@ -324,7 +324,7 @@ public class PointsToQuery implements IQuery {
       this.feasible = false;
       return IQuery.INFEASIBLE;
     }
-    if (Options.CHECK_ASSERTS)
+    if (Options.DEBUG_ASSERTS)
       Util.Assert(caseSplits.isEmpty(), "shouldn't case split here because the arguments to the call are known!");
 
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
@@ -334,7 +334,7 @@ public class PointsToQuery implements IQuery {
     }
     for (PointsToEdge edge : toRemove) {
       boolean removed = produced.remove(edge);
-      if (Options.CHECK_ASSERTS)
+      if (Options.DEBUG_ASSERTS)
         Util.Assert(removed, "couldn't remove edge " + edge);
     }
 

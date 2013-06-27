@@ -592,7 +592,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    */
   @Override
   public void addPath(IPathInfo path) {
-    if (Options.CHECK_ASSERTS) {
+    if (Options.DEBUG_ASSERTS) {
       if (!path.isFeasible()) return; // HACK!
       Util.Pre(path.isFeasible(), "Should not add infeasible paths to paths to explore! " + path + " is infeasible.");
       Util.Pre(!path.atBranchPoint(), "path should not be at branch point");
@@ -807,7 +807,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
       if (!visitCalleeWrapper(instr, callee, info)) return false; // refuted by parameter binding
       // else, ordinary call
       addPath(info);
-      if (Options.CHECK_ASSERTS) split = true;
+      if (Options.DEBUG_ASSERTS) split = true;
       // don't want to continue executing instructions that occur before call in caller, so return false
       return false; 
     } else { // dynamic dispatch case
@@ -835,7 +835,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
             }
             addPath(copy);
             allRefuted = true;
-            if (Options.CHECK_ASSERTS) split = true;
+            if (Options.DEBUG_ASSERTS) split = true;
           } // else, refuted by parameter binding
         }
       }

@@ -106,7 +106,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
           Util.Debug("already seen this path... stopping execution");
         // TODO: what is the point of this?
         //executeAllNonPhiInstructionsInCurrentBlock(info);
-        if (Options.CHECK_ASSERTS)
+        if (Options.DEBUG_ASSERTS)
           split = true;
         return false; // already seen this path at the loop head; don't keep
                       // executing
@@ -127,7 +127,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     int pathCount = this.pathsToExplore.size();
     if (!executeAllInstructionsInLoopHeadSequence(info, splitPaths, false)) {
       Util.Debug("loop head seq split");
-      if (Options.CHECK_ASSERTS) split = true; // split in loop head sequence
+      if (Options.DEBUG_ASSERTS) split = true; // split in loop head sequence
       return false;
     }
     Util.Assert(!splitPaths.isEmpty());
@@ -171,7 +171,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       }
     }
     // Util.Assert(seenEscape, "can't find escape block for " + currentBlock);
-    if (Options.CHECK_ASSERTS)
+    if (Options.DEBUG_ASSERTS)
       split = true;
     return false; // don't want to continue executing here
   }
@@ -210,7 +210,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
         }
         handleLoopHead(path, instr);
       }
-      if (Options.CHECK_ASSERTS) split = true;
+      if (Options.DEBUG_ASSERTS) split = true;
       return false;
       //Util.Assert(splitPaths.isEmpty());
       //return handleLoopHead(info, instr);
@@ -230,7 +230,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
       pushBranchStack(point);
     }
     point.addNewPath(info);
-    if (Options.CHECK_ASSERTS) split = true;
+    if (Options.DEBUG_ASSERTS) split = true;
     return false; // never want to continue execution after a conditional branch
                   // instruction - only after branch point is merged
   }
@@ -867,7 +867,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
   boolean handleFakeWorldClinit(IPathInfo path) {
     if (Options.DEBUG) Util.Debug("trying to find witness in fakeWorldClinit");
     CGNode fakeWorldClinitNode = path.getCurrentNode();
-    if (Options.CHECK_ASSERTS) {
+    if (Options.DEBUG_ASSERTS) {
       Util.Assert(fakeWorldClinitNode.equals(WALACFGUtil.getFakeWorldClinitNode(callGraph)), fakeWorldClinitNode
           + "should be fakeWorldClinit!");
     }
@@ -904,7 +904,9 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
             continue; // not refuted or witnessed; try next instr
           }
           SSAInvokeInstruction instruction = (SSAInvokeInstruction) instr;
-          Set<CGNode> targets = callGraph.getPossibleTargets(fakeWorldClinitNode, instruction.getCallSite());
+          Util.Debug("instr " + instr);
+          Set<CGNode> targets = callGraph.getNodes(instruction.getDeclaredTarget());
+          //Set<CGNode> targets = callGraph.getPossibleTargets(fakeWorldClinitNode, instruction.getCallSite());
           if (Options.DEBUG) {
             Util.Assert(targets.size() == 1, "Not expecting dynamic dispatch in class inits; everything should be static");
           }
@@ -934,7 +936,7 @@ public class OptimizedPathSensitiveSymbolicExecutor extends PathSensitiveSymboli
     }
     // else, still haven't produced...
     if (Options.DEBUG) Util.Debug("witness not produced in class inits! refuted.");
-    if (Options.CHECK_ASSERTS) split = true;
+    if (Options.DEBUG_ASSERTS) split = true;
     cleanupPathAndBranchPlaceholders();
     return false;
   }
