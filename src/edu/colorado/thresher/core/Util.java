@@ -363,7 +363,6 @@ public class Util {
       for (int i = 0; i < instrs.length; i++) {
         SSAInstruction instr = instrs[i];
         if (instr != null && instr instanceof SSAReturnInstruction) {
-          SSAReturnInstruction ret = (SSAReturnInstruction) instr;
           Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, retNode, ANY_LINE_ID, i, retIR);
           for (DependencyRule rule : instrRules) {
             if (rule.getShown().equals(edge))

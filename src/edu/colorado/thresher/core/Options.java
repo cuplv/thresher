@@ -81,9 +81,6 @@ public class Options {
   
   @boolOpt(description = "check downcast safety", _default = false)
   public static boolean CHECK_CASTS = false;
-  
-  @boolOpt(description = "read WALA exclusions from config/exclusions.txt file", _default = true)
-  public static boolean USE_EXCLUSIONS = true;
 
   @boolOpt(description = "prints end-to-end list of witnessed heap edges for witnessed error", _default = true)
   public static boolean DUMP_WITNESSED_ERR_PATHS = true; // prints
@@ -166,6 +163,9 @@ public class Options {
   
   @stringOpt(description = "Entrypoint method for analysis", _default = "main")
   public static String MAIN_METHOD = "main";
+  
+  @stringOpt(description = "List of classes to excluse from analysis", _default = "config/exclusions.txt")
+  public static String EXCLUSIONS = "config/exclusions.txt";
   
   @stringOpt(description = "run regression tests", _default = "")
   public static String REGRESSIONS;

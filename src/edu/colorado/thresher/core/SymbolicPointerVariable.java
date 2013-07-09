@@ -12,9 +12,9 @@ import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
-import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.intset.OrdinalSet;
 
 public class SymbolicPointerVariable implements PointerVariable { 
   private static int symbCounter = 0;
@@ -23,6 +23,14 @@ public class SymbolicPointerVariable implements PointerVariable {
   // private int instanceNum = PointerVariable.ANY_INSTANCE_NUM;
   private final int id;
 
+  public static PointerVariable makeSymbolicVar(OrdinalSet<InstanceKey> possibleValues) {
+    Set<InstanceKey> possibleVals = HashSetFactory.make();
+    for (Iterator<InstanceKey> iter = possibleValues.iterator(); iter.hasNext();) {
+      possibleVals.add(iter.next());
+    }
+    return makeSymbolicVar(possibleVals);
+  }
+  
   public static PointerVariable makeSymbolicVar(Set<InstanceKey> possibleValues) {
     // can't make symbolic var from the empty set
     Util.Pre(!possibleValues.isEmpty());

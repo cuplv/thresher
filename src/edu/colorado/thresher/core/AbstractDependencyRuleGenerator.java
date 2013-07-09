@@ -82,10 +82,10 @@ public class AbstractDependencyRuleGenerator {
   private final Set<CGNode> alreadyGenerated;
 
   private final Map<Integer, DependencyRule> rules;
-  private final HeapGraph hg;
-  private final HeapModel heapModel;
-  private final CallGraph cg;
-  private final ClassHierarchy cha;
+  public final HeapGraph hg;
+  public final HeapModel hm;
+  public final CallGraph cg;
+  public final ClassHierarchy cha;
   private final AnalysisCache cache;
   // counter to generate unique line number for each line in the program across
   // ALL files
@@ -99,7 +99,7 @@ public class AbstractDependencyRuleGenerator {
                                          AnalysisCache cache, Map<CGNode, OrdinalSet<PointerKey>> modRef) {
     this.cg = cg;
     this.hg = hg;
-    this.heapModel = heapModel;
+    this.hm = heapModel;
     this.cha = (ClassHierarchy) cg.getClassHierarchy();
     this.lineIdCounter = 0;
     // list of all dependency rules
@@ -392,8 +392,8 @@ public class AbstractDependencyRuleGenerator {
       // Util.Unimp("dealing with NEW's!");
       SSANewInstruction instruction = (SSANewInstruction) instr;
       Util.Assert(instruction.hasDef(), "no def for new instr " + instr);
-      InstanceKey site = heapModel.getInstanceKeyForAllocation(node, instruction.getNewSite());
-      PointerKey local = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      InstanceKey site = hm.getInstanceKeyForAllocation(node, instruction.getNewSite());
+      PointerKey local = hm.getPointerKeyForLocal(node, instruction.getDef());
       Util.Assert(local != null, "null local for " + local);
       if (site == null) {
         // find site by lookint at pts-to graph instead
@@ -413,11 +413,11 @@ public class AbstractDependencyRuleGenerator {
 
     else if (instr instanceof SSAPhiInstruction) {
       SSAPhiInstruction instruction = (SSAPhiInstruction) instr;
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
       if (def != null) {
         for (int i = 0; i < instruction.getNumberOfUses(); i++) {
           Util.Assert(instruction.getUse(i) != -1, "bad use! " + instruction + " " + i);
-          PointerKey use = heapModel.getPointerKeyForLocal(node, instruction.getUse(i));
+          PointerKey use = hm.getPointerKeyForLocal(node, instruction.getUse(i));
           if (use != null) {
             PointerVariable lhs = Util.makePointerVariable(def);
             PointerVariable rhsPointer = Util.makePointerVariable(use);
@@ -451,8 +451,8 @@ public class AbstractDependencyRuleGenerator {
       SymbolTable tbl = ir.getSymbolTable();
       // if return value is null, we have no rules to generate
       if (tbl.isNullConstant(instruction.getResult())) return rules;
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
-      PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getResult());
+      PointerKey returnValue = hm.getPointerKeyForReturnValue(node);
       
       if (def != null && returnValue != null) {
         PointerVariable lhs = Util.makePointerVariable(def);
@@ -484,10 +484,10 @@ public class AbstractDependencyRuleGenerator {
       IField field = cg.getClassHierarchy().resolveField(f);
       if (field == null || f.getFieldType().isPrimitiveType())
         return rules;
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
 
       if (instruction.isStatic()) {
-        PointerKey refKey = heapModel.getPointerKeyForStaticField(field);
+        PointerKey refKey = hm.getPointerKeyForStaticField(field);
         if (def != null && refKey != null) {
           // dispatch to regular assignment
           String fieldName = f.getDeclaringClass().toString() + "." + field.getName().toString();
@@ -499,7 +499,7 @@ public class AbstractDependencyRuleGenerator {
         }
       } else {
         // y = x.f
-        PointerKey refKey = heapModel.getPointerKeyForLocal(node, instruction.getRef());
+        PointerKey refKey = hm.getPointerKeyForLocal(node, instruction.getRef());
         if (def != null && refKey != null) {
           PointerVariable lhs = Util.makePointerVariable(def);
           PointerVariable rhsPointerName = Util.makePointerVariable(refKey);
@@ -551,10 +551,10 @@ public class AbstractDependencyRuleGenerator {
       if (field == null || f.getFieldType().isPrimitiveType())
         return rules;
 
-      PointerKey use = heapModel.getPointerKeyForLocal(node, instruction.getVal());
+      PointerKey use = hm.getPointerKeyForLocal(node, instruction.getVal());
 
       if (instruction.isStatic()) {
-        PointerKey fKey = heapModel.getPointerKeyForStaticField(field);
+        PointerKey fKey = hm.getPointerKeyForStaticField(field);
         if (use == null || fKey == null) {
           System.err
               .println("Problem finding lhs or rhs while generating dependency rules for static field SSAGetInstruction...exiting");
@@ -565,7 +565,7 @@ public class AbstractDependencyRuleGenerator {
           rules.addAll(generateAbstractRulesForAssign(instr, fKey, use, node, fieldName, lineId, lineNum));
         }
       } else {
-        PointerKey fKey = heapModel.getPointerKeyForLocal(node, instruction.getRef());
+        PointerKey fKey = hm.getPointerKeyForLocal(node, instruction.getRef());
         if (use == null || fKey == null) {
           System.err.println("Problem finding lhs or rhs while generating dependency rules for SSAGetInstruction...exiting");
           System.exit(1);
@@ -583,16 +583,16 @@ public class AbstractDependencyRuleGenerator {
 
     else if (instr instanceof SSAArrayStoreInstruction) {
       SSAArrayStoreInstruction instruction = (SSAArrayStoreInstruction) instr;
-      PointerKey arrayRef = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
-      PointerKey value = heapModel.getPointerKeyForLocal(node, instruction.getValue());
+      PointerKey arrayRef = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
+      PointerKey value = hm.getPointerKeyForLocal(node, instruction.getValue());
       rules.addAll(generateAbstractRulesForArrayStore(instruction, arrayRef, value, node, lineId, lineNum));
     }
 
     else if (instr instanceof SSAArrayLoadInstruction) {
       SSAArrayLoadInstruction instruction = (SSAArrayLoadInstruction) instr;
 
-      PointerKey result = heapModel.getPointerKeyForLocal(node, instruction.getDef());
-      PointerKey arrayRef = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
+      PointerKey result = hm.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey arrayRef = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
       // Util.Debug("generating arrayLoad for " + instr);
       // System.out.println("Generating array load for " + result + " " +
       // arrayRef);
@@ -606,8 +606,8 @@ public class AbstractDependencyRuleGenerator {
       rules.addAll(generateAbstractRulesForInvoke(instruction, node, lineId, lineNum)); 
     } else if (instr instanceof SSACheckCastInstruction) {
       SSACheckCastInstruction cci = (SSACheckCastInstruction) instr;
-      PointerKey valKey = heapModel.getPointerKeyForLocal(node, cci.getVal());
-      PointerKey resultKey = heapModel.getPointerKeyForLocal(node, cci.getResult());
+      PointerKey valKey = hm.getPointerKeyForLocal(node, cci.getVal());
+      PointerKey resultKey = hm.getPointerKeyForLocal(node, cci.getResult());
       rules.addAll(generateAbstractRulesForAssign(instr, resultKey, valKey, node, null, lineId, lineNum));
     } 
     
@@ -625,7 +625,7 @@ public class AbstractDependencyRuleGenerator {
         }
 
         PointerVariable typeVar = Util.makePointerVariable(new ConcreteTypeKey(clazz));
-        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
+        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), this.hm);
         PointsToEdge edge = new PointsToEdge(lhs, typeVar);
         PointerStatement stmt = Util.makePointerStatement(instr, lhs, typeVar, PointerStatement.EdgeType.Assign,
             null, lineId, lineNum);
@@ -690,8 +690,8 @@ public class AbstractDependencyRuleGenerator {
     for (CGNode callee : callees) {
       if (instr.hasDef()) {
         // generate return value rule
-        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), heapModel);
-        PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
+        PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), hm);
+        PointerVariable retval = Util.makeReturnValuePointer(callee, hm);
         if (retval == null) continue;
         PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
             lineNum);
@@ -716,8 +716,8 @@ public class AbstractDependencyRuleGenerator {
       for (int j = 0; j < instr.getNumberOfUses(); j++) {
         int localValNum = instr.getUse(j);
         if (tbl.isNullConstant(localValNum)) continue; 
-        PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
-        PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
+        PointerVariable lhs = new ConcretePointerVariable(hm.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
+        PointerKey rhsKey = hm.getPointerKeyForLocal(node, localValNum);
         PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
         PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
             lineNum);
@@ -761,8 +761,8 @@ public class AbstractDependencyRuleGenerator {
     // System.err.println("INSTR IS " + instr);
     if (instr instanceof SSANewInstruction) {
       SSANewInstruction instruction = (SSANewInstruction) instr;
-      InstanceKey site = heapModel.getInstanceKeyForAllocation(node, instruction.getNewSite());
-      PointerKey local = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      InstanceKey site = hm.getInstanceKeyForAllocation(node, instruction.getNewSite());
+      PointerKey local = hm.getPointerKeyForLocal(node, instruction.getDef());
 
       if (site != null && local != null) {
         DependencyRule rule = Util.makeUnconditionalDependencyRule(instr, local, site, PointerStatement.EdgeType.Assign, lineId,
@@ -786,8 +786,8 @@ public class AbstractDependencyRuleGenerator {
     else if (instr instanceof SSAPiInstruction) {
       Util.Assert(false, "UNTESTED!");
       SSAPiInstruction instruction = (SSAPiInstruction) instr;
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
-      PointerKey use = heapModel.getPointerKeyForLocal(node, instruction.getVal());
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey use = hm.getPointerKeyForLocal(node, instruction.getVal());
       if (def != null && use != null) {
         rules.addAll(generateRulesForAssign(instr, def, use, node, null, lineId, lineNum));
       }
@@ -795,12 +795,12 @@ public class AbstractDependencyRuleGenerator {
 
     else if (instr instanceof SSAPhiInstruction) {
       SSAPhiInstruction instruction = (SSAPhiInstruction) instr;
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
       if (def != null) {
         for (int i = 0; i < instruction.getNumberOfUses(); i++) {
           PointerKey use = null;
           if (instruction.getUse(i) != -1)
-            use = heapModel.getPointerKeyForLocal(node, instruction.getUse(i));
+            use = hm.getPointerKeyForLocal(node, instruction.getUse(i));
           if (use != null)
             rules.addAll(generateRulesForPhi(instr, def, use, node, null, lineId, lineNum));
         }
@@ -816,8 +816,8 @@ public class AbstractDependencyRuleGenerator {
       // if return value is null, we have no rules to generate
       if (tbl.isNullConstant(instruction.getResult())) return rules;
       
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getResult());
-      PointerKey returnValue = heapModel.getPointerKeyForReturnValue(node);
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getResult());
+      PointerKey returnValue = hm.getPointerKeyForReturnValue(node);
       if (def != null && returnValue != null) {
         rules.addAll(generateRulesForReturn(instr, def, returnValue, node, null, lineId, lineNum));
       }
@@ -831,8 +831,8 @@ public class AbstractDependencyRuleGenerator {
       // return;
       // }
 
-      PointerKey result = heapModel.getPointerKeyForLocal(node, instruction.getDef());
-      PointerKey arrayRef = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
+      PointerKey result = hm.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey arrayRef = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
       // Util.Debug("generating arrayLoad for " + instr);
       // System.out.println("Generating array load for " + result + " " +
       // arrayRef);
@@ -850,8 +850,8 @@ public class AbstractDependencyRuleGenerator {
       // return;
       // }
       // make node for used value
-      PointerKey value = heapModel.getPointerKeyForLocal(node, instruction.getValue());
-      PointerKey arrayRef = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
+      PointerKey value = hm.getPointerKeyForLocal(node, instruction.getValue());
+      PointerKey arrayRef = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
 
       rules.addAll(generateRulesForArrayStore(instr, arrayRef, value, node, lineId, lineNum));
     }
@@ -866,8 +866,8 @@ public class AbstractDependencyRuleGenerator {
         // Util.Debug("generating call rules for " + callee);
         if (instr.hasDef()) {
           // generate return value rule
-          PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), heapModel);
-          PointerVariable retval = Util.makeReturnValuePointer(callee, heapModel);
+          PointerVariable lhs = new ConcretePointerVariable(node, instr.getDef(), hm);
+          PointerVariable retval = Util.makeReturnValuePointer(callee, hm);
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, retval, PointerStatement.EdgeType.Assign, null, lineId,
               lineNum);
           Iterator<Object> retvalSuccs = hg.getSuccNodes(retval.getInstanceKey());
@@ -890,8 +890,8 @@ public class AbstractDependencyRuleGenerator {
         for (int j = 0; j < instruction.getNumberOfUses(); j++) {
           int localValNum = instruction.getUse(j);
           if (tbl.isNullConstant(localValNum)) continue;
-          PointerVariable lhs = new ConcretePointerVariable(heapModel.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
-          PointerKey rhsKey = heapModel.getPointerKeyForLocal(node, localValNum);
+          PointerVariable lhs = new ConcretePointerVariable(hm.getPointerKeyForLocal(callee, j + 1), callee, j + 1);
+          PointerKey rhsKey = hm.getPointerKeyForLocal(node, localValNum);
           PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
           if (rhsPointer == null) continue;
           PointerStatement stmt = Util.makePointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
@@ -932,10 +932,10 @@ public class AbstractDependencyRuleGenerator {
         return rules;
       }
 
-      PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
+      PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
 
       if (instruction.isStatic()) {
-        PointerKey refKey = heapModel.getPointerKeyForStaticField(f);
+        PointerKey refKey = hm.getPointerKeyForStaticField(f);
         if (def != null && refKey != null) {
           // dispatch to regular assignment
           String fieldName = f.getDeclaringClass().toString() + "." + f.getName().toString();
@@ -946,7 +946,7 @@ public class AbstractDependencyRuleGenerator {
           System.exit(1);
         }
       } else {
-        PointerKey refKey = heapModel.getPointerKeyForLocal(node, instruction.getRef());
+        PointerKey refKey = hm.getPointerKeyForLocal(node, instruction.getRef());
         if (def != null && refKey != null) {
           // this is a tricky case. refKey is a local var that points to a
           // reference pointing to a reference through a field = 3 levels of
@@ -1041,10 +1041,10 @@ public class AbstractDependencyRuleGenerator {
         return rules;
       }
 
-      PointerKey use = heapModel.getPointerKeyForLocal(node, instruction.getVal());
+      PointerKey use = hm.getPointerKeyForLocal(node, instruction.getVal());
 
       if (instruction.isStatic()) {
-        PointerKey fKey = heapModel.getPointerKeyForStaticField(f);
+        PointerKey fKey = hm.getPointerKeyForStaticField(f);
         if (use == null || fKey == null) {
           System.err
               .println("Problem finding lhs or rhs while generating dependency rules for static field SSAGetInstruction...exiting");
@@ -1058,7 +1058,7 @@ public class AbstractDependencyRuleGenerator {
           rules.addAll(generateRulesForAssign(instr, fKey, use, node, fieldName, lineId, lineNum));
         }
       } else {
-        PointerKey fKey = heapModel.getPointerKeyForLocal(node, instruction.getRef());
+        PointerKey fKey = hm.getPointerKeyForLocal(node, instruction.getRef());
         if (use == null || fKey == null) {
           System.err.println("Problem finding lhs or rhs while generating dependency rules for SSAGetInstruction...exiting");
           System.exit(1);
@@ -1086,8 +1086,8 @@ public class AbstractDependencyRuleGenerator {
        */
     } else if (instr instanceof SSACheckCastInstruction) {
       SSACheckCastInstruction cci = (SSACheckCastInstruction) instr;
-      PointerKey valKey = heapModel.getPointerKeyForLocal(node, cci.getVal());
-      PointerKey resultKey = heapModel.getPointerKeyForLocal(node, cci.getResult());
+      PointerKey valKey = hm.getPointerKeyForLocal(node, cci.getVal());
+      PointerKey resultKey = hm.getPointerKeyForLocal(node, cci.getResult());
       rules.addAll(generateRulesForAssign(instr, resultKey, valKey, node, null, lineId, lineNum));
       // generateRulesForAssign(instr, valKey, resultKey, node, null, lineId,
       // lineNum);
@@ -1541,8 +1541,8 @@ public class AbstractDependencyRuleGenerator {
   private Set<DependencyRule> generateRulesForArrayLoad(SSAInstruction instr, CGNode node, int lineId, int lineNum) {
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     SSAArrayLoadInstruction instruction = (SSAArrayLoadInstruction) instr;
-    PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
-    PointerKey refKey = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
+    PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
+    PointerKey refKey = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
     if (def != null && refKey != null) {
       // this is a tricky case. refKey is a local var that points to a reference
       // pointing to a reference through a field = 3 levels of dereference
@@ -1594,8 +1594,8 @@ public class AbstractDependencyRuleGenerator {
     // x = y[arr]
     Set<DependencyRule> rules = new TreeSet<DependencyRule>();
     SSAArrayLoadInstruction instruction = (SSAArrayLoadInstruction) instr;
-    PointerKey def = heapModel.getPointerKeyForLocal(node, instruction.getDef());
-    PointerKey refKey = heapModel.getPointerKeyForLocal(node, instruction.getArrayRef());
+    PointerKey def = hm.getPointerKeyForLocal(node, instruction.getDef());
+    PointerKey refKey = hm.getPointerKeyForLocal(node, instruction.getArrayRef());
     if (def != null && refKey != null) {
       PointerVariable lhs = Util.makePointerVariable(def);
       PointerVariable rhsPointerName = Util.makePointerVariable(refKey);
@@ -1697,7 +1697,7 @@ public class AbstractDependencyRuleGenerator {
    */
 
   public HeapModel getHeapModel() {
-    return this.heapModel;
+    return this.hm;
   }
 
   public HeapGraph getHeapGraph() {

@@ -1,5 +1,6 @@
 package edu.colorado.thresher.core;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -34,6 +35,7 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IBinaryNaturalRelation;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntPair;
+import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.MutableSparseIntSet;
 
@@ -98,7 +100,7 @@ public class WALACFGUtil {
   /**
    * get loop headers from cache or create them
    */
-  static MutableIntSet getLoopHeaders(IR ir) {
+  public static MutableIntSet getLoopHeaders(IR ir) {
     MutableIntSet loopHeaders = loopHeadersCache.get(ir);
     final SSACFG cfg = ir.getControlFlowGraph();
     if (loopHeaders == null) {
@@ -323,6 +325,14 @@ public class WALACFGUtil {
     }
     // return false;
     return true;
+  }
+  
+  public static Set<ISSABasicBlock> getLoopBodyBlocks(int loopHead, IR ir) {
+    return getLoopBodyBlocks(ir.getControlFlowGraph().getNode(loopHead), ir);
+  }
+  
+  public static Set<ISSABasicBlock> getLoopBodyBlocks(ISSABasicBlock loopHead, IR ir) {
+    return getLoopBodyBlocks((SSACFG.BasicBlock) loopHead, ir);
   }
   
   /**
@@ -617,6 +627,11 @@ public class WALACFGUtil {
     return -1;
   }
 
+  
+  public static boolean isDirectlyReachableFrom(ISSABasicBlock dst, ISSABasicBlock src, SSACFG cfg) {
+    return isDirectlyReachableFrom((SSACFG.BasicBlock) dst, (SSACFG.BasicBlock) src, cfg);
+  }
+  
   /**
    *
    * @return - true if @param dst is directly reachable from @param src (no branching), false otherwise
@@ -628,6 +643,7 @@ public class WALACFGUtil {
       if (!seen.add(src)) return false; // have looped around without seeing target
       if (src.equals(dst)) return true;
       succs = cfg.getNormalSuccessors(src);
+      if (succs.isEmpty()) return false;
       src = (SSACFG.BasicBlock) succs.iterator().next();
     } while (succs.size() == 1);
     return false;
@@ -697,9 +713,30 @@ public class WALACFGUtil {
     Util.Assert(false, "couldn't find call to " + callee + " in caller " + caller);
     return null;
   }
+  
+  public static Collection<Pair<SSAInvokeInstruction,Integer>> getCallInstructionsAndIndices(CGNode callee, CGNode caller, CallGraph cg) {
+    IR callerIR = caller.getIR();
+    SSAInstruction[] instrs = callerIR.getInstructions();
+    Collection<Pair<SSAInvokeInstruction,Integer>> pairs = new ArrayList<Pair<SSAInvokeInstruction,Integer>>();
 
+    for (Iterator<CallSiteReference> siteIter = cg.getPossibleSites(caller, callee); siteIter.hasNext();) {
+      CallSiteReference site = siteIter.next();
+      IntSet indices = callerIR.getCallInstructionIndices(site);
+      for (IntIterator indexIter = indices.intIterator(); indexIter.hasNext();) {
+        int callLine = indexIter.next();
+        
+        SSAInstruction instr = instrs[callLine];
+        Util.Assert(instr instanceof SSAInvokeInstruction);
+        pairs.add(Pair.make((SSAInvokeInstruction) instr, callLine));
+      }
+    }
+    return pairs;
+  }
+  
+  /*
   public static SSAInvokeInstruction getCallInstructionFor(CGNode callee, CGNode caller, CallGraph cg) {
     Set<CallSiteReference> siteRefs = Util.iteratorToSet(cg.getPossibleSites(caller, callee));
+    
     Iterator<SSAInstruction> instrs = caller.getIR().iterateAllInstructions();
     while (instrs.hasNext()) {
       SSAInstruction instr = instrs.next();
@@ -717,6 +754,7 @@ public class WALACFGUtil {
     Util.Assert(false, "couldn't find call to " + callee + " in caller " + caller);
     return null;
   }
+  */
   
   public static SSAConditionalBranchInstruction getInstrForLoopHead(SSACFG.BasicBlock loopHead, SSACFG cfg) {
     Util.Debug("finding loop head instr for " + loopHead);

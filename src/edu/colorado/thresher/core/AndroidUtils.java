@@ -25,6 +25,7 @@ import org.xml.sax.SAXException;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
 
 public class AndroidUtils {
 
@@ -34,34 +35,38 @@ public class AndroidUtils {
    * @param appPath - path to some app's /res/ directory
    */
   
+  private final static String DEFAULT_LISTENER = "onClick";
+
+  
   static class AndroidButton {
     // unique identifier for the button
     final String id;
     // the integer the string id is mapped to
     int intId;
     // name of the method called when the button is clicked (normally onClick, but can be overridden)
-    final String eventHandler;
-    // event handler CGNode
-    CGNode eventHandlerNode;
+    final String eventHandlerName;
+    // event handler CGNode's. can be more than one because the manifest only specified a name; 
+    // different Activities may provide different implementations for the method of that name 
+    Set<CGNode> eventHandlerNodes;
     // name of the string that holds that button label
     final String buttonStringId;
     // text displayed on the button
     String label;
     
-    public AndroidButton(String id, String eventHandler, String buttonStringId) { 
+    public AndroidButton(String id, String eventHandlerName, String buttonStringId) { 
       this.id = id;
-      this.eventHandler = eventHandler;
+      this.eventHandlerName = eventHandlerName;
       this.buttonStringId = buttonStringId;
+      this.eventHandlerNodes = HashSetFactory.make();
     }
     
     public String toString() {
-      return "ID: \"" + id + " " + intId + "\" Handler: \"" + eventHandler + "\" Label: \"" + label + "\" stringName: \"" + buttonStringId + "\"";
+      return "ID: \"" + id + " " + intId + "\" Handler: \"" + eventHandlerName + "\" Label: \"" + label + "\" stringName: \"" + buttonStringId + "\"" 
+          + " handler nodes " + Util.printCollection(eventHandlerNodes);
     }
-    
-    private final static String DEFAULT_LISTENER = "onClick";
-    
+        
     public boolean hasDefaultListener() {
-      return DEFAULT_LISTENER.equals(eventHandler);
+      return DEFAULT_LISTENER.equals(eventHandlerName);
     }
     
   }
@@ -123,7 +128,7 @@ public class AndroidUtils {
             }
             if (handlerName == null) {
               // button uses default handler onClick
-              handlerName = "onClick";
+              handlerName = DEFAULT_LISTENER;
             }
             Util.Assert(buttonId != null);
             Util.Assert(handlerName != null);

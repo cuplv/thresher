@@ -157,6 +157,10 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // this.instanceNum = -1;
     this.method = null;
   }
+  
+  public static PointerVariable make(Object key) {
+    return Util.makePointerVariable(key);
+  }
 
   public Object getInstanceKey() {
     return instanceKey;

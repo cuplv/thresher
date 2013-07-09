@@ -68,7 +68,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public final boolean executeBackward(CGNode startNode, IQuery query) {
+  public boolean executeBackward(CGNode startNode, IQuery query) {
     final SSACFG.BasicBlock exit = startNode.getIR().getControlFlowGraph().exit();
     return executeBackward(startNode, exit, exit.getAllInstructions().size() - 1, query);
   }
@@ -81,9 +81,9 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public final boolean executeBackward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
+  public boolean executeBackward(CGNode startNode, ISSABasicBlock startBlk, int startLine, IQuery query) {
     // Util.Print(startNode.getIR().toString());
-    final IPathInfo path = makePath(startNode, startBlk, startLine, query);
+    final IPathInfo path = makePath(startNode, (SSACFG.BasicBlock) startBlk, startLine, query);
     this.pathsToExplore.add(path);
     // Util.visualizeIR(Options.DEBUG_cha, startNode.getIR(), "TEST"); // DEBUG
     // only; can get a view of weird IR if it's giving us trouble
@@ -100,7 +100,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public final boolean executeBackward(IPathInfo path) {
+  public boolean executeBackward(IPathInfo path) {
     // Util.Print(startNode.getIR().toString());
     //final IPathInfo path = makePath(startNode, startBlk, startLine, query);
     final IQuery query = path.query;
@@ -118,7 +118,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @return false if query is refuted on all paths, true otherwise
    */
   @Override
-  public final boolean executeBackward() {
+  public boolean executeBackward() {
     int pathCount = 0;
     for (;;) {
       // also timeout if we use too much memory
@@ -861,8 +861,8 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * override to use different kind of PathInfo during execution
    */
   @Override
-  public IPathInfo makePath(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
-    return new IPathInfo(startNode, startBlk, startLine, query);
+  public IPathInfo makePath(CGNode startNode, ISSABasicBlock startBlk, int startLine, IQuery query) {
+    return new IPathInfo(startNode, (SSACFG.BasicBlock) startBlk, startLine, query);
   }
 
   // forward execution... a feature for the future
@@ -873,11 +873,11 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @param query
    *          - fact that symbolic execution will witness or refute
    */
-  @Override
-  public void executeForward(CGNode startNode, IQuery query) {
-    final SSACFG.BasicBlock entry = startNode.getIR().getControlFlowGraph().entry();
-    executeForward(startNode, entry, 0, query);
-  }
+  //@Override
+  //public void executeForward(CGNode startNode, IQuery query) {
+    //final SSACFG.BasicBlock entry = startNode.getIR().getControlFlowGraph().entry();
+    //executeForward(startNode, entry, 0, query);
+  //}
 
   /**
    * @param startNode
@@ -885,10 +885,10 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    * @param query
    *          - fact that symbolic execution will witness or refute
    */
-  @Override
-  public void executeForward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
-    Util.Unimp("forward execution");
-  }
+  //@Override
+  //public void executeForward(CGNode startNode, SSACFG.BasicBlock startBlk, int startLine, IQuery query) {
+    //Util.Unimp("forward execution");
+  //}
 
   // should be overriden by fancier symbolic executors
   public void addLoopMergePlaceholder(SSACFG.BasicBlock loopHeadToMerge) {

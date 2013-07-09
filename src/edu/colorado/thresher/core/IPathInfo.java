@@ -9,7 +9,7 @@ import java.util.Set;
 
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
+import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
@@ -56,7 +56,7 @@ public class IPathInfo { // implements Comparable {
   private final PiecewiseGraph piecewiseGraph;
 
   // fact we are trying to prove on this path; if false, path must be killed
-  final IQuery query;
+  public final IQuery query;
 
   // query we started with; if it reappears in our set, we can kill the path
   final IQuery initialQuery;
@@ -106,6 +106,10 @@ public class IPathInfo { // implements Comparable {
     this.piecewiseGraph = null;
   }
 
+  public IPathInfo(CGNode currentNode, ISSABasicBlock currentBlock, int currentLineNum, IQuery query) {
+    this(currentNode, (SSACFG.BasicBlock) currentBlock, currentLineNum, query);
+  }
+  
   // constructor for building PathInfo from scratch
   public IPathInfo(CGNode currentNode, SSACFG.BasicBlock currentBlock, int currentLineNum, IQuery query) {
     Util.Pre(currentBlock != null, "current block should not be null!");

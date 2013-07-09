@@ -1,17 +1,10 @@
 package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-//import z3.java.Z3AST;
-//import z3.java.Z3Config;
-//import z3.java.Z3Context;
-import com.microsoft.z3.*;
-
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IField;
@@ -54,6 +47,13 @@ import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.microsoft.z3.AST;
+import com.microsoft.z3.BoolExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Expr;
+import com.microsoft.z3.Solver;
+import com.microsoft.z3.Status;
+import com.microsoft.z3.Z3Exception;
 
 /**
  * Query regarding path feasibility containing formulae acquired from path
@@ -892,7 +892,8 @@ public class PathQuery implements IQuery {
         for (AtomicPathConstraint constraint : this.constraints) {
           if (constraint.isNullConstraintForLocal(receiver)) {
             Util.Debug("refuted by dispatch on null! " + constraint + " " + instr);
-            this.feasible = false;
+            // TODO: ok?
+            //this.feasible = false;
             return false;
           }
         }
@@ -956,9 +957,13 @@ public class PathQuery implements IQuery {
 
   @Override
   public boolean addConstraintFromBranchPoint(IBranchPoint point, boolean trueBranchFeasible) {
-    SSAConditionalBranchInstruction instruction = point.getInstr();
-    CGNode method = point.getMethod();
-    SymbolTable tbl = point.getSymbolTable();
+    return addConstraintFromConditional(point.getInstr(), point.getMethod(), trueBranchFeasible);
+  }
+  
+  @Override
+  public boolean addConstraintFromConditional(SSAConditionalBranchInstruction instruction, 
+                                               CGNode node, boolean trueBranchFeasible) {
+    SymbolTable tbl = node.getIR().getSymbolTable();
     // is this a comparison of constants?
     if (instruction.isIntegerComparison() && tbl.isConstant(instruction.getUse(0)) && tbl.isConstant(instruction.getUse(1))) {
       // yes, so we can determine immediately whether this branch can be taken
@@ -972,7 +977,7 @@ public class PathQuery implements IQuery {
                                                                    // branch is
                                                                    // infeasible
     } else { // no. extract the path constraint from the branch condition
-      AtomicPathConstraint constraint = getPathConstraintFromGuard(instruction, tbl, method, !trueBranchFeasible);
+      AtomicPathConstraint constraint = getPathConstraintFromGuard(instruction, tbl, node, !trueBranchFeasible);
       if (addConstraint(constraint))
         return isFeasible();
       return true; // else, constraint already in set; no need to check

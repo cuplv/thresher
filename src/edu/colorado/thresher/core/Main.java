@@ -2,7 +2,6 @@ package edu.colorado.thresher.core;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -24,12 +23,16 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.cfg.ControlFlowGraph;
 import com.ibm.wala.classLoader.BinaryDirectoryTreeModule;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.classLoader.Language;
+import com.ibm.wala.classLoader.NewSiteReference;
+import com.ibm.wala.classLoader.SyntheticMethod;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -39,7 +42,10 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.CallGraphStats;
+import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
+import com.ibm.wala.ipa.callgraph.MethodTargetSelector;
+import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -55,14 +61,21 @@ import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.modref.ModRef;
+import com.ibm.wala.ipa.summaries.MethodSummary;
+import com.ibm.wala.ipa.summaries.SummarizedMethod;
+import com.ibm.wala.ipa.summaries.SyntheticIRFactory;
+import com.ibm.wala.ipa.summaries.XMLMethodSummaryReader;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
+import com.ibm.wala.ssa.DefaultIRFactory;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
+import com.ibm.wala.ssa.SSAInstructionFactory;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
+import com.ibm.wala.ssa.SSAOptions;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
@@ -85,10 +98,10 @@ public class Main {
   // print debug information (LOTS of printing)  
   public static IClassHierarchy DEBUG_cha;
 
-  private static IClass WEAK_REFERENCE;
+  public static IClass WEAK_REFERENCE;
 
   // don't set manually; is automatically on when regressions tests run and off otherwise
-  private static boolean REGRESSIONS = false; 
+  public static boolean REGRESSIONS = false; 
 
   public static String REGRESSION = "__regression";
 
@@ -96,6 +109,10 @@ public class Main {
   static final String[] blacklist = new String[] { "EMPTY_SPANNED", "sThreadLocal", "sExecutor", "sWorkQueue", "sHandler",
       "CACHED_CHARSETS" };
 
+  public static String parseArgs(String[] args) {
+    return Options.parseArgs(args);
+  }
+  
   public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
       CallGraphBuilderCancelException {
     String target = Options.parseArgs(args);
@@ -114,7 +131,8 @@ public class Main {
       
       // feature under development
       if (Options.ANDROID_UI) {
-        runAndroidBadMethodCheck(target);
+        //runAndroidBadMethodCheck(target);
+        AndroidUIChecker.runUICheck(target);
         return;
       }
       
@@ -187,6 +205,8 @@ public class Main {
     int successes = 0;
     int failures = 0;
     long start = System.currentTimeMillis();
+    
+    //String[] tests0 = new String[] { "SimpleHashMapRefute" };
 
     String mainClass = "LAct";
     for (String test : tests) {
@@ -361,43 +381,8 @@ public class Main {
       }
     }
   }
-
-  public static boolean runAnalysisAllStaticFields(String appName) // wrapper
-      throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    // String[] snkClasses = new String[] { "Landroid/app/Activity",
-    // "Landroid/view/View"};
-    String[] snkClasses = new String[] { "Landroid/app/Activity" };
-    String[] srcClasses = new String[0]; // with no base
-    return runAnalysis(appName, srcClasses, snkClasses, false);
-  }
-
-  public static boolean runAnalysisActivityAndViewFieldsOnly(String appName) // wrapper
-      throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    String[] srcClasses = new String[] { "Landroid/app/Activity", "Landroid/view/View" };
-    String[] snkClasses = new String[] { "Landroid/app/Activity" };
-    return runAnalysis(appName, srcClasses, snkClasses, false);
-  }
-
-  public static boolean runAnalysisActivityFieldsOnly(String appName) // wrapper
-      throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-    return runAnalysisActivityFieldsOnly(appName, false, false);
-  }
-
-  public static boolean runAnalysisActivityFieldsOnly(String appName, boolean fakeAct, boolean fakeMap) // wrapper
-      throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    if (fakeAct)
-      return runAnalysis(appName, "LAct", fakeMap);
-    else
-      return runAnalysis(appName, "Landroid/app/Activity", fakeMap);
-  }
-
-  public static boolean runAnalysis(String appName, String baseClass, boolean fakeMap) // wrapper
-      throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    String[] singleton = new String[] { baseClass };
-    return runAnalysis(appName, singleton, singleton, fakeMap);
-  }
   
-  private static IClassHierarchy setupAndroidScopeAndEntryPoints(AnalysisScope scope, 
+  public static IClassHierarchy setupAndroidScopeAndEntryPoints(AnalysisScope scope, 
                                                                  Collection<Entrypoint> entryPoints, 
                                                                  final Set<String> handlers,
                                                                  String appPath) 
@@ -454,7 +439,7 @@ public class Main {
   }
   
   // wrapper
-  private static AbstractDependencyRuleGenerator 
+  public static AbstractDependencyRuleGenerator 
   buildCallGraphAndPointsToAnalysis(AnalysisScope scope, IClassHierarchy cha, 
                                     Collection<Entrypoint> entryPoints, String appPath) 
     throws CallGraphBuilderCancelException {
@@ -463,24 +448,31 @@ public class Main {
   
   /**
    * build callgraph, points-to analysis, and mod/ref for given entrypoints
-   * @return an abstract dependency rule generator containing this components
+   * @return an abstract dependency rule generator containing these components
    */
-  private static AbstractDependencyRuleGenerator 
+  public static AbstractDependencyRuleGenerator 
       buildCallGraphAndPointsToAnalysis(AnalysisScope scope, IClassHierarchy cha, 
                                         Collection<Entrypoint> entryPoints, String appPath, boolean fakeMap) 
       throws CallGraphBuilderCancelException {
     Collection<? extends Entrypoint> e = entryPoints;
+    //for (Entrypoint en : entryPoints) Util.Print("entrypoint " + e);
     AnalysisOptions options = new AnalysisOptions(scope, e); 
     // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
-    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
-    AnalysisCache cache = new AnalysisCache();
-    // cache, cha, scope);
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE);
+    AnalysisCache cache;
+    if (Options.ANDROID_UI) cache = new MyAnalysisCache(readSummaries(scope));
+    else cache = new AnalysisCache();
     CallGraphBuilder builder;
-    if (!fakeMap) builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    if (Options.ANDROID_UI) builder = FakeMapContextSelector.makeZeroOneContainerCFABuilder(options, cache, cha, scope); 
+    else if (!fakeMap) builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
     else builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
+    
     if (Options.DEBUG) DEBUG_cha = cha;
+    //Util.Print("SUMMARY: " + reader.getSummaries().get(AndroidUIChecker.INFLATE));
+    
     Util.Print("Building call graph");
     CallGraph cg = builder.makeCallGraph(options, null);
+
     Util.Print(CallGraphStats.getStats(cg));
     Util.Print("Building points-to analysis");
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
@@ -490,6 +482,50 @@ public class Main {
     ModRef modref = ModRef.make();
     Map<CGNode, OrdinalSet<PointerKey>> modRefMap = modref.computeMod(cg, pointerAnalysis);
     return new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRefMap);
+  }
+  
+  private static Map<MethodReference,MethodSummary> readSummaries(AnalysisScope scope) {
+    InputStream s = Main.class.getClassLoader().getResourceAsStream("config/summaries.xml");
+    XMLMethodSummaryReader reader = new XMLMethodSummaryReader(s, scope);
+    return reader.getSummaries();
+  }
+  
+  static class MyAnalysisCache extends AnalysisCache {
+    public MyAnalysisCache(Map<MethodReference,MethodSummary> summaries) {
+      super(new MyIRFactory(summaries));
+    }
+  }
+  
+  static class MyIRFactory extends DefaultIRFactory {
+    private final Map<MethodReference,MethodSummary> summaries;
+    private final SyntheticIRFactory syntheticFactory = new SyntheticIRFactory();
+
+    public MyIRFactory(Map<MethodReference,MethodSummary> summaries) { 
+      super(); 
+      this.summaries = summaries;
+    }
+    @Override
+    public ControlFlowGraph makeCFG(IMethod method, Context c) throws IllegalArgumentException {
+      MethodReference ref = method.getReference();
+      if (summaries.containsKey(ref)) {
+        return syntheticFactory.makeCFG((SyntheticMethod) method, c);
+      }
+      return super.makeCFG(method, c);
+    }
+    
+    @Override
+    public IR makeIR(IMethod method, Context c, SSAOptions options) throws IllegalArgumentException {
+      MethodReference ref = method.getReference();
+      if (summaries.containsKey(ref)) {
+        Util.Debug("delegating to summary for method " + ref);
+        // emit summary IR instead of regular ir
+        SyntheticMethod summary = new SummarizedMethod(ref, summaries.get(ref), 
+            method.getClassHierarchy().lookupClass(ref.getDeclaringClass()));
+        IR newIR = syntheticFactory.makeIR(summary, c, options);
+        return newIR;
+      }
+      return super.makeIR(method, c, options);
+    }
   }
   
   static class UIQuery extends CombinedPathAndPointsToQuery {
@@ -522,8 +558,8 @@ public class Main {
         // get the button id #
         SymbolTable tbl = currentPath.getCurrentNode().getIR().getSymbolTable();
         Util.Assert(tbl.isIntegerConstant(instr.getUse(1)));
-        //buttonId = tbl.getIntValue(instr.getUse(1));
-        //return IQuery.INFEASIBLE;
+        buttonId = tbl.getIntValue(instr.getUse(1));
+        return IQuery.INFEASIBLE;
       }
       return super.enterCall(instr, callee, currentPath);
     }
@@ -539,7 +575,7 @@ public class Main {
     Set<String> handlers = HashSetFactory.make();
     for (AndroidUtils.AndroidButton button : buttons) {
       Util.Print("found manifest-declared button: " + button);
-      handlers.add(button.eventHandler);
+      handlers.add(button.eventHandlerName);
     }
     
     IClassHierarchy cha = setupAndroidScopeAndEntryPoints(scope, entryPoints, handlers, appPath);
@@ -574,6 +610,8 @@ public class Main {
     final MethodReference FIND_VIEW_BY_ID6 = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/view/Window"),
         "findViewById", "(I)Landroid/view/View");
     
+    final MethodReference ON_CLICK = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/app/Activity"), 
+        "onClick", "(Landroid/view/View;)V");
     
     final MethodReference SET_ON_CLICK_LISTENER = MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, 
         "Landroid/widget/Button"),
@@ -587,17 +625,19 @@ public class Main {
     findMethods.add(FIND_VIEW_BY_ID5);
     findMethods.add(FIND_VIEW_BY_ID6);
     // for each button:
-    //   check if an override listener for the button is declared. if so, we're done. 
+    //   check if an override listener for the button is declared. if so, we're done. (assuming listener is not re-set?)
     //   find the call to findViewById() for the button id corresponding to this button. get the Button object returned from this call
     //   find a call to setOnClickListener() for this button
     //   get the object passed to setOnClickListener(). The CGNode's reachable from the onClick() method of this object represent the
     //   behaviors that can be invoked by this button
-    //   problem: many buttons may share the same listner, with a switch() of if/else if() statement controlling exactly what the listener does
+    //   problem: many buttons may share the same listener, with a switch() of if/else if() statement controlling exactly what the listener does
     
     HeapModel hm = depRuleGenerator.getHeapModel();
     HeapGraph hg = depRuleGenerator.getHeapGraph();
+    
     Logger logger = new Logger();
     
+    outer:
     for (Iterator<CGNode> iter = cg.iterator(); iter.hasNext();) {
       CGNode node = iter.next();
       IClass clazz = node.getMethod().getDeclaringClass();
@@ -605,18 +645,22 @@ public class Main {
       IR ir = node.getIR();
       if (ir == null) continue;
       
-      // TMP: should be nicer way to do this
-      // add hardcoded event listeners, if applicable
+      // TODO: should be nicer way to do this
+      // add hardcoded event listeners specified in manifest, if applicable
       for (AndroidUtils.AndroidButton button : buttons) {
-        if (button.eventHandler.equals(node.getMethod().getName().toString())) {
-          //Util.Print("adding event handler node " + node + " to " + button);
-          button.eventHandlerNode = node; 
+        if (!button.hasDefaultListener() && button.eventHandlerName.equals(node.getMethod().getName().toString())) {
+          Util.Print("adding event handler node " + node + " to " + button + " and breaking");
+          button.eventHandlerNodes.add(node);
+          //break outer;
+        } else if (button.hasDefaultListener() && node.getMethod().equals(ON_CLICK)) {
+          button.eventHandlerNodes.add(node);
         }
       }
       
       for (Iterator<CallSiteReference> callIter = ir.iterateCallSites(); callIter.hasNext();) { // for each call site
         CallSiteReference site = callIter.next();
         if (site.getDeclaredTarget().equals(SET_ON_CLICK_LISTENER)) {
+          Util.Print("found call to setOnClickListener() " + site + " in " + node);
           // find call to v1.setOnClickListener(v2)
           // run Thresher until we find v1 (the button whose listener was set) 
           // query: v1 -> {whatever the points-to graph says it points to}     
@@ -664,15 +708,19 @@ public class Main {
             // start at line BEFORE call
             exec.executeBackward(node, startBlk, startLineBlkIndex - 1, query);
             // make sure we found the button id
-            Util.Assert(UIQuery.buttonId != -1);
+            Util.Assert(UIQuery.buttonId != -1, "couldn't determine which button flows to setOn*Listener!");
+            Util.Print("found button id " + UIQuery.buttonId);
+            boolean found = false;
             for (AndroidUtils.AndroidButton button : buttons) {
               if (button.intId == UIQuery.buttonId) {
                 Util.Print("found button " + button + "; setting event handler to " + listener);
-                button.eventHandlerNode = listener;
+                button.eventHandlerNodes.add(listener);
+                found = true;
                 // TODO: add path constraint that says the button has this id
                 break;
               }
             }
+            Util.Assert(found, "button with id " + UIQuery.buttonId + " not in button list! must be dynamically created");
           }
         }
       }
@@ -681,27 +729,52 @@ public class Main {
     Set<String> warnings = HashSetFactory.make();
     for (MethodReference badMethod : badMethods) {
       Set<CGNode> badNodes = cg.getNodes(badMethod);
+      // for each button, check if it can call a sensitive method
       for (AndroidUtils.AndroidButton button : buttons) {
         // make sure we got all the event handlers
-        CGNode eventHandlerNode = button.eventHandlerNode;
-        Util.Assert(eventHandlerNode != null, "no event handler for button " + button);
+        // TODO: fix
+        Util.Assert(!button.eventHandlerNodes.isEmpty(), "no event handler for button " + button);
+        CGNode eventHandlerNode = button.eventHandlerNodes.iterator().next();
         BFSPathFinder<CGNode> finder = new BFSPathFinder<CGNode>(cg, eventHandlerNode, badNodes.iterator());
+        Util.Debug("found path for button " + button);
         List<CGNode> path = finder.find();
         if (path != null) {
           //for (CGNode pathNode : path) Util.Print(pathNode);
           // explore one level down in the call graph... (that is, do symbolic execution bw from all relevant call sites in eventHandlerMethod)
           // TODO: this is a hack; we should get a call graph path, convert it to a call stack, and make it part of the query
           IR ir = eventHandlerNode.getIR();
-          // get successor node of the event handler
+          // get successor node of the event handler in the error path
           CGNode callee = path.get(path.size() - 2);
-          SSAInvokeInstruction invoke = WALACFGUtil.getCallInstructionFor(callee, eventHandlerNode, cg);
-          // query {listener-v2 -> button instance}
+          Collection<Pair<SSAInvokeInstruction,Integer>> pairs = 
+              WALACFGUtil.getCallInstructionsAndIndices(callee, eventHandlerNode, cg);
+          
+          SSACFG cfg = ir.getControlFlowGraph();
+          for (Pair<SSAInvokeInstruction,Integer> pair : pairs) {
+            SSAInvokeInstruction invoke = pair.fst;
+            SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(pair.snd);
+            int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
+            PointerKey receiverKey = hm.getPointerKeyForLocal(eventHandlerNode, invoke.getUse(0));
+            PointerVariable lhs = Util.makePointerVariable(receiverKey);
+            PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(hg.getPointerAnalysis().getPointsToSet(receiverKey));
+            PointsToEdge startEdge = new PointsToEdge(lhs, rhs);
+            // TODO: make special query that stops at function boundary
+            IQuery query = new CombinedPathAndPointsToQuery(startEdge, depRuleGenerator);
+            ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
+            Util.Debug("starting query for call " + invoke);
+            // start at line BEFORE the call
+            boolean foundWitness = exec.executeBackward(eventHandlerNode, startBlk, startLineBlkIndex - 1, query);
+            
+            // TODO: compare query constraints at function boundary against button
+          }
+          //SSAInvokeInstruction invoke = WALACFGUtil.getCallInstructionFor(callee, eventHandlerNode, cg);
+          
+          // query {listener-v2 -> button instance} (but there is no button instance due to reflection!)
           SymbolTable tbl = ir.getSymbolTable();
           Util.Assert(ir.getMethod().getNumberOfParameters() > 1);
           int paramNum = tbl.getParameter(1);
           PointerKey paramKey = hm.getPointerKeyForLocal(eventHandlerNode, paramNum);
           PointerVariable lhs = Util.makePointerVariable(paramKey);
-          PointerVariable rhs;
+          PointerVariable rhs; // TODO: button instance key
           
           warnings.add("Sensitive method " + badMethod.getDeclaringClass().getName() + "." + badMethod.getName() + 
               " triggered by button with label \"" + button.label + "\"; is this ok?");
@@ -813,7 +886,7 @@ public class Main {
   
   private static final String WALA_REGRESSION_EXCLUSIONS = "lib/WALA/com.ibm.wala.core.tests/dat/Java60RegressionExclusions.txt";
   
-  private static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
+  public static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
       throws ClassHierarchyException, IOException {
     IClassHierarchy cha;
     
@@ -1477,9 +1550,14 @@ public class Main {
   // directory containing binaries
   private static final String ASSERTIONS_AND_ANNOTATIONS_BIN = "bin/edu/colorado/thresher/external";
   
-  private static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
+  public static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+    
+    // TODO: TMP!
+    Options.ANDROID_JAR = "../thresher/" + Options.ANDROID_JAR;
+    appPath = "../thresher/" + appPath;
+    
     if (Options.ANDROID_LEAK) {
       JarFile androidJar = new JarFile(Options.ANDROID_JAR);
       // add Android code
@@ -1488,9 +1566,11 @@ public class Main {
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
       scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
     }
+
     scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
     //File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
-    File exclusionsFile = new File("config/exclusions.txt");
+    //File exclusionsFile = new File("config/exclusions.txt");
+    File exclusionsFile = new File(Options.EXCLUSIONS);
     if (exclusionsFile.exists()) {
       scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
     }
@@ -1539,8 +1619,9 @@ public class Main {
     AnalysisCache cache = new AnalysisCache();
     
     CallGraphBuilder builder;
-    if (Options.ANDROID_LEAK && REGRESSIONS) builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
-    else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    if (Options.ANDROID_LEAK && REGRESSIONS) {
+      builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
+    } else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
     
     Util.Print("Building call graph.");
     CallGraph cg = builder.makeCallGraph(options, null);
@@ -1828,9 +1909,8 @@ public class Main {
       TypeReference.findOrCreate(ClassLoaderReference.Application, "Ledu/colorado/thresher/external/Annotations$noStaticRef");
   
   
-  private static boolean checkAnnotations(String appPath, String mainClass, AbstractDependencyRuleGenerator depRuleGenerator) 
+  public static boolean checkAnnotations(String appPath, String mainClass, AbstractDependencyRuleGenerator depRuleGenerator) 
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    //AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(appPath, mainClass, mainMethod);
     Set<IField> staticFields = HashSetFactory.make();
     IClassHierarchy cha = depRuleGenerator.getClassHierarchy();
     WEAK_REFERENCE = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ljava/lang/ref/WeakReference"));
@@ -1846,9 +1926,7 @@ public class Main {
       IClass c = classes.next();
 
       if (!REGRESSIONS || c.getName().toString().contains(mainClass)) {
-        for (IField field : c.getAllStaticFields()) {
-          staticFields.add(field);
-        }
+        staticFields.addAll(c.getAllStaticFields());
       }
       
       for (Annotation a : c.getAnnotations()) {
@@ -1873,7 +1951,8 @@ public class Main {
     HeapModel hm = depRuleGenerator.getHeapModel();
     Logger logger = new Logger();
     
-    Set<Pair<Object, Object>> fieldErrorList = HashSetFactory.make();
+    //Set<Pair<Object, Object>> fieldErrorList = HashSetFactory.make();
+    List<Pair<Object, Object>> fieldErrorList = new ArrayList<Pair<Object,Object>>();
     // map from fields -> @noStaticRef's that leak via that field
     Map<String, Set<IClass>> leakedActivities = HashMapFactory.make();
     
@@ -1886,8 +1965,7 @@ public class Main {
           break;
         }
       }
-      if (skipThis)
-        continue;
+      if (skipThis) continue;
 
       PointerKey field = hm.getPointerKeyForStaticField(f);
       BFSIterator<Object> iter = new BFSIterator<Object>(hg, field);
@@ -1921,6 +1999,7 @@ public class Main {
         }
       }
     }
+    
 
     Util.Print("found " + leakedActivities.keySet().size() + " potentially problematic fields");
     Util.Print("found " + fieldErrorList.size() + " (field, error) pairs");
@@ -1938,180 +2017,20 @@ public class Main {
     return result;
   }
   
-  /**
-   * run Thresher on app
-   * 
-   * @param appName - path to app to run
-   * @param baseClasses - classes whose static fields we should search from and classes whose instances should not be reachable
-   * from a static field
-   * @param fakeMap - debug parameter; should be false for all real uses
-   * @return - true if no instance of the base classes is reachable from a static field of the base class, false otherwise
-   */
-  public static boolean runAnalysis(String appPath, String[] srcStrings, String[] snkStrings, boolean fakeMap) 
-      throws FileNotFoundException, IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
-    Set<IField> staticFields = HashSetFactory.make();
-    Set<MethodReference> saveMethods = HashSetFactory.make();
-    Util.Print("Starting on " + appPath);
-    Logger logger = new Logger();
-    long start = System.currentTimeMillis();
-    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    if (Options.USE_EXCLUSIONS) {
-      File exclusionsFile = new File("config/exclusions.txt");
-      if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
-    }
-    JarFile androidJar = new JarFile(Options.ANDROID_JAR);
-    // add Android code
-    scope.addToScope(scope.getPrimordialLoader(), androidJar);
-    // add application code
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
 
-    System.out.println("making class hierarchy");
-    IClassHierarchy cha = ClassHierarchy.make(scope);
-
-    List<IClass> snkClasses = new LinkedList<IClass>();
-    Iterator<IClass> classes = cha.iterator();
-   
-    while (classes.hasNext()) {
-      IClass c = classes.next();
-     
-      
-      if (!scope.isApplicationLoader(c.getClassLoader())) continue;
-      
-      for (Annotation a : c.getAnnotations()) {
-       Util.Print("found annotation of type " + a.getType());
-       Util.Assert(a.getType().equals(NO_STATIC_REF), "unhandled annotation " + a);
-       snkClasses.add(c);
-      }
-      
-      for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
-        if (REGRESSIONS) {
-          if (m.isPublic() || m.isProtected()) {
-            entryPoints.add(new DefaultEntrypoint(m, cha));
-          }
-        } else {
-          // add "on*" methods; they're the event handlers
-          if ((m.isPublic() || m.isProtected()) && m.getName().toString().startsWith("on")) {
-            // use same receiver for all method calls
-            entryPoints.add(new SameReceiverEntrypoint(m, cha));
-            //entryPoints.add(new DefaultEntrypoint(m, cha));
-          }
-        }
-      }
-
-      if (srcStrings.length == 0) { // no src classes; just use all static fields
-        for (IField field : c.getAllStaticFields()) {
-          staticFields.add(field);
-        }
-      }
-    }
-
-    for (String srcString : srcStrings) {
-      IClass srcClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, srcString));
-      if (Options.CHECK_ASSERTS) Util.Assert(srcClass != null, "couldn't find base class " + srcString);
-      staticFields.addAll(srcClass.getAllStaticFields());
-      // find all subclasses of the src Class
-      for (IClass subclass : cha.computeSubClasses(srcClass.getReference())) {
-        staticFields.addAll(subclass.getAllStaticFields());
-      }
-    }
-    
-    /*
-    for (String snkString : snkStrings) {
-      IClass snkClass = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, snkString));
-      if (Options.CHECK_ASSERTS) Util.Assert(snkClass != null, "couldn't find base class " + snkClass);
-      snkClasses.add(snkClass);
-    }
-    */
-
-    WEAK_REFERENCE = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ljava/lang/ref/WeakReference"));
-
-    Collection<IClass> subclasses = HashSetFactory.make();
-    computeSubclassesAndStaticFields(snkClasses, scope, cha, entryPoints, subclasses, staticFields, saveMethods);   
-    
-    
-    AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath, fakeMap);
-    HeapGraphWrapper hg = (HeapGraphWrapper) depRuleGenerator.getHeapGraph();
-    HeapModel hm = depRuleGenerator.getHeapModel();
-   
-    Set<Pair<Object, Object>> fieldErrorList = HashSetFactory.make();
-    // map from fields -> Acts that leak via that field
-    Map<String, Set<IClass>> leakedActivities = HashMapFactory.make();
-
-    for (IField f : staticFields) {
-      boolean skipThis = false;
-      for (String skip : blacklist) {
-        if (f.toString().contains(skip)) {
-          Util.Print("skipping " + f + " due to blacklist");
-          skipThis = true;
-          break;
-        }
-      }
-      if (skipThis)
-        continue;
-
-      PointerKey field = hm.getPointerKeyForStaticField(f);
-      BFSIterator<Object> iter = new BFSIterator<Object>(hg, field);
-      // see if an Activity is reachable from this static field
-      while (iter.hasNext()) {
-        Object node = iter.next();
-        IClass type = null;
-        if (node instanceof ConcreteTypeKey) {
-          type = ((ConcreteTypeKey) node).getConcreteType();
-        } else if (node instanceof AllocationSiteInNode) {
-          type = ((AllocationSiteInNode) node).getConcreteType();
-        }
-        // allow arbitrary number of errors per field
-        if (type != null && subclasses.contains(type)) {
-          // is there a path from the static field to the Activity?
-          if (findNewErrorPath(hg, field, node, cha) != null) {
-            Set<IClass> leaked = leakedActivities.get(field.toString());
-            if (leaked == null) {
-              leaked = HashSetFactory.make();
-              leakedActivities.put(field.toString(), leaked);
-              Util.Print("found field error " + field);
-              logger.logErrorField();
-            }
-            InstanceKey activityInstance = (InstanceKey) node;
-            // see if we already know that this Activity can leak via this field
-            if (leaked.add(activityInstance.getConcreteType())) { 
-              Pair<Object, Object> errPair = Pair.make((Object) field, node);
-              fieldErrorList.add(errPair);
-            }
-          }
-        }
-      }
-    }
-
-    Util.Print("found " + leakedActivities.keySet().size() + " potentially problematic fields");
-    Util.Print("found " + fieldErrorList.size() + " (field, error) pairs");
-    logger.logNumStaticFields(staticFields.size());
-    logger.logTotalErrors(fieldErrorList.size());
-    long refuteStart = System.currentTimeMillis();
-    boolean result = false;
-    if (!Options.FLOW_INSENSITIVE_ONLY) {
-      result = refuteFieldErrors(fieldErrorList, depRuleGenerator, logger);
-    }
-    long refuteEnd = System.currentTimeMillis();
-    Util.Print("Symbolic execution completed in " + ((refuteEnd - refuteStart) / 1000.0) + " seconds");
-    Util.Print("Total time was " + ((refuteEnd - start) / 1000.0) + " seconds");
-    Util.Print("Done with " + appPath);
-    return result;
-  }
-
-  public static boolean refuteFieldErrors(Set<Pair<Object, Object>> fieldErrors, AbstractDependencyRuleGenerator aDepRuleGenerator, Logger logger) {
+  public static boolean refuteFieldErrors(List<Pair<Object, Object>> fieldErrors, AbstractDependencyRuleGenerator aDepRuleGenerator, Logger logger) {
     List<Pair<Object, Object>> trueErrors = new LinkedList<Pair<Object, Object>>(), falseErrors = new LinkedList<Pair<Object, Object>>();
     Set<PointsToEdge> producedEdges = HashSetFactory.make(), refutedEdges = HashSetFactory.make();
     //AbstractDependencyRuleGenerator aDepRuleGenerator = new AbstractDependencyRuleGenerator(cg, hg, hm, cache, modRef);
 
     int count = 1;
-    Collection<Object> snkCollection = new LinkedList<Object>();
+    //Collection<Object> snkCollection = new LinkedList<Object>();
 
     // for each error
     for (Pair<Object, Object> error : fieldErrors) {
       try {
         Util.Print("starting on error " + count++ + " of " + fieldErrors.size() + ": " + error.fst);
-        snkCollection.add(error.snd);
+        //snkCollection.add(error.snd);
         // if we can refute error
         if (refuteFieldErrorForward(error, producedEdges, aDepRuleGenerator, 
                                     refutedEdges, logger)) {
@@ -2143,16 +2062,22 @@ public class Main {
     // returns true if the path is feasible
     return result;
   }
+  
+  private static boolean refuteFieldErrorForward(Pair<Object, Object> error, Set<PointsToEdge> producedEdges, 
+      AbstractDependencyRuleGenerator aDepRuleGenerator, Set<PointsToEdge> refutedEdges,
+      Logger logger) {
+    return refuteFieldErrorForward(error.fst, error.snd, producedEdges, aDepRuleGenerator, refutedEdges, logger);
+  }
 
   /**
    * @return - true if the error is a refutation, false otherwise
    */
-  public static boolean refuteFieldErrorForward(Pair<Object, Object> error, Set<PointsToEdge> producedEdges, 
+  public static boolean refuteFieldErrorForward(Object src1, Object snk1, Set<PointsToEdge> producedEdges, 
                           AbstractDependencyRuleGenerator aDepRuleGenerator, Set<PointsToEdge> refutedEdges,
                           Logger logger) {
     HeapGraphWrapper hg = (HeapGraphWrapper) aDepRuleGenerator.getHeapGraph();
     IClassHierarchy cha = aDepRuleGenerator.getClassHierarchy();
-    List<Object> errorPath = findNewErrorPath(hg, error.fst, error.snd, cha); 
+    List<Object> errorPath = findNewErrorPath(hg, src1, snk1, cha); 
     if (errorPath == null) {
       Util.Print("Edges refuted on previous error preclude us from finding path! this error infeasible");
       return true;
@@ -2241,7 +2166,7 @@ public class Main {
               Util.Print("Successfully refuted edge " + witnessMe + "; now trying to find error path  without it");
               logger.logEdgeRefutation();
               
-              errorPath = findNewErrorPath(hg, error.fst, error.snd, cha); 
+              errorPath = findNewErrorPath(hg, src1, snk1, cha); 
               
               if (errorPath != null) {
                 if (Options.DEBUG) Util.Debug("refuted edge, but err path still exists; size " + errorPath.size());
@@ -2275,17 +2200,19 @@ public class Main {
           Util.Print(Util.printCollection(errorPath));
           Util.Print("</Err Path>");
         }
+        Util.clear();
         return false;
       }
     } // end of "while path exists" loop
     // error path is null; we have a refutation!
+    Util.clear();
     return true;
   }
 
   /**
    * @return - true if witness for edge witnessMe found, false otherwise
    */
-  private static boolean generateWitness(PointsToEdge witnessMe,
+  public static boolean generateWitness(PointsToEdge witnessMe,
       AbstractDependencyRuleGenerator depRuleGenerator, Logger logger) {
     CallGraph cg = depRuleGenerator.getCallGraph();
     final Set<PointsToEdge> toProduce = HashSetFactory.make();
@@ -2320,11 +2247,14 @@ public class Main {
       SSACFG cfg = ir.getControlFlowGraph();
       SSACFG.BasicBlock startBlk = cfg.getBlockForInstruction(startLine);
       int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(snkStmt.getInstr(), startBlk);
-      Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), "instrs dif! expected "
+      //Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).equals(snkStmt.getInstr()), "instrs dif! expected "
+      //  + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
+      Util.Assert(startBlk.getAllInstructions().get(startLineBlkIndex).toString().equals(snkStmt.getInstr().toString()), "instrs dif! expected "
           + snkStmt.getInstr() + "; found " + startBlk.getAllInstructions().get(startLineBlkIndex));
 
       ISymbolicExecutor exec;
       boolean foundWitness;
+
       if (Options.PIECEWISE_EXECUTION)
         exec = new PiecewiseSymbolicExecutor(cg, logger);
       else if (Options.CALLGRAPH_PRUNING)
@@ -2340,7 +2270,7 @@ public class Main {
     // refuted all possible last rules without a witness
     return false; 
   }
-
+  
   // returns error path without weak refs if one can be found, null otherwise
   public static List<Object> findNewErrorPath(HeapGraphWrapper hg, Object srcKey, Object snkKey, IClassHierarchy cha) {
     boolean foundWeakRef;
@@ -2391,6 +2321,7 @@ public class Main {
   }
 
   private static boolean isWeakReference(Object src, Object snk, IClassHierarchy cha) {
+    Util.Pre(WEAK_REFERENCE != null);
     if (!Options.INCLUDE_WEAK_REFERENCES) {
       // check if any links in the path are WeakReference
       if (src instanceof InstanceKey) {

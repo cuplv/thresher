@@ -290,6 +290,14 @@ public class PointsToEdge implements Constraint, Comparable {
   /*
    * public int getFieldId() { return fieldId; }
    */
+  
+  /**
+   * returns the set of dependency rules that can produce this edge
+   * @return
+   */
+  public Set<DependencyRule> getProducers(AbstractDependencyRuleGenerator depRuleGenerator) {
+    return Util.getProducersForEdge(this, depRuleGenerator);
+  }
 
   public PointerVariable getSink() {
     return sink;

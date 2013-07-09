@@ -26,6 +26,7 @@ import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAGetCaughtExceptionInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
@@ -403,6 +404,9 @@ public class PointsToQuery implements IQuery {
             return formalsAssigned;
           }
           
+          if (subMap.containsKey(argVar)) {
+            
+          }
           Util.Assert(!subMap.containsKey(argVar));
           Util.Assert(!subMap.containsKey(edge.getSink()));
 
@@ -1655,11 +1659,16 @@ public class PointsToQuery implements IQuery {
   public boolean addConstraintFromBranchPoint(IBranchPoint point, boolean trueBranchFeasible) {
     return true;
   }
-
+  
+  @Override
+  public boolean addConstraintFromConditional(SSAConditionalBranchInstruction instruction, 
+      CGNode node, boolean trueBranchFeasible) {
+    return true;
+  }
+  
   // do nothing
   @Override
   public void declareFakeWitness() {}
-  
   
   public Set<PointsToEdge> getConstraintsRelevantToCall(CGNode callee, boolean earlyRet) {
     return getConstraintsRelevantToCall(null, null, callee, earlyRet);

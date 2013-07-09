@@ -1,11 +1,17 @@
 package edu.colorado.thresher.core;
 
+import java.io.InputStream;
+import java.util.Map;
+
 import com.ibm.wala.classLoader.*;
 import com.ibm.wala.ipa.callgraph.*;
 import com.ibm.wala.ipa.callgraph.impl.*;
+import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.*;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.*;
 import com.ibm.wala.ipa.cha.*;
+import com.ibm.wala.ipa.summaries.MethodSummary;
+import com.ibm.wala.ipa.summaries.XMLMethodSummaryReader;
 import com.ibm.wala.types.*;
 import com.ibm.wala.util.intset.*;
 
@@ -30,7 +36,10 @@ public class FakeMapContextSelector implements ContextSelector {
     // return new CallerSiteContext(caller, site);
     // } else {
     if (receiver == null) {
-      return Everywhere.EVERYWHERE;
+      if (site.getDeclaredTarget().getName().toString().contains("findViewBy")) {
+        //Util.Print("WARNING: null receiver for site " + site);
+      }
+      return Everywhere.EVERYWHERE;      
       // Assertions.UNREACHABLE("null receiver for " + site);
     }
     return new ReceiverInstanceContext(receiver);
@@ -46,6 +55,54 @@ public class FakeMapContextSelector implements ContextSelector {
       return EmptyIntSet.instance;
     }
   }
+  
+  public static SSAPropagationCallGraphBuilder makeZeroOneContainerCFABuilder(AnalysisOptions options, AnalysisCache cache,
+      IClassHierarchy cha, AnalysisScope scope) {
+
+    if (options == null) {
+      throw new IllegalArgumentException("options is null");
+    }
+    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultSelectors(options, cha);
+    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultBypassLogic(options, scope, com.ibm.wala.ipa.callgraph.impl.Util.class.getClassLoader(), cha);
+    ContextSelector appSelector = null;
+    SSAContextInterpreter appInterpreter = null;
+    
+    //options.setSelector(new Main.AndroidMethodTargetSelector(options.getMethodTargetSelector(), summaries, AndroidUIChecker.findMethods));
+    options.setSelector(new LenientClassHierarchyClassTargetSelector(cha));
+    
+    return new ZeroXContainerCFABuilder(cha, options, cache, appSelector, appInterpreter, ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY | ZeroXInstanceKeys.SMUSH_PRIMITIVE_HOLDERS
+        | ZeroXInstanceKeys.SMUSH_STRINGS | ZeroXInstanceKeys.SMUSH_THROWABLES);
+  }
+  
+  
+  /**
+   * class target selector that allows instantiation of abstract classes (useful for modeling, and
+   * especially important for Android) 
+   */
+  static class LenientClassHierarchyClassTargetSelector extends ClassHierarchyClassTargetSelector {
+    private final IClassHierarchy classHierarchy;
+
+    public LenientClassHierarchyClassTargetSelector(IClassHierarchy cha) {
+      super(cha);
+      this.classHierarchy = cha;
+    }
+    
+    @Override
+    public IClass getAllocatedTarget(CGNode caller, NewSiteReference site) {
+      if (site == null) {
+        throw new IllegalArgumentException("site is null");
+      }
+      IClass klass = classHierarchy.lookupClass(site.getDeclaredType());
+      if (klass == null) {
+        return null;
+      } else if (klass.isInterface()) {
+        return null;      
+      } else {
+        return klass;
+      }
+    }
+    
+  }
 
   public static SSAPropagationCallGraphBuilder makeZeroOneFakeMapCFABuilder(AnalysisOptions options, AnalysisCache cache,
       IClassHierarchy cha, AnalysisScope scope) {
@@ -54,7 +111,7 @@ public class FakeMapContextSelector implements ContextSelector {
       throw new IllegalArgumentException("options is null");
     }
     com.ibm.wala.ipa.callgraph.impl.Util.addDefaultSelectors(options, cha);
-    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultBypassLogic(options, scope, Util.class.getClassLoader(), cha);
+    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultBypassLogic(options, scope, com.ibm.wala.ipa.callgraph.impl.Util.class.getClassLoader(), cha);
     ContextSelector appSelector = null;
     SSAContextInterpreter appInterpreter = null;
 

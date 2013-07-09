@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<summary-spec>
+        <classloader name="Primordial">
+          <package name="android/view">
+            <class name ="LayoutInflater">
+              <method name="inflate"
+                      descriptor="(ILandroid/view/ViewGroup;)Landroid/view/View;" factory="false" static="false">
+                <new def="x" class="Landroid/view/View" />
+                <return value="x" />
+              </method>
+            </class>
+            <class name ="View">
+              <method name="findViewById"
+                      descriptor="(I)Landroid/view/View;" factory="false" static="false">
+                <new def="x" class="Landroid/widget/Button" />
+                <return value="x" />
+              </method>
+            </class>
+          </package>
+        </classloader>
+</summary-spec>

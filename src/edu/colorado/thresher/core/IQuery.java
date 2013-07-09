@@ -10,6 +10,7 @@ import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.SSACFG;
+import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
@@ -40,8 +41,10 @@ public interface IQuery { // extends Comparable {
    */
   public boolean addConstraintFromBranchPoint(IBranchPoint point, boolean trueBranchFeasible);
   
+  public boolean addConstraintFromConditional(SSAConditionalBranchInstruction instruction, 
+      CGNode node, boolean trueBranchFeasible);
+  
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode);
-
 
   public IQuery deepCopy();
 
