@@ -46,7 +46,7 @@ public class AndroidUIChecker {
     // (2) build call graph and points-to analysis
     AbstractDependencyRuleGenerator drg = setupCGandPT(appPath, buttons);
     // (3) find dynamically created buttons (requires symbolic execution)
-    //findDynamicallyCreatedButtons(buttons, drg);
+    findDynamicallyCreatedButtons(buttons, drg);
     // (4) bind buttons to event handlers pre-declared in the manifest
     bindButtonsToManifestDeclaredEventHandlers(buttons, drg.getCallGraph());
     // (5) bind buttons to event handlers set dynamically using button.setOn*Listener() (requires symbolic execution)
@@ -88,16 +88,16 @@ public class AndroidUIChecker {
         }
       }
       //Util.Assert(found, "we don't know about a button with id " + btnId);
-      if (!found) Util.Print("WARNING: we don't know about a view with id " + viewId);
+      if (!found) Util.Print("WARNING: we don't know about a view with id " + viewId + "(hex " + Integer.toHexString(viewId) + ")");
     }
     
     int used = 0;
     for (AndroidUtils.AndroidButton button : buttons) {
       if (!viewsSeen.contains(button.intId)) {
-        Util.Print("WARNING: can't find any lookups of button " + button + ". Is it unused?");
+        Util.Print("Can't find any dynamic lookups of button " + button);
       } else used++;
     }
-    Util.Print("Found " + buttons.size() + " buttons; " + used + " seem to be used.");
+    Util.Print("Found " + buttons.size() + " buttons; " + used + " are looked up dynamically.");
 
   }
   
@@ -181,9 +181,8 @@ public class AndroidUIChecker {
     for (Pair<SSAInvokeInstruction,CGNode> pair : buttonConstructors) {
       Util.Print("found dynamic button constructor " + pair.fst + " in " + pair.snd);
     }
+    // TODO: add dynamically constructed buttons to button list
     Util.Assert(buttonConstructors.isEmpty(), "found " + buttonConstructors.size() + " dynamically constructed buttons");
-
-    Util.Unimp("finding dynamically created buttons");
   }
   
   public static void bindButtonsToManifestDeclaredEventHandlers(Collection<AndroidUtils.AndroidButton> buttons, CallGraph cg) {

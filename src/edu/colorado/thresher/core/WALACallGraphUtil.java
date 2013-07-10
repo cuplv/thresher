@@ -77,7 +77,7 @@ public final class WALACallGraphUtil {
    */
   public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForMethod(MethodReference callee, CallGraph cg) {
     Set<CGNode> nodes = cg.getNodes(callee);
-    Util.Assert(!nodes.isEmpty(), "no nodes for " + callee);
+    //Util.Assert(!nodes.isEmpty(), "no nodes for " + callee);
     return getCallInstrsForNodes(nodes, cg);
   }
   
