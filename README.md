@@ -1,3 +1,5 @@
+See the project page at http://pl.cs.colorado.edu/projects/thresher/ for more information on the Thresher project.
+
 Installation
 ============
 (1) You can download all dependencies by running:
