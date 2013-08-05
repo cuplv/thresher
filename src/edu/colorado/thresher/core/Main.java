@@ -121,12 +121,6 @@ public class Main {
   public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
       CallGraphBuilderCancelException {
     
-    byte[] bytes = readBytesFromFile(args[0]);
-    ClassReader reader = new ClassReader(bytes);
-    Util.Print(reader.getName());
-    System.exit(1);
-    
-    
     String target = Options.parseArgs(args);
     if (target == null) {
       System.out.println("No analysis targets given...exiting.");
