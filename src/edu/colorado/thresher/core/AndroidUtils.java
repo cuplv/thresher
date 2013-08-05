@@ -8,8 +8,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -22,10 +26,19 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.classLoader.ClassFileModule;
+import com.ibm.wala.shrikeCT.ClassConstants;
+import com.ibm.wala.shrikeCT.ClassReader;
+import com.ibm.wala.shrikeCT.ConstantPoolParser;
+import com.ibm.wala.shrikeCT.ConstantValueReader;
+import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.util.shrike.ShrikeClassReaderHandle;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+
 
 public class AndroidUtils {
 
@@ -37,6 +50,70 @@ public class AndroidUtils {
   
   private final static String DEFAULT_LISTENER = "onClick";
 
+	public static void main(String[] args) {
+		/*
+		Collection<AndroidButton> buttons = parseButtonInfo(args[0]);
+		for (AndroidButton button : buttons) {
+			System.out.println("Button " + button);
+		}*/
+		
+		buildSyntacticCG(args[0]);
+
+		// inputs: list of external code callers (reflection, serializiation, ...), entrypoints?
+		
+
+	}
+    /*	
+    static class Util {
+		public static Collection<File> listFilesRec(File startDir) {
+			Util.Pre(startDir.isDirectory());
+			Collection<File> files = new ArrayList<File>();
+			
+			final File[] genFiles = startDir.listFiles();
+			for (File f : genFiles) {
+				if (f.isDirectory()) {
+					files.addAll(listFilesRec(f));
+				} else { // is file
+					files.add(f); 
+				}
+			}
+			return files;
+		}
+		
+		public static void Assert(boolean b, String s) {
+			if (!b) {
+				System.out.println("Failed assertion: " + s);
+				Thread.dumpStack();
+			}
+		}
+		
+		public static void Assert(boolean b) {
+			Assert(b, "");
+		}
+		
+		public static void Unimp(String s) {
+			Assert(false, s);
+		}
+		
+		public static void Pre(boolean b) {
+			Assert(b, "Failed precondition: ");
+		}
+	}
+
+    // TMP!
+    static class CGNode {
+
+    }
+
+    static class HashMapFactory {
+	public static HashMap make() { return new LinkedHashMap(); }
+    }
+
+    static class HashSetFactory {
+	public static HashSet make() { return new LinkedHashSet(); }
+    }
+    // END TMP
+    */
   
   static class AndroidButton {
     // unique identifier for the button
@@ -52,6 +129,9 @@ public class AndroidUtils {
     final String buttonStringId;
     // text displayed on the button
     String label;
+
+    // abstract memory cell corresponding to the button
+    PointerVariable var;
     
     public AndroidButton(String id, String eventHandlerName, String buttonStringId) { 
       this.id = id;
@@ -61,8 +141,9 @@ public class AndroidUtils {
     }
     
     public String toString() {
-      return "ID: \"" + id + " " + intId + "\" Handler: \"" + eventHandlerName + "\" Label: \"" + label + "\" stringName: \"" + buttonStringId + "\"" 
-          + " handler nodes " + Util.printCollection(eventHandlerNodes);
+	return "ID: \"" + id + " " + intId + "\" Handler: \"" + eventHandlerName + "\" Label: \"" + label + "\" stringName: \"" + buttonStringId + "\"" 
+	//+ " handler nodes " + Util.printCollection(eventHandlerNodes);
+		;// TMP!
     }
         
     public boolean hasDefaultListener() {
@@ -185,7 +266,97 @@ public class AndroidUtils {
     
     return buttonIdMap.values();
   }
-  
+	
+	static void parseStrings(Map<String,AndroidButton> buttonIdMap, String appPath) {
+		final File valuesDir = new File(appPath + "res/values/strings.xml");
+		Util.Assert(valuesDir.exists());
+		
+	}
+
+	public static final byte CONSTANT_Integer = 3;
+
+	
+	static void buildSyntacticCG(String appPath) {
+	  String path = appPath + "bin/classes";
+	  final File binDir = new File(path);
+	  Util.Assert(binDir.exists(), "can't find " + path);
+	  final Collection<File> binFiles = Util.listFilesRec(binDir);
+	  for (File f : binFiles) {
+	    if (f.toString().endsWith(".class")) {
+		  try {
+		    ClassFileModule module = new ClassFileModule(f, null);
+		    ShrikeClassReaderHandle handle = new ShrikeClassReaderHandle(module);
+			ClassReader reader = handle.get();
+			
+			String clazz = reader.getName();
+			Util.Print("class is " + clazz);
+			ClassReader.AttrIterator iter = new ClassReader.AttrIterator();
+
+			
+			for (int i = 0; i < reader.getMethodCount(); i++) {
+			  String name = reader.getMethodName(i);
+			  String signature = reader.getMethodType(i);
+			  Util.Print("method " + name);
+			  Util.Print("sig " + signature);
+				
+			  reader.initMethodAttributeIterator(i, iter);
+			  // iterate over code for method
+			}
+		  }
+		  catch (InvalidClassFileException e) {
+		    System.err.println("bad class file " + e);
+		  }
+		}
+	  }
+	}
+	
+   /**
+	* find R$id.class, parse out button ID's from the constant pool using Shrike
+	*/
+	static void parseIntIds(Map<String,AndroidButton> buttonIdMap, String appPath) {
+		String path = appPath + "bin/classes";
+		final File binDir = new File(path);
+		Util.Assert(binDir.exists(), "can't find " + path);
+		final Collection<File> binFiles = Util.listFilesRec(binDir);
+		for (File f : binFiles) {
+			String fileName = f.getName().toString();
+			if (fileName.equals("R$id.class")) {
+				// TODO: assert that class is an inner class of R.java
+				try {
+				    ClassFileModule module = new ClassFileModule(f, null);
+					ShrikeClassReaderHandle handle = new ShrikeClassReaderHandle(module);
+					ClassReader reader = handle.get();
+					ConstantPoolParser cpParser = reader.getCP();
+					ClassReader.AttrIterator iter = new ClassReader.AttrIterator();
+
+					// for each field declared in the class
+					for (int i = 0; i < reader.getFieldCount(); i++) {
+						reader.initFieldAttributeIterator(i, iter);
+						String name = reader.getFieldName(i);
+						for (; iter.isValid(); iter.advance()) {
+							reader.initFieldAttributeIterator(i, iter);
+							if (iter.getName().equals("ConstantValue")) {
+								ConstantValueReader cv = new ConstantValueReader(iter);
+								AndroidButton button = buttonIdMap.get(name);
+								int cpIndex = cv.getValueCPIndex();
+								// if we have a button with the name of this field and the field type is an int,
+								// then this field is the button ID
+								if (button != null && cpParser.getItemType(cpIndex) == CONSTANT_Integer) {
+									int fieldVal = cpParser.getCPInt(cpIndex);
+									button.intId = fieldVal;
+								}
+							}
+						}
+					}				
+				}
+				catch (InvalidClassFileException e) {
+					System.err.println("bad class file " + e);
+				}
+			}
+		}
+
+	}
+	
   /**
    * read in R.java and populate the intId field of each button with its
    * identifier from R.java
@@ -193,7 +364,7 @@ public class AndroidUtils {
   // TODO: this is syntactic and quite hacky... but I don't think it's
   // a good idea to try to have WALA do it because it's very dependent
   // on string values
-  static void parseIntIds(Map<String,AndroidButton> buttonIdMap, String appPath) {
+	static void parseInntIds(Map<String,AndroidButton> buttonIdMap, String appPath) {
     final String INT_DECL = "public static final int ";
     final String ID_CLASS = "public static final class id";
     final File genDir = new File(appPath + "gen/");

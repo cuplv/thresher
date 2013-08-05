@@ -933,7 +933,7 @@ public class PointsToQuery implements IQuery {
 
     if (rule.getShown().getSource().isParameter() ||
         !WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
-    else Util.Debug("not adding " + rule.getShown() + " because in loop body");
+    //else Util.Debug("not adding " + rule.getShown() + " because in loop body");
     toRemove.clear();
     
     for (PointsToEdge edge : rule.getToShow()) {
@@ -971,7 +971,7 @@ public class PointsToQuery implements IQuery {
         }
          
         if (add) {
-          Util.Debug("adding " + edge);
+          //Util.Debug("adding " + edge);
           query.addConstraint(edge);
         }
         for (PointsToEdge removeMe : toRemove) {
@@ -982,7 +982,7 @@ public class PointsToQuery implements IQuery {
       } else {
         //if (query.produced.contains(edge)) Util.Debug("re-adding " + edge);
         if (!query.produced.contains(edge) || !edge.getSource().isLocalVar()) {
-          Util.Debug("adding here " + edge);
+          //Util.Debug("adding here " + edge);
           query.addConstraint(edge);
         } 
       }

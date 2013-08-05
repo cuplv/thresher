@@ -4,10 +4,10 @@ CLASSPATH=../com.ibm.wala.util/bin:../com.ibm.wala.shrike/bin
 all: core
 
 util:
-	cd com.ibm.wala.util && mkdir -p bin && find -name *.java | xargs javac -d bin 
+	cd com.ibm.wala.util && mkdir -p bin && find . -name *.java | xargs javac -d bin 
 
 shrike: util
-	cd com.ibm.wala.shrike && mkdir -p bin && find -name *.java | xargs javac -d bin -cp $(CLASSPATH)
+	cd com.ibm.wala.shrike && mkdir -p bin && find . -name *.java | xargs javac -d bin -cp $(CLASSPATH)
 
 core: shrike
-	cd com.ibm.wala.core && mkdir -p bin && find -name *.java | xargs javac -d bin -cp $(CLASSPATH)
+	cd com.ibm.wala.core && mkdir -p bin && find . -name *.java | xargs javac -d bin -cp $(CLASSPATH)

@@ -1,7 +1,9 @@
 package edu.colorado.thresher.core;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -30,8 +32,6 @@ import com.ibm.wala.classLoader.IBytecodeMethod;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.Language;
-import com.ibm.wala.classLoader.NewSiteReference;
 import com.ibm.wala.classLoader.SyntheticMethod;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -44,8 +44,6 @@ import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.CallGraphStats;
 import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
-import com.ibm.wala.ipa.callgraph.MethodTargetSelector;
-import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -66,6 +64,7 @@ import com.ibm.wala.ipa.summaries.SummarizedMethod;
 import com.ibm.wala.ipa.summaries.SyntheticIRFactory;
 import com.ibm.wala.ipa.summaries.XMLMethodSummaryReader;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
+import com.ibm.wala.shrikeCT.ClassReader;
 import com.ibm.wala.ssa.DefaultIRFactory;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
@@ -73,7 +72,6 @@ import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
-import com.ibm.wala.ssa.SSAInstructionFactory;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAOptions;
 import com.ibm.wala.ssa.SymbolTable;
@@ -113,8 +111,22 @@ public class Main {
     return Options.parseArgs(args);
   }
   
+  protected static byte[] readBytesFromFile(String path) throws IOException {
+    BufferedInputStream s = new BufferedInputStream(new FileInputStream(path));
+    byte[] bytes = new byte[s.available()];
+    com.ibm.wala.shrikeBT.Util.readFully(s, bytes);
+    return bytes;
+  }
+  
   public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
       CallGraphBuilderCancelException {
+    
+    byte[] bytes = readBytesFromFile(args[0]);
+    ClassReader reader = new ClassReader(bytes);
+    Util.Print(reader.getName());
+    System.exit(1);
+    
+    
     String target = Options.parseArgs(args);
     if (target == null) {
       System.out.println("No analysis targets given...exiting.");
@@ -380,6 +392,22 @@ public class Main {
         }
       }
     }
+    /*
+    DefaultIRFactory irFactory = new DefaultIRFactory();
+    
+    boolean shouldBeTransformed = false;
+    for (Iterator<IClass> iter = cha.iterator(); iter.hasNext();) {
+      IClass clazz = iter.next();
+      for (IMethod method : clazz.getAllMethods()) {
+        if (shouldBeTransformed) { // if method is one we want to transform
+          IR ir = irFactory.makeIR(method, Everywhere.EVERYWHERE, SSAOptions.defaultOptions());
+          IInstruction[] instrs = ir.getInstructions();
+          
+        }
+      }
+    }
+    */
+    
   }
   
   public static IClassHierarchy setupAndroidScopeAndEntryPoints(AnalysisScope scope, 

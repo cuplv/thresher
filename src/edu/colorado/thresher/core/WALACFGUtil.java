@@ -335,6 +335,21 @@ public class WALACFGUtil {
     return getLoopBodyBlocks((SSACFG.BasicBlock) loopHead, ir);
   }
   
+  public static Set<ISSABasicBlock> getBreaks(final ISSABasicBlock loopHead, IR ir) {
+    SSACFG cfg = ir.getControlFlowGraph();
+    Set<ISSABasicBlock> bodyBlocks = getLoopBodyBlocks(loopHead, ir);
+    Set<ISSABasicBlock> breaks = HashSetFactory.make();
+    for (ISSABasicBlock bodyBlock : bodyBlocks) {
+      Collection<ISSABasicBlock> succs = cfg.getNormalSuccessors(bodyBlock);
+      Util.Print("is " + bodyBlock + " a break block? succs size is " + succs.size());
+      if (succs.size() == 1 && !bodyBlocks.contains(succs.iterator().next())) {
+        breaks.add(bodyBlock);
+      }
+    }
+    return breaks;
+  }
+  
+  // TODO: WRONG! does not capture break blocks... we never get to them by following the back edge
   /**
    * @return - loop body blocks in the loop *owned* by loopHead
    * that is, for the program while (e0) { s0; while (e1) { s1; } s2; }, getting the loop body
@@ -374,6 +389,18 @@ public class WALACFGUtil {
           toExplore.addAll(cfg.getNormalPredecessors(blk));
         }
       }
+      
+      /*
+      // now we have all the blocks in the loop body that are not breaks
+      // walk forward from each of these blocks, adding all blocks that 
+      //for (ISSABasicBlock loopBodyBlk : loopBody) {
+        //Util.Assert(loopBodyBlk != loopHead);
+        
+      //}      
+      // get blocks dominated by the "loop entry" block that are not reachable from the the "loop skip" block
+      // get blocks reachable from the loop entry block that are not reachable from the loop exit block
+      */
+      
       //if (Options.DEBUG) Util.Debug("loop body blocks for " + loopHead + "\n: " + Util.printCollection(loopBody));
       loopBodyCache.put(key, loopBody);
     }

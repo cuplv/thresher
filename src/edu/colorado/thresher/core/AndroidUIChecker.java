@@ -55,9 +55,46 @@ public class AndroidUIChecker {
     collectButtonLookups(buttons, drg);
     // END PHASE 1
     
+	// BEGIN PHASE 2
     // generate harness that creates each button and calls each of its event handlers
+	// END PHASE 2
+		
+	// BEGIN PHASE 3
+	// bind each button to its corresponding pointer variable
+	// find methods reachable from each button
+	// END PHASE 3
   }
-  
+
+  /*
+  // flow-insensitive
+  public static void getCallsReachableFromButtonFI(AndroidUtils.AndroidButton btn, CallGraph cg) {
+    Set<CGNode> reachable = DFS.getReachableNodes(cg, btn.eventHandlerNodes);
+	
+  }
+  */
+	
+  // special hack to account for event handler methods shared by multiple buttons
+  // path-sensitive up to one callee
+  public static void getCallsReachableFromButton1LevelPS(AndroidUtils.AndroidButton btn,
+														 CGNode eventHandler,
+														 AbstractDependencyRuleGenerator drg) {
+	HeapModel hm = drg.getHeapModel();
+    // create query that says the button was passed as the first argument to the event handler
+	// TODO: assertion about # of params, use getParam()?
+	PointerKey paramKey = hm.getPointerKeyForLocal(eventHandler, 2);
+	PointerVariable lhs = Util.makePointerVariable(paramKey);
+    PointsToEdge edge = new PointsToEdge(lhs, btn.var);
+	IQuery query = new CombinedPathAndPointsToQuery(edge, drg);
+
+	// push query backwards through event handler method, logging each method call we see
+    SSACFG cfg = eventHandler.getIR().getControlFlowGraph();
+    SSACFG.BasicBlock startBlk = cfg.exit();
+	int startLine = startBlk.getLastInstructionIndex();
+	// execute the query to the method boundary
+	  
+	// do regular flow-insensitive DFS from each logged method call
+  }
+	
   static int RECEIVER = 1;
   
   public static void collectButtonLookups(Collection<AndroidUtils.AndroidButton> buttons,  
