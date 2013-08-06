@@ -172,13 +172,11 @@ public class AndroidUtils {
         for (int i = 0; i < nl.getLength(); i++) { // for each string
           Element el = (Element) nl.item(i);
           String name = el.getAttribute("name");
-          Util.Print("name " + name);
           List<AndroidButton> buttons = buttonStringMap.get(name);           
           if (buttons != null) {
             for (AndroidButton button : buttons) {
               Util.Assert(button.label == null);
               button.label = el.getTextContent();
-              Util.Print("adding label " + button.label + " to " + button);
             }
           }
         }
