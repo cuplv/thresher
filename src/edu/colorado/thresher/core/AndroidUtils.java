@@ -1,19 +1,13 @@
 package edu.colorado.thresher.core;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.LinkedHashMap;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.ArrayList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -26,18 +20,15 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.classLoader.ClassFileModule;
-import com.ibm.wala.shrikeCT.ClassConstants;
+import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.shrikeCT.ClassReader;
 import com.ibm.wala.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.shrikeCT.ConstantValueReader;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
-import com.ibm.wala.util.shrike.ShrikeClassReaderHandle;
-import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.shrike.ShrikeClassReaderHandle;
 
 
 public class AndroidUtils {
@@ -96,8 +87,8 @@ public class AndroidUtils {
       handlerNames.add(handlerStrs[i]);
     }
 
-    // map from {string id name} -> button
-    Map<String,AndroidButton> buttonStringMap = HashMapFactory.make();
+    // map from {string id name} -> buttons with that label
+    Map<String,List<AndroidButton>> buttonStringMap = HashMapFactory.make();
     // map from {button id} -> button
     Map<String,AndroidButton> buttonIdMap = HashMapFactory.make();
     
@@ -132,6 +123,7 @@ public class AndroidUtils {
               if (label.equals(BUTTON_ID)) {
                 buttonId = node.getNodeValue();
                 buttonId = buttonId.replace("@+id/", "");
+                buttonId = buttonId.replace("@id/", "");
               } else if (handlerNames.contains(label)) {
                 handlerName = node.getNodeValue();
               } else if (label.equals(BUTTON_NAME)) {
@@ -150,7 +142,12 @@ public class AndroidUtils {
             Util.Assert(buttonStringId != null);
             AndroidButton button = new AndroidButton(buttonId, handlerName, buttonStringId);
             
-            buttonStringMap.put(buttonStringId, button);
+            List<AndroidButton> buttons = buttonStringMap.get(buttonStringId);
+            if (buttons == null) {
+              buttons = new ArrayList<AndroidButton>();
+              buttonStringMap.put(buttonStringId, buttons);
+            }
+            buttons.add(button);
             buttonIdMap.put(buttonId, button);
           }
         }
@@ -175,10 +172,14 @@ public class AndroidUtils {
         for (int i = 0; i < nl.getLength(); i++) { // for each string
           Element el = (Element) nl.item(i);
           String name = el.getAttribute("name");
-          AndroidButton button = buttonStringMap.get(name);   
-          if (button != null) {
-            Util.Assert(button.label == null);
-            button.label = el.getTextContent();
+          Util.Print("name " + name);
+          List<AndroidButton> buttons = buttonStringMap.get(name);           
+          if (buttons != null) {
+            for (AndroidButton button : buttons) {
+              Util.Assert(button.label == null);
+              button.label = el.getTextContent();
+              Util.Print("adding label " + button.label + " to " + button);
+            }
           }
         }
       }
@@ -206,7 +207,7 @@ public class AndroidUtils {
             String type = el.getAttribute("type");
             if (type.equals("id")) {
               String name = el.getAttribute("name");
-              AndroidButton button = buttonStringMap.get(name);   
+              AndroidButton button = buttonIdMap.get(name);   
               if (button != null) {
                 // found the button; now get and parse its id
                 String id = el.getAttribute("id");
@@ -238,7 +239,7 @@ public class AndroidUtils {
     
     // make sure we've found the labels and int id's for all buttons
     for (AndroidButton button : buttonIdMap.values()) {
-      Util.Assert(button.label != null, "No label for button " + button.id);
+      Util.Assert(button.label != null, "No label for button " + button);
       Util.Assert(button.intId != 0, "No id for button " + button);
     }
     
