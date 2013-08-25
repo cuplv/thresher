@@ -7,7 +7,7 @@ public class Bar implements SimpleInterface {
     public Bar() {
 	this.f = new ArrayList<SimpleInterface>();//Foo();
 	//f.add(new Foo());
-	f.add(new Bar());
+	//f.add(new Bar());
     }
 
     public void writeF() {
