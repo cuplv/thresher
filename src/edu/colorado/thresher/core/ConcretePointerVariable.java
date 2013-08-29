@@ -29,7 +29,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
   public final static ConcretePointerVariable NEVER_EQ = new ConcretePointerVariable();
 
   private final String name;
-  private final int id;
+  //private final int id;
   // private final int typeId;
 
   private final CGNode node;
@@ -43,7 +43,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
 
   private ConcretePointerVariable() {
     this.name = null;
-    this.id = -1;
+    //this.id = -1;
     // this.typeId = -1;
     this.node = null;
     this.useNum = -5;
@@ -70,7 +70,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
 
     // Util.Assert(instanceKey != null, "couldn't find pointerkey for " + node +
     // " -v " + useNum);
-    this.id = instanceKey.toString().hashCode();// Util.getIdForVar(name);
+    //this.id = instanceKey.toString().hashCode();// Util.getIdForVar(name);
     // Util.Assert(((LocalPointerKey) instanceKey).getNode().equals(node),
     // "nodes don't match!");
 
@@ -83,7 +83,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     this.useNum = -1;
     this.name = null;
     this.instanceKey = key;
-    this.id = instanceKey.toString().hashCode();
+    //this.id = instanceKey.toString().hashCode();
     this.method = null;
   }
 
@@ -102,7 +102,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // if (useNum != -1) Util.Assert(name.indexOf('@') == -1, "weird var name "
     // + name + " " + useNum);
     this.instanceKey = key;
-    this.id = instanceKey.toString().hashCode();
+    //this.id = instanceKey.toString().hashCode();
     // this.instanceNum = PointerVariable.ANY_INSTANCE_NUM;
     this.method = null;
   }
@@ -114,7 +114,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // this.id = Util.getIdForVar(name);
     // this.typeId = typeId;
     this.instanceKey = walaKey;
-    this.id = instanceKey.toString().hashCode();
+    //this.id = instanceKey.toString().hashCode();
     // this.instanceNum = PointerVariable.ANY_INSTANCE_NUM;
     this.method = null;
   }
@@ -127,7 +127,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // this.id = Util.getIdForVar(name);
     // this.typeId = typeId;
     this.instanceKey = walaKey;
-    this.id = instanceKey.toString().hashCode();
+    //this.id = instanceKey.toString().hashCode();
     // this.instanceNum = -1;
     this.method = method;
   }
@@ -140,7 +140,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // this.id = Util.getIdForVar(name);
     // this.typeId = typeId;
     this.instanceKey = walaKey;
-    this.id = instanceKey.toString().hashCode();
+    //this.id = instanceKey.toString().hashCode();
     // this.instanceNum = -1;
     this.method = null;
   }
@@ -153,7 +153,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // this.id = Util.getIdForVar(name);
     // this.typeId = typeId;
     this.instanceKey = null;
-    this.id = name.hashCode();
+    //this.id = name.hashCode();
     // this.instanceNum = -1;
     this.method = null;
   }
@@ -276,8 +276,8 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // return name + "<" + id + "-T" + typeId + ">";
 
     return toHumanReadableString();
-    // if (instanceKey != null) return instanceKey.toString();
-    // return name;
+     //if (instanceKey != null) return instanceKey.toString();
+     //return name;
     // else return parseToHumanReadable(name) + "<" + id + "-T" + typeId + ">";
   }
 
@@ -338,7 +338,8 @@ public class ConcretePointerVariable implements PointerVariable { // implements
       return 1;
     else if (other instanceof ConcretePointerVariable) {
       ConcretePointerVariable p = (ConcretePointerVariable) other;
-      return this.id - p.id;
+      //return this.id - p.id;
+      return this.instanceKey.toString().compareTo(p.instanceKey.toString());
     } else {
       Util.Unimp("comparing to non-pointer " + other);
       return 1;
@@ -349,7 +350,8 @@ public class ConcretePointerVariable implements PointerVariable { // implements
   public boolean equals(Object other) {
     if (other instanceof ConcretePointerVariable) {
       ConcretePointerVariable p = (ConcretePointerVariable) other;
-      return this.id == p.id;
+      //return this.id == p.id;
+      return this.instanceKey.equals(p.instanceKey);
       /*
        * // return this.id == p.id; if (instanceKey != null && p.instanceKey !=
        * null) { //return

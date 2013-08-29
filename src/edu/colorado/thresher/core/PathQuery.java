@@ -17,6 +17,7 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.BinaryOpInstruction;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.shrikeBT.IComparisonInstruction.Operator;
+import com.ibm.wala.shrikeBT.IConditionalBranchInstruction;
 import com.ibm.wala.shrikeBT.IUnaryOpInstruction;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAArrayLengthInstruction;
@@ -1491,6 +1492,21 @@ public class PathQuery implements IQuery {
       substituteExpForVar(new SimplePathTerm(0), var);
     }
   }
+  
+  @Override
+  public boolean addPathConstraintFromSwitch(SSAConditionalBranchInstruction switchCase, CGNode currentNode, boolean negated) {
+    IConditionalBranchInstruction.Operator op = negated ? ConditionalBranchInstruction.Operator.NE :  ConditionalBranchInstruction.Operator.EQ;
+    SimplePathTerm matchedTerm = new SimplePathTerm(new ConcretePointerVariable(currentNode, switchCase.getUse(0), this.heapModel));
+    AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedTerm, new SimplePathTerm(switchCase.getUse(1)), op);
+    Util.Assert(isFeasible());
+    Util.Debug("adding switch constraint " + switchConstraint);
+    this.addConstraint(switchConstraint);
+    //AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedVar, new SimplePathTerm(casesAndLabels[i]), 
+        //ConditionalBranchInstruction.Operator.EQ);
+//copy.addConstraint(switchConstraint);
+    return isFeasible();
+  }
+
   
   @Override
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {

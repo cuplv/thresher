@@ -11,7 +11,7 @@ public class FakeMap {
 	capacity = -1;
     }
 
-    public void nastyMethod(int a, int b, int c, int d, int e) {
+    public Object nastyMethod(int a, int b, int c, int d, int e, Object value) {
 	if (capacity >= size) {
 	    throw new ArrayIndexOutOfBoundsException();
 	} else if ((a == size ||
@@ -19,7 +19,7 @@ public class FakeMap {
 		    a == c ||
 		    a == d) &&
 		   capacity <= e) {
-	    return;
+	    return value;
 	} else {
 	    throw new ArrayIndexOutOfBoundsException();
 	}
@@ -27,7 +27,7 @@ public class FakeMap {
 
     public Object put(String i, Object value) {
 	//	nastyMethod(1, 2, 3, 4, 5);
-	nastyMethod(0, 0, 0, 0, 5);
+	value = nastyMethod(0, 0, 0, 0, 5, value);
 	table[size] = value;
 	return null;
     }

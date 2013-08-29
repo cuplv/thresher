@@ -13,10 +13,23 @@ public class FakeMap {
     }
 
     public Object put(String i, Object value, List<Object> objs) {
+	/*
 	table = new Object[5];
+	int j = 0;
 	while (true) {
 	    table[size] = value;
 	}
+	*/
+	table = new Object[5];
+	int j = 0;
+	while (true) {
+	    table[size] = value;
+	    j++;
+	    //if (j == 2) break;
+	}
+	//int n = 7;
+	//n *= 2;
+	//return value;
     }
 
     private void foo(Object value) {

@@ -14,12 +14,8 @@ public class FakeMap {
 	boolean test = i > 3 && i < 5  && i == 5;
 	if (test) table = new Object[capacity];
 	table[size] = value;
+
+	boolean t0 = test || true;
 	return null;
-	/*
-	boolean test = i > 4;
-	if (!test) table = new Object[capacity];
-	table[size] = value;
-	return null;
-	*/
     }
 }

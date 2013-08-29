@@ -46,6 +46,8 @@ public interface IQuery { // extends Comparable {
   
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode);
 
+  public boolean addPathConstraintFromSwitch(SSAConditionalBranchInstruction switchCase, CGNode currentNode, boolean negated);
+  
   public IQuery deepCopy();
 
   /**

@@ -45,6 +45,10 @@ public class AndroidUIChecker {
     Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
     // (2) build call graph and points-to analysis
     AbstractDependencyRuleGenerator drg = setupCGandPT(appPath, buttons);
+    
+    // SANITY CHECK
+    getActivities(drg);
+    
     // (3) find dynamically created buttons (requires symbolic execution)
     findDynamicallyCreatedButtons(buttons, drg);
     // (4) bind buttons to event handlers pre-declared in the manifest
@@ -63,6 +67,20 @@ public class AndroidUIChecker {
 	// bind each button to its corresponding pointer variable
 	// find methods reachable from each button
 	// END PHASE 3
+  }
+  
+  public static void getActivities(AbstractDependencyRuleGenerator drg) {
+    IClassHierarchy cha = drg.getClassHierarchy();
+    final IClass activity = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/app/Activity"));
+    Util.Assert(activity != null);
+    Collection<IClass> classes = cha.getImmediateSubclasses(activity);
+    Util.Assert(!classes.isEmpty(), " found no activities!");
+    for (IClass clazz : classes) {
+      Util.Print("Activity: " + clazz);
+      for (IMethod method : clazz.getAllMethods()) {
+        Util.Print("method " + method);
+      }
+    }
   }
 
   /*

@@ -199,9 +199,6 @@ public class PointsToQuery implements IQuery {
   }
 
   /**
-   * @param extraVars
-   *          - list of pointer variables in another kind of constraint (such as
-   *          path constraint) whose relevance we are also concerned with
    * @return
    */
   private List<IQuery> visitInternal(SSAInstruction instr, IPathInfo currentPath, Set<DependencyRule> rulesAtLine) {
@@ -248,7 +245,12 @@ public class PointsToQuery implements IQuery {
                                 // rules were found
     } else if (applicableRules.size() == 1) {
       DependencyRule rule = applicableRules.get(0);
-      if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+      //if (!rule.getShown().getSource().isLocalVar()) {
+      if (!rule.getShown().getSource().isLocalVar() && !(rule.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
+        Util.Debug("adding rule not applied path.");
+        caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+      }
       if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return caseSplits;
       return IQuery.INFEASIBLE; // else, refuted
     } else { // many applicable rules
@@ -262,7 +264,13 @@ public class PointsToQuery implements IQuery {
         for (DependencyRule rule : applicableRules) {
           Util.Debug("rule " + rule);
         }
-      if (!Options.ABSTRACT_DEPENDENCY_RULES) cases.add(copy.deepCopy()); // add "rule not applied" path
+      
+      DependencyRule rul = applicableRules.iterator().next();
+      //if (!Options.ABSTRACT_DEPENDENCY_RULES) cases.add(copy.deepCopy()); // add "rule not applied" path
+      if (!rul.getShown().getSource().isLocalVar() && !(rul.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
+        caseSplits.add(this.deepCopy());
+      }
+
       // many applicable rules; case split!
       for (DependencyRule rule : applicableRules) {
         if (first) {
@@ -396,18 +404,16 @@ public class PointsToQuery implements IQuery {
           }
           PointerVariable argVar = SymbolicPointerVariable.makeSymbolicVar(possibeVals);
           PointerVariable merged = SymbolicPointerVariable.mergeVars(argVar, edge.getSink());
+          if (argVar.equals(merged)) continue;
           if (merged == null) {
             if (Options.DEBUG) {
-              Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty");
+              Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty old edge " + edge);
             }
             this.feasible = false;
             return formalsAssigned;
           }
-          
-          if (subMap.containsKey(argVar)) {
-            
-          }
-          Util.Assert(!subMap.containsKey(argVar));
+               
+          Util.Assert(!subMap.containsKey(argVar) || subMap.get(argVar) == merged, "subMap already has " + argVar + Util.printMap(subMap));
           Util.Assert(!subMap.containsKey(edge.getSink()));
 
           subMap.put(argVar, merged);
@@ -1422,6 +1428,8 @@ public class PointsToQuery implements IQuery {
     }
     checkMe.addAll(rule.getToShow());
 
+    if (!SCWALA_MODE) {
+      
     // also possible that it matches / contradicts a constraint we already have
     // in produced
     for (PointsToEdge edge : produced) {
@@ -1444,6 +1452,8 @@ public class PointsToQuery implements IQuery {
         }
       }
     }
+    
+    }
 
     /*
      * // check for relevance to extra vars for (PointsToEdge edge : checkMe) {
@@ -1453,6 +1463,9 @@ public class PointsToQuery implements IQuery {
     return false;
   }
 
+  // queries configured for scwala, which does not have SSA
+  static boolean SCWALA_MODE = true;
+  
   Set<DependencyRule> isRuleConsistent(DependencyRule rule, List<PointsToEdge> unsatCore, CGNode currentNode) {
     // if (rule.isSymbolic()) {
     if (Options.ABSTRACT_DEPENDENCY_RULES) {
@@ -2079,6 +2092,11 @@ public class PointsToQuery implements IQuery {
   @Override
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {
     return IQuery.FEASIBLE;
+  }
+  
+  @Override
+  public boolean addPathConstraintFromSwitch(SSAConditionalBranchInstruction switchCase, CGNode currentNode, boolean negated) {
+    return true;
   }
 
   @Override

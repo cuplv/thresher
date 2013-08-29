@@ -180,14 +180,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   public List<IQuery> visitPhi(SSAPhiInstruction instr, int phiIndex, IPathInfo currentPath) {
     Util.Pre(currentPath.query == this);
     List<IQuery> pathResults = super.visitPhi(instr, phiIndex, currentPath);
-    if (pathResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(pathResults.isEmpty(), "should never be case splits on path constraints!");
 
-    List<IQuery> ptResults = pointsToQuery.visitPhi(instr, phiIndex, currentPath);
-    if (ptResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
-    Util.Debug("CONS " + this.toString());
+    List<IQuery> ptResults = pointsToQuery.visitPhi(instr, phiIndex, currentPath);    
+    
+    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;    		
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
   
@@ -433,8 +431,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Util.Pre(currentPath.query == this);
     List<IQuery> ptResults = pointsToQuery.visit(instr, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    if (Options.DEBUG) Util.Debug("CONS " + this.toString());
-
+    if (Options.DEBUG) Util.Debug("CONS " + currentPath);
+    
     List<IQuery> pathResults = super.visit(instr, currentPath);
     if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     Util.Assert(pathResults.isEmpty(), "should never be case splits on path constraints!");
@@ -547,9 +545,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    *         one path
    */
   List<IQuery> combinePathAndPointsToQueries(List<IQuery> pointsToQueries, List<IQuery> pathQueries) {
-    boolean ptEmpty = pointsToQueries == IQuery.FEASIBLE, pathEmpty = pathQueries == IQuery.FEASIBLE;
-    if (ptEmpty && pathEmpty)
-      return IQuery.FEASIBLE;
+    //boolean ptEmpty = pointsToQueries == IQuery.FEASIBLE, pathEmpty = pathQueries == IQuery.FEASIBLE;
+    boolean ptEmpty = pointsToQueries.isEmpty(), pathEmpty = pathQueries.isEmpty();
+
     List<IQuery> combinedQuery = new LinkedList<IQuery>();
     if (!ptEmpty && !pathEmpty) {
       Util.Unimp("case split in path and points-to");
@@ -557,8 +555,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       // messy...
       for (IQuery ptQuery : pointsToQueries) {
         for (IQuery pathQuery : pathQueries) {
-          ptQuery.deepCopy();
-          pathQuery.deepCopy();
           combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQueryWrapper) ptQuery.deepCopy(), (PathQuery) pathQuery.deepCopy()));
         }
       }
@@ -570,6 +566,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       for (IQuery ptQuery : pointsToQueries) {
         combinedQuery.add(new CombinedPathAndPointsToQuery((PointsToQuery) ptQuery, super.deepCopy()));
       }
+      combinedQuery.add(new CombinedPathAndPointsToQuery(pointsToQuery, super.deepCopy()));
+    } else { // ptEmpty && pathEmpty
+      return IQuery.FEASIBLE;
     }
     return combinedQuery;
   }
@@ -881,6 +880,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return super.addPathConstraintFromSwitch(instr, lastBlock, currentNode);
   }
 
+  @Override
+  public boolean addPathConstraintFromSwitch(SSAConditionalBranchInstruction switchCase, CGNode currentNode, boolean negated) {
+    return super.addPathConstraintFromSwitch(switchCase, currentNode, negated);
+  }
+
+  
   public boolean addConstraintFromBranchPointAndCheckForNull(IBranchPoint point, boolean trueBranchFeasible) {
     SSAConditionalBranchInstruction instruction = point.getInstr();
     CGNode method = point.getMethod();

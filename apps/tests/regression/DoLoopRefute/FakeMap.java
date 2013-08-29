@@ -12,9 +12,10 @@ public class FakeMap {
 
     public Object put(String i, Object value, int count) {
 	table = new Object[3];
-
+	/*
 	  for (int j = 0; j < table.length; j++) {
 	      Object e = table[j];
+	      
 	      if (e != null) {
 		  table[j] = null;
 		  do {
@@ -22,10 +23,24 @@ public class FakeMap {
 		      count++;
 		  } while (e != null);
 	      }
+	      
 	  }
 	  if (count > 0) {
 	      table[size] = value;
 	  }
+	*/
+	do {
+	    Object next = new Object();
+	    count++;
+	    if (count == 10) {
+		//System.out.println("continuing");
+		//count *= 2;
+		//continue;
+		count--;
+	    }
+	    count++;
+	} while (count < 10);
+	table[size] = value;
 	  return null;
     }
 }

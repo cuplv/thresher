@@ -168,12 +168,14 @@ public class Main {
     Util.PRINT = true;
     
     runAndroidLeakRegressionTests();
+    /*
     Options.restoreDefaults();
     runCastCheckingRegressionTests();
     Options.restoreDefaults();
     runSynthesizerRegressionTests();
     Options.restoreDefaults();
     runImmutabilityRegressionTests();
+    */
    }
   
   
@@ -212,10 +214,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    //String[] tests0 = new String[] { "SimpleHashMapRefute" };
+    String[] tests0 = new String[] { "ContainsKeyNoRefute" };
 
     String mainClass = "LAct";
-    for (String test : tests) {
+    for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -1173,10 +1175,8 @@ public class Main {
     }
   }
   
-  static class CastCheckingResults {
-    final int numSafe; 
-    final int numMightFail; 
-    final int numThresherProvedSafe;
+  public static class CastCheckingResults {
+    public final int numSafe , numMightFail, numThresherProvedSafe; 
 
     public CastCheckingResults(int numSafe, int numMightFail, int numThresherProvedSafe) {
       this.numSafe = numSafe;
@@ -1570,7 +1570,7 @@ public class Main {
   }
   
   // directory containing binaries
-  private static final String ASSERTIONS_AND_ANNOTATIONS_BIN = "bin/edu/colorado/thresher/external";
+  public static String ASSERTIONS_AND_ANNOTATIONS_BIN = "bin/edu/colorado/thresher/external";
   
   public static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
@@ -1584,6 +1584,25 @@ public class Main {
       JarFile androidJar = new JarFile(Options.ANDROID_JAR);
       // add Android code
       scope.addToScope(scope.getPrimordialLoader(), androidJar);
+    } else if (Options.DACAPO) {
+      String appName;
+      // removing trailing slash if needed
+      if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
+      else appName = appPath;
+      // strip of front of path away from app name
+      appName = appName.substring(appName.lastIndexOf("/") + 1);
+      Util.Print("Running on dacapo bench " + appName);
+      JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
+      JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
+      scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
+      scope.addToScope(scope.getApplicationLoader(), appJar);
+      //File exclusionsFile = new File("config/synthesis_exclusions.txt");
+      mainClass =  "Ldacapo/" + appName + "/Main";
+      mainMethod = "main";
+      //final MethodReference DACAPO_MAIN =
+        //  MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
+          //    "main", "([Ljava/lang/String;)V");      
     } else {
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
       scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
@@ -2237,17 +2256,12 @@ public class Main {
   public static boolean generateWitness(PointsToEdge witnessMe,
       AbstractDependencyRuleGenerator depRuleGenerator, Logger logger) {
     CallGraph cg = depRuleGenerator.getCallGraph();
-    final Set<PointsToEdge> toProduce = HashSetFactory.make();
-    toProduce.add(witnessMe);
 
-    // find potential last rule(s) applied in witness
-    Iterator<PointsToEdge> setIter = toProduce.iterator();
-    PointsToEdge produceMe = setIter.next();
     final Set<DependencyRule> lastApplied;
     if (Options.GEN_DEPENDENCY_RULES_EAGERLY)
-      lastApplied = Util.getRulesProducingEdge(produceMe, depRuleGenerator);
+      lastApplied = Util.getRulesProducingEdge(witnessMe, depRuleGenerator);
     else
-      lastApplied = Util.getProducersForEdge(produceMe, depRuleGenerator);
+      lastApplied = Util.getProducersForEdge(witnessMe, depRuleGenerator);
     Util.Print(lastApplied.size() + " potential starting points.");
 
     logger.logProducingStatementsForEdge(lastApplied.size());

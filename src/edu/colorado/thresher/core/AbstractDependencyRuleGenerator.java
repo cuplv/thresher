@@ -21,6 +21,7 @@ import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
@@ -86,6 +87,7 @@ public class AbstractDependencyRuleGenerator {
   public final HeapModel hm;
   public final CallGraph cg;
   public final ClassHierarchy cha;
+  public final PointerAnalysis pa;
   private final AnalysisCache cache;
   // counter to generate unique line number for each line in the program across
   // ALL files
@@ -99,6 +101,7 @@ public class AbstractDependencyRuleGenerator {
                                          AnalysisCache cache, Map<CGNode, OrdinalSet<PointerKey>> modRef) {
     this.cg = cg;
     this.hg = hg;
+    this.pa = hg.getPointerAnalysis();
     this.hm = heapModel;
     this.cha = (ClassHierarchy) cg.getClassHierarchy();
     this.lineIdCounter = 0;
@@ -704,7 +707,8 @@ public class AbstractDependencyRuleGenerator {
           PointerVariable succ = SymbolicPointerVariable.makeSymbolicVar(possibleRetvals);
           PointsToEdge shown = new PointsToEdge(lhs, succ);
           TreeSet<PointsToEdge> toShow = new TreeSet<PointsToEdge>();
-          toShow.add(new PointsToEdge(retval, succ));
+          PointsToEdge toShowEdge = new PointsToEdge(retval, succ);
+          if (!toShowEdge.containsStringConst()) toShow.add(toShowEdge);
           DependencyRule rule = new DependencyRule(shown, stmt, toShow, node,
               (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
           rules.add(rule);
@@ -738,8 +742,8 @@ public class AbstractDependencyRuleGenerator {
         PointerVariable paramVal = SymbolicPointerVariable.makeSymbolicVar(possibleParamVals);
 
         PointsToEdge shown = new PointsToEdge(lhs, paramVal);
-        PointsToEdge toShow = new PointsToEdge(rhsPointer, paramVal);
-        toShowSet.add(toShow);
+        PointsToEdge toShowEdge = new PointsToEdge(rhsPointer, paramVal);
+        if (!toShowEdge.containsStringConst()) toShowSet.add(toShowEdge);
         DependencyRule rule = new DependencyRule(shown, stmt, toShowSet, node,
             (SSACFG.BasicBlock) ir.getBasicBlockForInstruction(instr));
         rules.add(rule);

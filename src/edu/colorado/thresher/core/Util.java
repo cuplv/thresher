@@ -66,6 +66,7 @@ import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Graph;
 import com.ibm.wala.util.intset.BitVectorIntSet;
+import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
 import com.ibm.wala.viz.DotUtil;
@@ -365,8 +366,9 @@ public class Util {
         if (instr != null && instr instanceof SSAReturnInstruction) {
           Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, retNode, ANY_LINE_ID, i, retIR);
           for (DependencyRule rule : instrRules) {
-            if (rule.getShown().equals(edge))
+            if (rule.getShown().equals(edge)) {
               rules.add(rule); // this rule produces our edge
+            }
           }
           // because of SSA, this must be the only statement that
           // produces our edge
@@ -387,8 +389,9 @@ public class Util {
             // this is the statement that produces our edge
             Set<DependencyRule> instrRules = depRuleGenerator.visit(instr, node, ANY_LINE_ID, i, ir);
             for (DependencyRule rule : instrRules) {
-              if (rule.getShown().equals(edge))
+              if (rule.getShown().equals(edge)) {
                 rules.add(rule); // this rule produces our edge
+              }
             }
             // because of SSA, this must be the only statement that
             // produces our edge
@@ -405,8 +408,9 @@ public class Util {
               // this is the statement that produces our edge
               Set<DependencyRule> instrRules = depRuleGenerator.visit(phi, node, ANY_LINE_ID, i, ir);
               for (DependencyRule rule : instrRules) {
-                if (rule.getShown().equals(edge))
+                if (rule.getShown().equals(edge)) {
                   rules.add(rule); // this rule produces our edge
+                }
               }
               break; // because of SSA, this must be the only statement that produces our edge
             }
@@ -421,8 +425,9 @@ public class Util {
           int lineNum = -1;
           Set<DependencyRule> instrRules = depRuleGenerator.visit(calleeInstr, callerNode, ANY_LINE_ID, lineNum, callerNode.getIR());
           for (DependencyRule rule : instrRules) {
-            if (rule.getShown().equals(edge))
+            if (rule.getShown().equals(edge)) {
               rules.add(rule); // this rule produces our edge
+            }
           }
         }
       }
@@ -478,7 +483,18 @@ public class Util {
       if (!srcMethods.isEmpty()) snkMethods.retainAll(srcMethods);
       srcMethods = null;
       // now, snkMethods contains all methods which could possibly produce our edge
-
+      /*
+      Util.Print("PROD METHODS: " + Util.printCollection(snkMethods));
+      Util.Print("SNK NUMS:");
+      for (IntIterator iter = snkNums.intIterator(); iter.hasNext();) {
+        System.out.print(iter.next() + " ");
+      }
+      Util.Print("\nSRC NUMS:");
+      for (IntIterator iter = srcNums.intIterator(); iter.hasNext();) {
+        System.out.print(iter.next() + " ");
+      }
+      */
+      
       if (staticField) {
         // we're looking for a write to a static field
         Util.Assert(staticSrc, "all non-static heap pointers must have field names! " + edge + " is bad.");
@@ -497,8 +513,9 @@ public class Util {
                 // src/snk nums and fields match; may produce our edge
                 Set<DependencyRule> instrRules = depRuleGenerator.visit(put, node, ANY_LINE_ID, i, ir);
                 for (DependencyRule rule : instrRules) {
-                  if (rule.getShown().equals(edge))
+                  if (rule.getShown().equals(edge)) {
                     rules.add(rule); // this rule produces our edge
+                  }
                 }
               }
             }
@@ -517,10 +534,12 @@ public class Util {
               SSAArrayStoreInstruction arr = (SSAArrayStoreInstruction) instr;
               if (srcNums.contains(arr.getUse(0)) && snkNums.contains(arr.getUse(2))) {
                 // src/snk nums match; may produce our edge
-                Set<DependencyRule> instrRules = depRuleGenerator.visit(arr, node, ANY_LINE_ID, i, ir);
-                for (DependencyRule rule : instrRules) {
-                  if (rule.getShown().equals(edge))
+                for (DependencyRule rule : depRuleGenerator.visit(arr, node, ANY_LINE_ID, i, ir)) {
+                  //Util.Print("gen'd rule " + rule);
+                  if (rule.getShown().equals(edge)) {
+                    //Util.Print("adding rule " + rule);
                     rules.add(rule); // this rule produces our edge
+                  }
                 }
               }
             }
@@ -544,8 +563,9 @@ public class Util {
                 Set<DependencyRule> instrRules = depRuleGenerator.visit(put, node, ANY_LINE_ID, i, ir);
                 for (DependencyRule rule : instrRules) {
                   //if (rule.getShown().equals(edge))
-                  if (rule.getShown().symbEq(edge))
+                  if (rule.getShown().symbEq(edge)) {
                     rules.add(rule); // this rule possibly produces our edge
+                  }
                 }
               }
             }
@@ -554,6 +574,11 @@ public class Util {
       }
     }
     // Util.Assert(!rules.isEmpty(), "could not find rule producing " + edge);
+    
+    for (DependencyRule rule : rules) {
+      Util.Assert(rule.getShown().equals(edge), "rule " + rule + " does not produce " + edge);      
+    }
+    
     return rules;
   }
 

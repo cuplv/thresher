@@ -261,11 +261,14 @@ public class PointsToEdge implements Constraint, Comparable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null)
-      return false;
+    if (other == null) return false;
     PointsToEdge p = (PointsToEdge) other;
     // return source.equals(p.getSource()) && Util.equal(this.field, p.field) &&
     // sink.equals(p.getSink());
+    //Util.Print("lhs eq? " + source.equals(p.getSource()));
+    //Util.Print("fld id's eq? " + (this.fieldId == p.fieldId));
+    //Util.Print("rhs eq? " + sink.equals(p.getSink()));
+    
     return source.equals(p.getSource()) && this.fieldId == p.fieldId && sink.equals(p.getSink());
   }
 
@@ -315,8 +318,10 @@ public class PointsToEdge implements Constraint, Comparable {
    * public String getFieldName() { return fieldName; }
    */
 
+  // TODO: horrible. fix it.
   public boolean containsStringConst() {
-    return sink.toString().equals("<Primordial,Ljava/lang/String>");
+    return sink.toString().equals("[<Primordial,Ljava/lang/String>]") || 
+        sink.toString().equals("<Primordial,Ljava/lang/String>");
   }
 
   /*
