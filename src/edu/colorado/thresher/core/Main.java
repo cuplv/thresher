@@ -2394,10 +2394,14 @@ public class Main {
     }
     */
     
+	  
     final String PATH = System.getProperty("java.home");
-    File file = new File(PATH + "/lib/rt.jar");
-    if (file.exists()) return file;
     
+    final String[] fileStrs = new String[]{ PATH + "/lib/rt.jar", PATH + "/../Classes/classes.jar" };
+    for (String fileStr : fileStrs) {
+        File file = new File(fileStr);
+        if (file.exists()) return file;
+    }
     Util.Assert(false, "Can't find path to Java core libraries--please add it to the known paths list.");
     return null;
   }
