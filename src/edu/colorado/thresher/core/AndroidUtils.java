@@ -77,6 +77,11 @@ public class AndroidUtils {
     
   }
   
+  private static int nameCounter = 0;
+  private static String makeUnknownButtonName() {
+	  return "__UNKNOWN" + (nameCounter++);
+  }
+  
   // TODO: want id -> event handler -> button name mapping
   // TODO: handle volume button (and other hardware buttons), onTouch, e.t.c
   public static Collection<AndroidButton> parseButtonInfo(String appPath) {
@@ -96,11 +101,21 @@ public class AndroidUtils {
     final String HANDLER_INDICATOR = "android:on";  
     final String BUTTON_NAME = "android:text";
     
+    // see if res is where we expect it to be
+    File res = new File(appPath + "res/");
+    if (!res.exists()) {
+    	appPath += "out/";
+    	Util.Assert(new File(appPath + "res/").exists());
+    }
+    
     // for each file in res/layout
-    final File layoutFolder = new File(appPath + "res/layout");
+    File layoutFolder = new File(appPath + "res/layout");
+    //if (!layoutFolder.exists()) layoutFolder = new File(appPath + "out/res/layout");
+    
     final File[] layoutFiles = layoutFolder.listFiles();
     for (int f = 0; f < layoutFiles.length; f++) {
       if (!layoutFiles[f].getName().endsWith(".xml")) continue;
+      Util.Print("Parsing layout file " + layoutFiles[f]);
       try {
         DocumentBuilder db = dbf.newDocumentBuilder();
         Document doc = db.parse(layoutFiles[f]);
@@ -112,9 +127,7 @@ public class AndroidUtils {
           for (int i = 0; i < nl.getLength(); i++) { // for each button
             Element el = (Element) nl.item(i);
             NamedNodeMap map = el.getAttributes();
-            if (map == null) {
-              continue;
-            }
+            if (map == null) continue;
             String buttonId = null, handlerName = null, buttonStringId = null;
             
             for (int j = 0; j < map.getLength(); j++) { // for each attribute
@@ -137,9 +150,9 @@ public class AndroidUtils {
               // button uses default handler onClick
               handlerName = DEFAULT_LISTENER;
             }
-            Util.Assert(buttonId != null);
-            Util.Assert(handlerName != null);
-            Util.Assert(buttonStringId != null);
+            Util.Assert(buttonId != null, "null id for " + el);
+            //Util.Assert(buttonStringId != null); // not all buttons have strings
+            if (buttonStringId == null) buttonStringId = makeUnknownButtonName();
             AndroidButton button = new AndroidButton(buttonId, handlerName, buttonStringId);
             
             List<AndroidButton> buttons = buttonStringMap.get(buttonStringId);
@@ -163,7 +176,11 @@ public class AndroidUtils {
     // read button strings from res/values/strings.xml
     try {
       DocumentBuilder db = dbf.newDocumentBuilder();
-      Document doc = db.parse(appPath + "res/values/strings.xml");
+      File stringsXML = new File(appPath + "res/values/strings.xml");
+      //if (!stringsXML.exists()) stringsXML = new File(appPath + "out/res/values/strings.xml");
+      Util.Assert(stringsXML.exists(), "couldn't find strings.xml");      
+      //Document doc = db.parse(appPath + "res/values/strings.xml");
+      Document doc = db.parse(stringsXML.getAbsolutePath());
       Element root = doc.getDocumentElement();
       // get all declared buttons
       NodeList nl = root.getElementsByTagName("string");
@@ -237,7 +254,7 @@ public class AndroidUtils {
     
     // make sure we've found the labels and int id's for all buttons
     for (AndroidButton button : buttonIdMap.values()) {
-      Util.Assert(button.label != null, "No label for button " + button);
+      //Util.Assert(button.label != null, "No label for button " + button);
       Util.Assert(button.intId != 0, "No id for button " + button);
     }
     
@@ -267,8 +284,8 @@ public class AndroidUtils {
 			for (int i = 0; i < reader.getMethodCount(); i++) {
 			  String name = reader.getMethodName(i);
 			  String signature = reader.getMethodType(i);
-			  Util.Print("method " + name);
-			  Util.Print("sig " + signature);
+			  //Util.Print("method " + name);
+			  //Util.Print("sig " + signature);
 				
 			  reader.initMethodAttributeIterator(i, iter);
 			  // iterate over code for method
