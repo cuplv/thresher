@@ -30,6 +30,7 @@ import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.util.graph.traverse.DFS;
 
 import edu.colorado.thresher.core.Main.UIQuery;
 
@@ -47,7 +48,7 @@ public class AndroidUIChecker {
     AbstractDependencyRuleGenerator drg = setupCGandPT(appPath, buttons);
     
     // SANITY CHECK
-    getActivities(drg);
+    //getActivities(drg);
     
     // (3) find dynamically created buttons (requires symbolic execution)
     findDynamicallyCreatedButtons(buttons, drg);
@@ -56,8 +57,19 @@ public class AndroidUIChecker {
     // (5) bind buttons to event handlers set dynamically using button.setOn*Listener() (requires symbolic execution)
     bindButtonsToDynamicallyDeclaredEventHandlers(buttons, drg);
     // (6) for each call to findViewById(), determine which button will be returned by the call
-    collectButtonLookups(buttons, drg);
+    //collectButtonLookups(buttons, drg);
     // END PHASE 1
+    
+    Set<CGNode> reachable = HashSetFactory.make();
+    for (AndroidUtils.AndroidButton btn : buttons) {
+      // TMP 
+      reachable.addAll(getCallsReachableFromButtonFI(btn, drg.getCallGraph()));
+    }
+    
+    for (CGNode node : reachable) {
+      Util.Print("reachable: " + node.getMethod());
+    }
+    Util.Print(reachable.size() + " reachable nodes.");
     
 	// BEGIN PHASE 2
     // generate harness that creates each button and calls each of its event handlers
@@ -70,6 +82,18 @@ public class AndroidUIChecker {
   }
   
   public static void getActivities(AbstractDependencyRuleGenerator drg) {
+    for (Iterator<CGNode> iter = drg.getCallGraph().iterator(); iter.hasNext();) {
+      CGNode node = iter.next();
+      IClass clazz = node.getMethod().getDeclaringClass();
+      //if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
+      
+      if (node.getMethod().toString().contains("onClick")) {
+        Util.Print("method " + node.getMethod());
+      }
+      
+      //if (node.getMethod().get)
+    }
+    /*
     IClassHierarchy cha = drg.getClassHierarchy();
     final IClass activity = cha.lookupClass(TypeReference.findOrCreate(ClassLoaderReference.Application, "Landroid/app/Activity"));
     Util.Assert(activity != null);
@@ -81,15 +105,13 @@ public class AndroidUIChecker {
         Util.Print("method " + method);
       }
     }
+    */
   }
 
-  /*
-  // flow-insensitive
-  public static void getCallsReachableFromButtonFI(AndroidUtils.AndroidButton btn, CallGraph cg) {
-    Set<CGNode> reachable = DFS.getReachableNodes(cg, btn.eventHandlerNodes);
-	
+  // flow-insensitive reachability
+  public static Set<CGNode> getCallsReachableFromButtonFI(AndroidUtils.AndroidButton btn, CallGraph cg) {
+    return DFS.getReachableNodes(cg, btn.eventHandlerNodes);    
   }
-  */
 	
   // special hack to account for event handler methods shared by multiple buttons
   // path-sensitive up to one callee
@@ -143,7 +165,7 @@ public class AndroidUIChecker {
         }
       }
       //Util.Assert(found, "we don't know about a button with id " + btnId);
-      if (!found) Util.Print("WARNING: we don't know about a view with id " + viewId + "(hex " + Integer.toHexString(viewId) + ")");
+      if (!found) Util.Print("WARNING: we don't know about a view with id " + viewId + " (hex " + Integer.toHexString(viewId) + ")");
     }
     
     int used = 0;
@@ -241,27 +263,32 @@ public class AndroidUIChecker {
   }
   
   public static void bindButtonsToManifestDeclaredEventHandlers(Collection<AndroidUtils.AndroidButton> buttons, CallGraph cg) {
-    // now that we have build the callgraph, we can bind each button to the CGNodes declared as its event handler in the manifest
+    // now that we have built the callgraph, we can bind each button to the CGNode declared as its event handler in the manifest
     for (Iterator<CGNode> iter = cg.iterator(); iter.hasNext();) {
       CGNode node = iter.next();
       IClass clazz = node.getMethod().getDeclaringClass();
       if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial)) continue;
-      IR ir = node.getIR();
-      if (ir == null) continue;
       
+      MethodReference ref = node.getMethod().getReference();
+      // TODO: this is super coarse. what we need to do is see what layout is set for a given Activity/View, then
+      // only set the onClick() method of that particular Activity/View for buttons in that layout
       // TODO: should be nicer way to do this -- query for methods with a given name?
-      for (AndroidUtils.AndroidButton button : buttons) {
-        if (!button.hasDefaultListener() && button.eventHandlerName.equals(node.getMethod().getName().toString())) {
+      for (AndroidUtils.AndroidButton button : buttons) {     
+
+        if (!button.hasDefaultListener() && button.eventHandlerName.equals(ref.getName().toString())) {
           // method name matches name declared in the manifest; add it
           Util.Print("adding event handler node " + node + " to " + button);
           button.eventHandlerNodes.add(node);
           //break outer;
-        } else if (button.hasDefaultListener() && node.getMethod().equals(ON_CLICK)) {
+        //} else if (button.hasDefaultListener() && node.getMethod().equals(ON_CLICK)) {
+        } else if (button.hasDefaultListener() && ref.getName().equals(ON_CLICK.getName()) && ref.getDescriptor().equals(ON_CLICK.getDescriptor())) {
+          Util.Print("adding event handler node " + node + " to " + button);
           // method name matches default listener name and signature (onClick); add it
           button.eventHandlerNodes.add(node);
         }
       }
     }
+      
   }
   
   public static AbstractDependencyRuleGenerator setupCGandPT(String appPath, Collection<AndroidUtils.AndroidButton> buttons) 

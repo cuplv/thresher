@@ -1773,7 +1773,7 @@ public class Util {
   
  
   public static Collection<File> listFilesRec(File startDir) {
-    Util.Pre(startDir.isDirectory());
+    Util.Pre(startDir.isDirectory(), "startDir " + startDir + " doesn't exist or not a directory");
     Collection<File> files = new ArrayList<File>();
         
     final File[] genFiles = startDir.listFiles();

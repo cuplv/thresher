@@ -101,11 +101,12 @@ public class AndroidUtils {
     final String HANDLER_INDICATOR = "android:on";  
     final String BUTTON_NAME = "android:text";
     
+    Util.Print("app path is " + appPath);
     // see if res is where we expect it to be
-    File res = new File(appPath + "res/");
+    File res = new File(appPath + "/res/");
     if (!res.exists()) {
-    	appPath += "out/";
-    	Util.Assert(new File(appPath + "res/").exists());
+    	appPath += "/out/";
+    	Util.Assert(new File(appPath + "res/").exists(), " directory " + appPath + "res/ doesn't exist.");
     }
     
     // for each file in res/layout

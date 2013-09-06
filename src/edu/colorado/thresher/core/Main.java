@@ -64,7 +64,6 @@ import com.ibm.wala.ipa.summaries.SummarizedMethod;
 import com.ibm.wala.ipa.summaries.SyntheticIRFactory;
 import com.ibm.wala.ipa.summaries.XMLMethodSummaryReader;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
-import com.ibm.wala.shrikeCT.ClassReader;
 import com.ibm.wala.ssa.DefaultIRFactory;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
@@ -406,14 +405,55 @@ public class Main {
     
   }
   
+  /*
+  private class BinaryAndJarModule extends BinaryDirectoryTreeModule, JarFileModule {
+
+    public BinaryAndJarModule(File root) {
+      super(root);
+    }
+
+    @Override
+    protected boolean includeFile(File file) {
+      return file.getName().endsWith("class") || file.getName().endsWith("jar");
+    }
+
+    @Override
+    protected FileModule makeFile(final File file) {
+      try {
+        if (file.getName().endsWith("class")) return new ClassFileModule(file, this);
+        else return new JarFileModule(file, this)
+      } catch (InvalidClassFileException e) {
+        Warnings.add(new Warning(Warning.MODERATE) {
+          
+          @Override
+          public String getMsg() {
+            return "Invalid class file at path " + file.getAbsolutePath();
+          }
+        });
+        return null;
+      }
+    }
+*/
   public static IClassHierarchy setupAndroidScopeAndEntryPoints(AnalysisScope scope, 
                                                                  Collection<Entrypoint> entryPoints, 
                                                                  final Set<String> handlers,
                                                                  String appPath) 
       throws IOException, ClassHierarchyException {
+    File appFile = new File(appPath);
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.ANDROID_JAR));
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(appFile));
+    
+    // look for jars hiding in the bin/ directory
+    File binDir = new File(appPath + "/bin/");
+    for (File f : Util.listFilesRec(binDir)) {
+      if (f.getName().endsWith("jar")) {
+        Util.Print("Found JAR file " + f + "; adding to application scope");
+        scope.addToScope(scope.getApplicationLoader(), new JarFile(f));
+      }
+    }
+    
+    
     //if (Options.USE_EXCLUSIONS) {
       //File exclusionsFile = new File("config/exclusions.txt");
       //if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
