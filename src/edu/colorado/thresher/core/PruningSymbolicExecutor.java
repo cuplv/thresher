@@ -465,6 +465,225 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
     }
     return jumping;
   }
+  
+  public static boolean computeRelGraph(IPathInfo opath, CallGraph callGraph, Map<CGNode, OrdinalSet<CGNode>> callGraphTransitiveClosure) { 
+	    // TODO: tmp hack! prepare for jump
+	    IPathInfo path = opath.deepCopy();
+	    boolean jumping = false;
+	    if (!alreadyJumped && path.query instanceof CombinedPathAndPointsToQuery) {
+	      CombinedPathAndPointsToQuery qry = (CombinedPathAndPointsToQuery) path.query;
+	      //if (qry.constraints.size() > 1) {
+	      if (qry.constraints.size() > 0) {
+	        Util.Print("jumping on path " + path);
+	        // TODO: say also that the constraint does not depend on a parameter
+	        path.removeAllLocalConstraintsFromQuery();
+	        Util.Print("after removing locals " + path);
+	        jumping = true;
+	        alreadyJumped = true;
+	      }
+	    } 
+	    // end tmp hack
+	    
+	    // the edges backward reachable from start node
+	    BasicNaturalRelation relevantEdges = new BasicNaturalRelation();
+	    List<CGNode> nodeWorklist = new ArrayList<CGNode>();
+	    Set<CGNode> seen = HashSetFactory.make();
+	    CGNode startNode = path.getCurrentNode();
+	    SSACFG.BasicBlock startBlock = path.getCurrentBlock();
+	    nodeWorklist.add(startNode);
+	    seen.add(startNode);
+	    
+	    // the set of methods that may be on the call stack when start is called
+	    Map<CGNode,Set<ISSABasicBlock>> upSet = HashMapFactory.make();
+	    
+	    Iterator<IStackFrame> stackIter = path.getCallStack().iterator();
+	    CGNode last = null;
+	    do {
+	      if (last != null) {
+	        IStackFrame frame = stackIter.next();
+	        startNode = frame.getCGNode();
+	        startBlock = frame.getBlock();
+	        // add caller -> callee edge
+	        relevantEdges.add(callGraph.getNumber(startNode), callGraph.getNumber(last));
+	      } 
+	      IR ir = startNode.getIR();
+	      // get blocks backward reachable from start location and add them to the upSet for this node
+	      Set<ISSABasicBlock> reachableFromStart = HashSetFactory.make();
+	      Graph<ISSABasicBlock> invertedStartCFG = GraphInverter.invert(ir.getControlFlowGraph());
+	      getBackwardReachableFrom(invertedStartCFG.getPredNodes(startBlock), invertedStartCFG, reachableFromStart);
+	      last = startNode;
+	      upSet.put(startNode, reachableFromStart);
+	    } while (stackIter.hasNext());
+	    
+	    
+	    // mark nodes backward reachable from start node
+	    while (!nodeWorklist.isEmpty()) {
+	      CGNode node = nodeWorklist.remove(0);
+	      int nodeNum = callGraph.getNumber(node);
+	      for (Iterator<CGNode> preds = callGraph.getPredNodes(node); preds.hasNext();) {
+	        CGNode next = preds.next();
+	        // add caller -> callee edge
+	        relevantEdges.add(callGraph.getNumber(next), nodeNum);
+	        if (!seen.add(next)) continue;
+	        nodeWorklist.add(next);
+	      }
+	    }
+	   
+	    // sanity check to identify recursion
+	    // TODO: think we can actually handle recursion by detecting a fixed point w.r.t reachable blocks for each node
+	    Set<CGNode> processed = HashSetFactory.make();
+	    
+	    /*
+	    if (startInstr != null) {
+	      IR startIR = startNode.getIR();
+	      ISSABasicBlock startBlock = startIR.getBasicBlockForInstruction(startInstr);
+	      // should only call this if the start instruction is at the beginning of a block
+	      Util.Assert(startBlock.iterator().next() == startInstr);
+	      // get blocks backward reachable from start node and add them to the upSet
+	      Set<ISSABasicBlock> reachableFromStart = HashSetFactory.make();
+	      Graph<ISSABasicBlock> invertedStartCFG = GraphInverter.invert(startIR.getControlFlowGraph());
+	      getBackwardReachableFrom(invertedStartCFG.getPredNodes(startBlock), invertedStartCFG, reachableFromStart);
+	      upSet.put(startNode, reachableFromStart);
+	    } // else, startInstr == null means we are starting from the beginning of the method
+	    */
+	    
+	    // list of (callee, caller) pairs to process
+	    List<Pair<CGNode,CGNode>> worklist = new ArrayList<Pair<CGNode,CGNode>>();
+	    // add predecessors of start node to the worklist
+	    for (Iterator<CGNode> startPreds = callGraph.getPredNodes(startNode); startPreds.hasNext();) {
+	      worklist.add(Pair.make(startNode, startPreds.next()));
+	    }
+
+	    // compute the UP set for the start node
+	    while (!worklist.isEmpty()) {
+	      Pair<CGNode,CGNode> pair = worklist.remove(0);
+	      CGNode callee = pair.fst, caller = pair.snd;
+	      // we are analyzing statements in caller
+	      Set<ISSABasicBlock> reachableBlocks = upSet.get(caller);
+	      if (reachableBlocks == null) {
+	        reachableBlocks = HashSetFactory.make();
+	        upSet.put(caller, reachableBlocks);
+	      }
+	      
+	      IR callerIR = caller.getIR();
+	      Graph<ISSABasicBlock> invertedCallerCFG = GraphInverter.invert(callerIR.getControlFlowGraph());
+	      // mark all the nodes that are backward reachable from each call site that might dispatch to callee
+	      for (Iterator<CallSiteReference> sites = callGraph.getPossibleSites(caller, callee); sites.hasNext();) { 
+	        CallSiteReference site = sites.next();
+	        ISSABasicBlock[] blks = callerIR.getBasicBlocksForCall(site);
+	        for (int i = 0; i < blks.length; i++) {
+	          if (reachableBlocks.contains(blks[i])) continue; // we've already seen this block
+	          // start from preds since we don't want to mark the call site / block we started from as reachable
+	          getBackwardReachableFrom(invertedCallerCFG.getPredNodes(blks[i]), invertedCallerCFG, reachableBlocks);
+	        }
+	      }
+	      
+	      int callerNumber = callGraph.getNumber(caller), calleeNumber = callGraph.getNumber(callee);
+	      Util.Assert(relevantEdges.contains(callerNumber, calleeNumber));
+	      relevantEdges.remove(callerNumber, calleeNumber);
+
+	      // if we have processed all the relevant callees for this caller
+	      if (relevantEdges.getRelatedCount(callerNumber) == 0) {
+	        for (Iterator<CGNode> preds = callGraph.getPredNodes(caller); preds.hasNext();) {
+	          CGNode next = preds.next();
+	          Util.Assert(relevantEdges.contains(callGraph.getNumber(next), callerNumber), 
+	              "no edge " + next.getMethod() + " -> " + caller.getMethod());
+	          // caller is the new callee and preds.next() is the new caller
+	          worklist.add(Pair.make(caller, next));
+	        }
+	        // make sure we won't loop forever due to recursion
+	        Util.Assert(processed.add(caller), "recursion detected from " + caller);
+	      }
+	    }
+	    
+	    // map of nodes in the UP set to sets of nodes in their DOWN set
+	    Map<CGNode,Set<CGNode>> downSet = HashMapFactory.make();
+	    // set of nodes in DOWN sets of *all* nodes in UP set
+	    Set<CGNode> downSetAll = HashSetFactory.make();
+	    // done computing UP set. can now compute the DOWN set for each method in the UP set
+	    for (Entry<CGNode,Set<ISSABasicBlock>> entry : upSet.entrySet()) {
+	      CGNode node = entry.getKey();
+	      Set<ISSABasicBlock> reachableBlocks = entry.getValue();
+	      Set<CGNode> set = downSet.get(node);
+	      if (set == null) {
+	        set = HashSetFactory.make();
+	        downSet.put(node, set);
+	      }
+	      IR ir = node.getIR();
+	      // TODO: can be smarter about not doing redundant work here
+	      for (Iterator<CallSiteReference> sites = node.iterateCallSites(); sites.hasNext();) {
+	        CallSiteReference site = sites.next();
+	        ISSABasicBlock[] blocks = ir.getBasicBlocksForCall(site);
+	        for (int i = 0; i < blocks.length; i++) {
+	          if (reachableBlocks.contains(blocks[i])) {
+	            // add down set for this call
+	            for (CGNode targetNode : callGraph.getNodes(site.getDeclaredTarget())) {
+	              if (!set.contains(targetNode)) {
+	                set.addAll(OrdinalSet.toCollection(callGraphTransitiveClosure.get(targetNode)));
+	              }
+	            }
+	            break;
+	          }
+	        }
+	      }
+	      downSetAll.addAll(set);
+	    }
+	    // done computing DOWN set. now how do we use DOWN and UP sets?
+	    Util.Print("real UP set has " + upSet.keySet().size());    
+	    Util.Print("real DOWN set has " + downSetAll.size() + ", " + downSet.keySet().size() + " keys.");
+	    
+	    
+	    Map<Constraint,Set<CGNode>> constraintModMap = path.query.getRelevantNodes();//path.getModifiersForQuery();
+	    // get potential producers for constraints
+	    //Set<CGNode> relevantNodes = Util.flatten(constraintModMap.values());
+	    Set<CGNode> relevantNodes = Util.flattenAndIntersect(constraintModMap.values());
+	    Util.Print("MAP: ");
+	    for (Constraint constraint : constraintModMap.keySet()) {
+	    	Util.Print(constraint + " ===>\n" + Util.printCollection(constraintModMap.get(constraint)));
+	    }
+	    
+	    
+	    for (CGNode node : relevantNodes) {
+	      if (upSet.keySet().contains(node)) {
+	        Util.Print("UP set contains " + node);
+	        if (jumping) {
+	          IPathInfo fork = path.deepCopy();
+	          fork.getCallStack().clear();
+	          // TODO: this should actually be each call site that has a DOWN set
+	          SSACFG.BasicBlock exit = node.getIR().getControlFlowGraph().exit();
+	          fork.setCurrentNode(node);
+	          fork.addContextualConstraints(node); 
+	          fork.setCurrentBlock(exit);
+	          fork.setCurrentLineNum(exit.getAllInstructions().size());
+	          Util.Print("adding relevance fork " + fork.getPathId());
+	          //this.addPath(fork);
+	        }
+	        // relevant as long as relevant statement(s) are reachable
+	        // TODO: check
+	        continue;
+	      } 
+	      
+	      if (downSetAll.contains(node)) {
+	        // definitely relevant
+	          Util.Print("DOWN set contains " + node);
+	        if (jumping) {
+	          IPathInfo fork = path.deepCopy();
+	          fork.getCallStack().clear();
+	          SSACFG.BasicBlock exit = node.getIR().getControlFlowGraph().exit();
+	          fork.setCurrentNode(node);
+	          fork.addContextualConstraints(node); 
+	          fork.setCurrentBlock(exit);
+	          fork.setCurrentLineNum(exit.getAllInstructions().size());
+	          Util.Print("adding relevance fork " + fork.getPathId());
+	          //this.addPath(fork);
+	        }
+	      } else {
+	        // definitely not relevant
+	        Util.Print("node " + node + " not in UP or DOWN set");
+	      }
+	    }
+	    return jumping;
+	  }
 
   @Override
   public boolean handleInterproceduralExecution(IPathInfo path) {
@@ -511,7 +730,7 @@ public class PruningSymbolicExecutor extends OptimizedPathSensitiveSymbolicExecu
    * 
    * add all nodes backward reachable from @param startingPoints (including the nodes in startingPoints) to @param reachable
    */
-  public <T> void getBackwardReachableFrom(Iterator<T> startingPoints, Graph<T> graph, Set<T> reachable) {
+  public static <T> void getBackwardReachableFrom(Iterator<T> startingPoints, Graph<T> graph, Set<T> reachable) {
     while (startingPoints.hasNext()) {
       T next = startingPoints.next();
       if (!reachable.add(next)) {

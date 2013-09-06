@@ -1293,6 +1293,7 @@ public class PointsToQuery implements IQuery {
       }
     }
   
+    if (!SCWALA_MODE) {
     for (PointsToEdge edge : produced) {
       boolean lhsMatch;
       boolean fieldsEqual;
@@ -1317,11 +1318,11 @@ public class PointsToQuery implements IQuery {
       //if (lhsMatch && fieldsEqual) {
       if (lhsMatch && fieldsEqual && notArrays) {
         if (Options.DEBUG)
-          Util.Debug("relevant: " + edge);
+          Util.Debug("relevant (produced): " + edge);
         return true;
       }
     }
-    //}
+    }
     
     return false;
   }
