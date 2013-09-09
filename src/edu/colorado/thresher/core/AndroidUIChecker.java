@@ -3,8 +3,10 @@ package edu.colorado.thresher.core;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
@@ -40,15 +42,18 @@ public class AndroidUIChecker {
   // TODO: we assume button id's and labels are not set/re-set dynamically. will eventually need to handle this
   public static void runUICheck(String appPath) 
     throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
-    Options.FULL_WITNESSES = true;
+    Options.FULL_WITNESSES = true;    
     // BEGIN PHASE 1
     // (1) parse buttons from the manifest
     Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
     // (2) build call graph and points-to analysis
     AbstractDependencyRuleGenerator drg = setupCGandPT(appPath, buttons);
     
-    // SANITY CHECK
     //getActivities(drg);
+    // TMP
+    emitEntrypointSinkPairs(drg);
+    System.exit(1);
+    // END TMP
     
     // (3) find dynamically created buttons (requires symbolic execution)
     findDynamicallyCreatedButtons(buttons, drg);
@@ -79,6 +84,74 @@ public class AndroidUIChecker {
 	// bind each button to its corresponding pointer variable
 	// find methods reachable from each button
 	// END PHASE 3
+  }  
+  
+  private static void emitEntrypointSinkPairs(AbstractDependencyRuleGenerator drg) {
+    CallGraph cg = drg.getCallGraph();
+    List<CGNode> snks = new ArrayList<CGNode>();
+    for (Iterator<CGNode> iter = drg.getCallGraph().iterator(); iter.hasNext();) {
+      CGNode node = iter.next();
+      IClass clazz = node.getMethod().getDeclaringClass();
+      if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial) &&
+          isAndroidRelated(clazz)) {
+        snks.add(node);
+      }
+    }
+    
+    LinkedList<CGNode> worklist = new LinkedList<CGNode>();
+    Set<CGNode> seen = HashSetFactory.make();
+    Set<CGNode> entrypoints = new HashSet<CGNode>(cg.getEntrypointNodes());
+    Set<Pair<IMethod,IMethod>> pairs = HashSetFactory.make();
+    //Graph<CGNode> reverseCG = GraphInverter.invert(cg);
+    // TODO: this is quite inefficient; potentially lots of redundant work done here
+    // go backwards from each sink until we find an entrypoint
+    // refuse to go backwards to methods that are also library methods
+    for (CGNode snk : snks) {
+      worklist.add(snk);
+      seen.add(snk);
+      while (!worklist.isEmpty()) {
+        CGNode cur = worklist.removeFirst();
+        IMethod snkMethod = snk.getMethod();
+        for (Iterator<CGNode> preds = cg.getPredNodes(cur); preds.hasNext();) {
+          CGNode pred = preds.next();
+          IClass clazz = pred.getMethod().getDeclaringClass();
+          if (entrypoints.contains(pred)) {
+            pairs.add(Pair.make(pred.getMethod(), snkMethod));
+          } else if (!clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial) &&
+                     seen.add(pred)) {
+            worklist.add(pred);
+          }          
+        }
+      }
+      seen.clear();
+      worklist.clear();
+    }
+    
+    for (Pair<IMethod,IMethod> srcSnkPair : pairs) {
+      Util.Print("PAIR: (" + srcSnkPair.fst + " : " + srcSnkPair.snd + ")");
+    }
+    Util.Print(pairs.size() + " pairs.");
+    /*   
+    for (CGNode entrypoint : cg.getEntrypointNodes()) {
+      IMethod entryMethod = entrypoint.getMethod();
+      //Util.Print("checking for reachable from entrypoint " + entryMethod);
+      for (CGNode node : DFS.getReachableNodes(cg, Collections.singleton(entrypoint))) {
+        IClass clazz = node.getMethod().getDeclaringClass();
+        if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial) &&
+            isAndroidRelated(clazz)) {
+          Pair<IMethod,IMethod> srcSnkPair = Pair.make(entryMethod, node.getMethod());    		  
+          Util.Print("PAIR: (" + srcSnkPair.fst + ", " + srcSnkPair.snd + ")");
+        }
+      }      
+    }	
+    */  
+  }
+  
+  
+  private static boolean isAndroidRelated(IClass clazz) {
+    String name = clazz.getName().toString();
+    //Util.Print("is " + name + " android-related?");
+    return name.startsWith("Landroid") || name.startsWith("Ldalvik") || name.startsWith("Lorg/apache/http");
   }
   
   public static void getActivities(AbstractDependencyRuleGenerator drg) {

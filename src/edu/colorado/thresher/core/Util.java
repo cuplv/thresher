@@ -1848,9 +1848,17 @@ public class Util {
           }
         }
       }
-    } else {
-      Util.Debug("weird ptr variable " + var + "; possible values null");
-    }
+    } else if (var.getInstanceKey() instanceof StaticFieldKey) {
+      // get locals that can point at things the static field key can point at, since they need 
+      // to have a local pointing at them in order to be written to the static field
+      for (Iterator<Object> succs = hg.getSuccNodes(var.getInstanceKey()); succs.hasNext();) {
+        Object succ = succs.next();
+        for (Iterator<Object> localPreds = hg.getPredNodes(succ); succs.hasNext();) {
+          Object localPred = localPreds.next();
+          if (localPred instanceof LocalPointerKey) nodes.add(((LocalPointerKey) localPred).getNode());
+        }
+      }
+    } else Util.Assert(false, "weird ptr variable " + var + "; possible values null");
     return nodes;
   }
   
@@ -1870,12 +1878,12 @@ public class Util {
           if (!array && instr instanceof SSAPutInstruction) {
             SSAPutInstruction put = (SSAPutInstruction) instr;
             if (put.getDeclaredField().equals(fldRef)) {
-              Util.Debug("instr " + instr + " writes to " + var + "." + field + " in " + node);
+              //Util.Debug("instr " + instr + " writes to " + var + "." + field + " in " + node);
               found = true;
               break;
             }
           } else if (array && instr instanceof SSAArrayStoreInstruction) {
-            Util.Debug("instr " + instr + " writes to " + var + "[contents] in " + node);
+            //Util.Debug("instr " + instr + " writes to " + var + "[contents] in " + node);
             found = true; 
             break;
           }
@@ -1888,6 +1896,6 @@ public class Util {
       nodes.removeAll(toRemove);
     } 
     return nodes;
-  }
+  }  
   
 }

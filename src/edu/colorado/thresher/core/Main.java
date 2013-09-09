@@ -453,7 +453,6 @@ public class Main {
       }
     }
     
-    
     //if (Options.USE_EXCLUSIONS) {
       //File exclusionsFile = new File("config/exclusions.txt");
       //if (exclusionsFile.exists()) scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
@@ -1615,14 +1614,13 @@ public class Main {
   public static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    
     // TODO: TMP!
     Options.ANDROID_JAR = "../thresher/" + Options.ANDROID_JAR;
     appPath = "../thresher/" + appPath;
     
     if (Options.ANDROID_LEAK) {
       JarFile androidJar = new JarFile(Options.ANDROID_JAR);
-      // add Android code
+      // add Android code      
       scope.addToScope(scope.getPrimordialLoader(), androidJar);
     } else if (Options.DACAPO) {
       String appName;

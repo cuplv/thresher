@@ -602,11 +602,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             Util.intersectionNonEmpty(var.getPossibleValues(), possibleValues)) {
           // add points-to edge param -> var and substitute param for var in the path constraints
           this.substituteExpForVar(new SimplePathTerm(param), var);
-          
+          /*
           for (PointsToEdge edge : this.pointsToQuery.constraints) {
             Util.Assert(!edge.getSource().equals(param), "pts-to constraints already have " + edge);
           }
-          
+          */
         }
       }
     }

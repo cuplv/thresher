@@ -1924,7 +1924,7 @@ public class PointsToQuery implements IQuery {
           }
         }
         nodes.removeAll(toRemove);
-      } else Util.Debug("field null for " + edge);
+      } //else Util.Debug("field null for " + edge);
       constraintRelevantMap.put(edge, nodes);
     }
     return constraintRelevantMap;
