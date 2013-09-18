@@ -1,6 +1,7 @@
 package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -644,6 +645,10 @@ public class PathQuery implements IQuery {
         Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayStore insruction " + instr
             + " might matter for " + this);
       dropConstraintsContaining(stored);
+      
+      instr.getArrayRef();
+      instr.getIndex();
+      instr.getValue();
       // return isFeasible();
     }
     return true;
@@ -1497,16 +1502,15 @@ public class PathQuery implements IQuery {
   public boolean addPathConstraintFromSwitch(SSAConditionalBranchInstruction switchCase, CGNode currentNode, boolean negated) {
     IConditionalBranchInstruction.Operator op = negated ? ConditionalBranchInstruction.Operator.NE :  ConditionalBranchInstruction.Operator.EQ;
     SimplePathTerm matchedTerm = new SimplePathTerm(new ConcretePointerVariable(currentNode, switchCase.getUse(0), this.heapModel));
-    AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedTerm, new SimplePathTerm(switchCase.getUse(1)), op);
+    //AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedTerm, new SimplePathTerm(switchCase.getUse(1)), op);
+    SymbolTable tbl = currentNode.getIR().getSymbolTable();
+    Util.Assert(tbl.isIntegerConstant(switchCase.getUse(1)));
+    AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedTerm, new SimplePathTerm(tbl.getIntValue(switchCase.getUse(1))), op);
     Util.Assert(isFeasible());
     Util.Debug("adding switch constraint " + switchConstraint);
     this.addConstraint(switchConstraint);
-    //AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedVar, new SimplePathTerm(casesAndLabels[i]), 
-        //ConditionalBranchInstruction.Operator.EQ);
-//copy.addConstraint(switchConstraint);
     return isFeasible();
   }
-
   
   @Override
   public List<IQuery> addPathConstraintFromSwitch(SSASwitchInstruction instr, SSACFG.BasicBlock lastBlock, CGNode currentNode) {
@@ -1642,6 +1646,10 @@ public class PathQuery implements IQuery {
   @Override
   public AbstractDependencyRuleGenerator getDepRuleGenerator() { 
     return depRuleGenerator;
+  }
+  
+  public Iterator<? extends Constraint> constraints() {
+    return constraints.iterator();
   }
 
   @Override

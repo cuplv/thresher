@@ -56,7 +56,7 @@ import com.ibm.wala.util.intset.OrdinalSet;
 public class CombinedPathAndPointsToQuery extends PathQuery {
   
   // special class just to allow us to override methods of PointsToQuery
-  private static final class PointsToQueryWrapper extends PointsToQuery {
+  public static final class PointsToQueryWrapper extends PointsToQuery {
     private final CombinedPathAndPointsToQuery parent;
     
     public PointsToQueryWrapper(DependencyRule producer, AbstractDependencyRuleGenerator depRuleGenerator, CombinedPathAndPointsToQuery parent) {
@@ -116,7 +116,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
   }
 
-  final PointsToQueryWrapper pointsToQuery;
+  public final PointsToQueryWrapper pointsToQuery;
   boolean fakeWitness = false;
 
   public CombinedPathAndPointsToQuery(PointsToEdge startEdge, AbstractDependencyRuleGenerator depRuleGenerator) {

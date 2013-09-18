@@ -1626,7 +1626,7 @@ public class PointsToQuery implements IQuery {
   /**
    * @return - the points-to set of var
    */
-  PointerVariable getPointedTo(PointerVariable var) {
+  public PointerVariable getPointedTo(PointerVariable var) {
     return getPointedTo(var, true);
   }
   
@@ -1746,7 +1746,9 @@ public class PointsToQuery implements IQuery {
     if (this.constraints.isEmpty()) return;
     Set<PointsToEdge> toRemove = getConstraintsRelevantToCall(instr, caller, callee, false); 
     for (PointsToEdge edge : toRemove) {
-      if (Options.DEBUG) Util.Debug("DROPPING " + edge);
+      Util.Print("dropping constraint " + edge);
+      //if (Options.DEBUG) Util.Debug("DROPPING " + edge);
+      
       this.constraints.remove(edge);
       this.produced.remove(edge);
     }
