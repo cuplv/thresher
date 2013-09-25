@@ -450,7 +450,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     PointerVariable lhs = localVars.iterator().next();
     PointerVariable rhs = heapVars.iterator().next();
     Util.Assert(lhs.isLocalVar());
-    Util.Assert(rhs.isHeapVar());
+    Util.Assert(rhs.isHeapVar(), "couldn't make points to edge from " + this + "; weird rhs");
     
     if (this.op == ConditionalBranchInstruction.Operator.NE) {
       // negative pts-to constraint; change heapVars to be pt(localVars) \ heapVars

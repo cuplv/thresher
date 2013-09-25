@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.types.ClassLoaderReference;
@@ -139,7 +140,6 @@ public class SimplePathTerm implements PathTerm {
         }
       } else { // toSub has fields subbing in y.f
         if (subFor.getFields() == null) {
-          Util.Debug("subbin y.f");
           // subbing y.f for x
           if (this.fields == null) {
             newTerm = new SimplePathTerm(toSub.getObject().deepCopy(), Util.deepCopyStackList(toSub.getFieldsAsLinkedList()));
@@ -311,9 +311,11 @@ public class SimplePathTerm implements PathTerm {
       toSub.setSubstituted(true);
       return toSub;
     }
+    
     this.setSubstituted(false);
     return this;
   }
+  
 
   @Override
   public boolean symbContains(PathTerm other) {
@@ -545,7 +547,7 @@ public class SimplePathTerm implements PathTerm {
     // need to be careful since we can read null from fields; this is why fields
     // must be null
     return this.object != null && !this.object.isLocalVar() && this.fields == null &&
-        !(this.object.getInstanceKey() instanceof StaticFieldKey);
+        !(this.object.getInstanceKey() instanceof StaticFieldKey) && !(this.object.getInstanceKey() instanceof String);
   }
 
 }

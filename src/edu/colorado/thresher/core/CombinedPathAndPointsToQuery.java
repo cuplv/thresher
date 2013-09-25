@@ -429,28 +429,44 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         // initialize all array fields to default values
         if (instr.getNewSite().getDeclaredType().isArrayType()) {
           if (Options.DEBUG) Util.Debug("initializing array indices to default vals.");
+          List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
           InstanceKey arrRef = this.depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
           for (AtomicPathConstraint constraint : this.constraints) {
             for (SimplePathTerm term : constraint.getTerms()) {
               if (term.getObject() != null && term.getObject().getInstanceKey() != null && term.getObject().getInstanceKey().equals(arrRef)) {
                 Util.Assert(term.getFirstField() != null);
+                // remove constraints on index value
+                PointerVariable indexName = new ConcretePointerVariable(term.getFirstField().getName().toString());
+                toRemove.addAll(this.getConstraintsWithVar(indexName));
+                // assign to default value
                 substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
               }
             }
           }
+          for (AtomicPathConstraint removeMe : toRemove) this.constraints.remove(removeMe);
         }
-      }
-      
+      }            
       return isFeasible();
     }
     return true; // didn't add any constraints, can't be infeasible
   }
   
+  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var) {
+    List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(var)) {
+        constraintsWithVar.add(constraint);
+      }
+    }
+    return constraintsWithVar;
+  }
+  
   @Override
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
-    Util.Print("visiting " + instr);
+    
     if (Options.INDEX_SENSITIVITY) {
+      List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
       for (AtomicPathConstraint constraint : this.constraints) {
         for (SimplePathTerm term : constraint.getTerms()) {
           PointerVariable arrayRef = null;
@@ -461,22 +477,53 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
               arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld);
               // sub out local.arrayField for the array ref pointed to by local.arrayField
               substituteExpForFieldRead(new SimplePathTerm(arrayRef), localPtr, fld);
-            } else if (term.getObject().isHeapVar() && term.getFirstField() != null) {
-              arrayRef = term.getObject();
-            }
-            if (arrayRef != null) {
-              int storedVal = instr.getValue();
-              SimplePathTerm stored;
-              if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
-              else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
-
-              // sub out arrayRef[index] for stored
-              FieldReference indexVar = getFieldForIndex(instr.getIndex(), instr.getElementType(), tbl);
-              substituteExpForFieldRead(stored, arrayRef, indexVar);
             }
           }
         }
       }
+      for (AtomicPathConstraint constraint : this.constraints) {
+        for (SimplePathTerm term : constraint.getTerms()) {
+          PointerVariable arrayRef = null;
+          if (term.getObject() != null) {  
+            if (term.getObject().isHeapVar() && term.getFirstField() != null) {                        
+              arrayRef = term.getObject();
+            }
+            if (arrayRef != null) {              
+              int storedVal = instr.getValue();
+              SimplePathTerm stored;
+              if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
+              else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
+              FieldReference indexField = term.getFirstField();
+              PointerVariable indexName = new ConcretePointerVariable(indexField.getName().toString());
+              List<AtomicPathConstraint> constraintsWithVar = getConstraintsWithVar(indexName);
+              Util.Assert(constraintsWithVar.size() == 1, " found " + constraintsWithVar.size() + " constraints with " + indexName);
+              AtomicPathConstraint indexConstraint = constraintsWithVar.iterator().next();
+              Util.Assert(indexConstraint.isEqualityConstraint());
+              Util.Assert(indexConstraint.getLhs().getVars().contains(indexName), indexConstraint.getLhs() + " does not have " + indexName);
+              // compare index constraint to index here
+              PathTerm indexExpr = indexConstraint.getRhs();
+              int instrIndex = instr.getIndex();
+              if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
+                // both index expression and index of array store instruction are constants. we can determine
+                // unambiguously whether this instruction writes to the index of interest
+                if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
+                  // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
+                  // constraint
+                  toRemove.add(indexConstraint);
+                  substituteExpForFieldRead(stored, arrayRef, indexField);
+                } // else, it does not write to our index. fall through 
+              } else {
+                // at least one of the indices is not a constant. we need to fork two cases: one where this
+                // instruction does produce our constraint (with an additional equality constraint on the indices)
+                // and one where this instruction does not produce our constraint (with an additional inequality 
+                // constraint on the indices)
+                Util.Unimp("case split due to ambiguous array write");
+              }
+            }
+          }
+        }
+      }
+      for (AtomicPathConstraint removeMe : toRemove) constraints.remove(removeMe);
       return isFeasible();
     } else {
       if (Options.DEBUG) {

@@ -636,8 +636,17 @@ public class PathQuery implements IQuery {
         //PointerVariable indexVar = new ConcretePointerVariable(node, instr.getIndex(), this.heapModel);
         //FieldReference indexRef = getFieldForIndex(instr.getIndex(), instr.getElementType());//FieldReference.findOrCreate(ClassLoaderReference.Primordial, "__fakeField", "v" + instr.getIndex(), 
             //instr.getElementType().toString());
-        SimplePathTerm toSub = new SimplePathTerm(arrayVar, getFieldForIndex(instr.getIndex(), instr.getElementType(), tbl));      
-        substituteExpForVar(toSub, varName);
+        int index = instr.getIndex();
+        SimplePathTerm indexExpr = tbl.isIntegerConstant(index) ? new SimplePathTerm(tbl.getIntValue(index)) : 
+          new SimplePathTerm(new ConcretePointerVariable(node, index, this.heapModel));
+        FieldReference indexFld = getFieldForIndex(instr.getElementType(), tbl);
+        
+        SimplePathTerm toSub = new SimplePathTerm(arrayVar, indexFld);      
+        if (substituteExpForVar(toSub, varName)) {
+          // add index fld name == index expr constraint
+          this.addConstraint(new AtomicPathConstraint(new SimplePathTerm(new ConcretePointerVariable(indexFld.getName().toString())), 
+              indexExpr, IConditionalBranchInstruction.Operator.EQ));
+        }
         return isFeasible();
       } else {
         if (Options.DEBUG) {
@@ -652,9 +661,17 @@ public class PathQuery implements IQuery {
     return true;
   }
   
-  static FieldReference getFieldForIndex(int index, TypeReference arrType, SymbolTable tbl) {
-    String indexStr = tbl.isIntegerConstant(index) ? "" + tbl.getIntValue(index) : "v" + index;
-    return FieldReference.findOrCreate(ClassLoaderReference.Primordial, "__arrIndex", indexStr, arrType.toString());
+  
+  static boolean isArrayIndexField(FieldReference fld) {
+    return fld.getName().toString().equals(ARRAY_INDEX);
+  }
+  
+  private static final String ARRAY_INDEX = "__arrIndex";
+  
+  private static int indexCounter = 0;
+  static FieldReference getFieldForIndex(TypeReference arrType, SymbolTable tbl) {
+    //String indexStr = tbl.isIntegerConstant(index) ? "" + tbl.getIntValue(index) : "v" + index;
+    return FieldReference.findOrCreate(ClassLoaderReference.Primordial, ARRAY_INDEX, (indexCounter++) + ARRAY_INDEX, arrType.toString());
   }
 
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
@@ -724,7 +741,7 @@ public class PathQuery implements IQuery {
   /**
    * replace the variable subFor with the expression toSub (i.e, sub y.f for x)
    */
-  void substituteExpForVar(PathTerm toSub, PointerVariable subFor) {
+  boolean substituteExpForVar(PathTerm toSub, PointerVariable subFor) {
     if (Options.DEBUG)
       Util.Debug("subsExpForVar subbing " + toSub + " for " + subFor);
     SimplePathTerm subForTerm = new SimplePathTerm(subFor);
@@ -743,7 +760,7 @@ public class PathQuery implements IQuery {
             Util.Debug("refuted by path constraint");
           makeUnsatCore(constraint);
           this.feasible = false;
-          return;
+          return false;
         }
         if (newConstraint != AtomicPathConstraint.TRUE)
           toAdd.add(newConstraint);
@@ -758,6 +775,7 @@ public class PathQuery implements IQuery {
     for (AtomicPathConstraint constraint : toAdd) {
       addConstraint(constraint);
     }
+    return !toRemove.isEmpty() || !toAdd.isEmpty();
   }
 
   /**

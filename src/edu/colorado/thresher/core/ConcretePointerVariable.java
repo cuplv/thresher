@@ -152,7 +152,8 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     this.name = name;
     // this.id = Util.getIdForVar(name);
     // this.typeId = typeId;
-    this.instanceKey = null;
+    //this.instanceKey = null;
+    this.instanceKey = name;
     //this.id = name.hashCode();
     // this.instanceNum = -1;
     this.method = null;
