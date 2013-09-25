@@ -144,6 +144,9 @@ public class Options {
   
   @boolOpt(description = "skip all dispatch callees and drop related constraints", _default = true)
   public static boolean SKIP_DYNAMIC_DISPATCH = true;
+  
+  @boolOpt(description = "do index-sensitive reasoning", _default = false)
+  public static boolean INDEX_SENSITIVITY = false;
 
   @intOpt(description = "if the path constraints are larger than this, we (soundly) refuse to collect new constraints", _default = 2)
   // how large do we allow the path constraints to grow?
@@ -170,18 +173,9 @@ public class Options {
   @stringOpt(description = "run regression tests", _default = "")
   public static String REGRESSIONS;
 
-  // if the paths to explore stack ever grows larger than this, we report a
-  // timeout
-  // TODO: not currently used
-  // private static final int PATH_STACK_LIMIT = 1000;
-
   // consider paths that use weak references?
   public static boolean INCLUDE_WEAK_REFERENCES = false;
 
-  // private static final boolean GEN_FLOW_INSENSITIVE_WITNESS = false; //
-  // insist on generating flow-insensitive witness before doing symbolic
-  // execution (TODO: doesn't work)
-  
   public static void restoreDefaults() {
     try {
       for (Field field : Options.class.getFields()) {

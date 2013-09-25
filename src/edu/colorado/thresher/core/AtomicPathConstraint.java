@@ -127,7 +127,6 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     if (lhsSubstituted || rhsSubstituted) {
       AtomicPathConstraint newPathConstraint = new AtomicPathConstraint(newLHS, newRHS, op, id);
       if (newPathConstraint.isConstant()) {
-        Util.Debug("evaluating!");
         if (newPathConstraint.evaluate())
           newPathConstraint = TRUE;// makeTruePathConstraint(); // constraint
                                    // evaluated to true
@@ -366,6 +365,8 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     return new AtomicPathConstraint(new SimplePathTerm(0), new SimplePathTerm(0), ConditionalBranchInstruction.Operator.EQ);
   }
   
+  
+  
   /**
    * is this a constraint of the form var == 0?
    */
@@ -407,6 +408,22 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
       }
     }
     return false;
+  }
+  
+  boolean isSimpleConstraint() {
+    return this.rhs instanceof SimplePathTerm && this.lhs instanceof SimplePathTerm;
+  }
+  
+  public boolean isEqualityConstraint() {
+    return this.op == ConditionalBranchInstruction.Operator.EQ && isSimpleConstraint();
+  }
+  
+  public boolean isInequalityConstraint() {
+    return this.op == ConditionalBranchInstruction.Operator.NE && isSimpleConstraint();
+  }
+  
+  public boolean isEqNullConstraint() {
+    return this.isEqualityConstraint() && (this.lhs == SimplePathTerm.NULL || this.rhs == SimplePathTerm.NULL);
   }
   
   public boolean isPointsToConstraint() {

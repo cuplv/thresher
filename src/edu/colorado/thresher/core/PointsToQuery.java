@@ -1624,10 +1624,36 @@ public class PointsToQuery implements IQuery {
   }
   
   /**
-   * @return - the points-to set of var
+   * @return - the points-to set of var if it is a singleton, otherwise err
    */
   public PointerVariable getPointedTo(PointerVariable var) {
     return getPointedTo(var, true);
+  }
+  
+  public PointerVariable getPointedTo(PointerVariable var, FieldReference field) {
+    Util.Pre(var.isLocalVar());
+    PointerVariable found = null;
+    PointerVariable ref = getPointedTo(var);
+    if (ref != null) {
+      for (PointsToEdge edge : this.constraints) {
+        if (edge.getSource().equals(ref) && edge.getFieldRef().getReference().equals(field)) {
+          Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+          found = edge.getSink();
+        }
+      }
+    }  
+   
+    return found;
+  }
+  
+  public Set<PointerVariable> getPointsToSet(PointerVariable var) {
+    Set<PointerVariable> pt = HashSetFactory.make();
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().equals(var)) {
+        pt.add(edge.getSink());
+      }
+    }
+    return pt;
   }
   
   /**
@@ -1661,7 +1687,7 @@ public class PointsToQuery implements IQuery {
     PointerVariable found = null;
     for (PointsToEdge edge : set) {
       if (edge.getSource().equals(var)) {
-        Util.Assert(found == null, "should only find var on LHS of one points-to relation!");
+        Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
         found = edge.getSink();
       }
     }
@@ -2121,6 +2147,11 @@ public class PointsToQuery implements IQuery {
   
   @Override
   public void dispose() { }
+  
+  @Override
+  public Iterator<? extends Constraint> constraints() {
+    return constraints.iterator();
+  }
 
   /*
    * @Override public boolean equals(Object other) { if (!(other instanceof

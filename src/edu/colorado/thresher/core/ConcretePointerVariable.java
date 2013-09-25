@@ -181,6 +181,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     if (this.instanceKey instanceof InstanceKey) {
       return Collections.singleton((InstanceKey) this.instanceKey);
     } 
+    //Util.Print("asked for possible values of " + this.instanceKey + " returning null.");
     return null;
   }
   
@@ -226,7 +227,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
       boolean match = false;
       if (arrayFld) match = fldKey instanceof ArrayContentsKey;
       else if (staticFld) pointsToSet.add((InstanceKey) fldKey);
-      else {
+      else { //if (!(fldKey instanceof ConcreteTypeKey)) {
         // instance field key
         InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
         match = ifk.getField().equals(fld);

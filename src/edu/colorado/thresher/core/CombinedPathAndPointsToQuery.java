@@ -22,11 +22,13 @@ import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
+import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
@@ -421,9 +423,69 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         PointerVariable newVar = Util.makePointerVariable(key);
         substituteExpForVar(new SimplePathTerm(newVar), local);
       }
+      
+      if (Options.INDEX_SENSITIVITY) {
+        final SimplePathTerm DEFAULT_ARR_VAL = new SimplePathTerm(0);
+        // initialize all array fields to default values
+        if (instr.getNewSite().getDeclaredType().isArrayType()) {
+          if (Options.DEBUG) Util.Debug("initializing array indices to default vals.");
+          InstanceKey arrRef = this.depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
+          for (AtomicPathConstraint constraint : this.constraints) {
+            for (SimplePathTerm term : constraint.getTerms()) {
+              if (term.getObject() != null && term.getObject().getInstanceKey() != null && term.getObject().getInstanceKey().equals(arrRef)) {
+                Util.Assert(term.getFirstField() != null);
+                substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
+              }
+            }
+          }
+        }
+      }
+      
       return isFeasible();
     }
     return true; // didn't add any constraints, can't be infeasible
+  }
+  
+  @Override
+  boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
+    PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
+    Util.Print("visiting " + instr);
+    if (Options.INDEX_SENSITIVITY) {
+      for (AtomicPathConstraint constraint : this.constraints) {
+        for (SimplePathTerm term : constraint.getTerms()) {
+          PointerVariable arrayRef = null;
+          if (term.getObject() != null) {            
+            if (term.getObject().isLocalVar() && term.getFirstField() != null) {
+              PointerVariable localPtr = term.getObject();
+              FieldReference fld = term.getFirstField();
+              arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld);
+              // sub out local.arrayField for the array ref pointed to by local.arrayField
+              substituteExpForFieldRead(new SimplePathTerm(arrayRef), localPtr, fld);
+            } else if (term.getObject().isHeapVar() && term.getFirstField() != null) {
+              arrayRef = term.getObject();
+            }
+            if (arrayRef != null) {
+              int storedVal = instr.getValue();
+              SimplePathTerm stored;
+              if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
+              else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
+
+              // sub out arrayRef[index] for stored
+              FieldReference indexVar = getFieldForIndex(instr.getIndex(), instr.getElementType(), tbl);
+              substituteExpForFieldRead(stored, arrayRef, indexVar);
+            }
+          }
+        }
+      }
+      return isFeasible();
+    } else {
+      if (Options.DEBUG) {
+        Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayStore insruction " + instr
+            + " might matter for " + this);
+      }
+      dropConstraintsContaining(arrayVar);
+    }
+    return true;
   }
 
   @Override
@@ -839,10 +901,14 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
     }
     
-    List<PointerVariable> toReplace = new ArrayList<PointerVariable>();
+    Set<PointerVariable> ignoreVars = HashSetFactory.make();
     // replace remaining local vars with their pts-to sets, if applicable
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.isEqNullConstraint()) ignoreVars.addAll(constraint.getVars());    
+    }
+    List<PointerVariable> toReplace = new ArrayList<PointerVariable>();
     for (PointerVariable var : this.pathVars) {
-      if (var.isLocalVar()) {
+      if (var.isLocalVar() && !ignoreVars.contains(var)) {
         toReplace.add(var);
       }
     }
@@ -859,9 +925,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : constraints) {
       for (PointerVariable var : constraint.getVars()) {
-        if (var.isLocalVar())
+        if (var.isLocalVar()) {
           toRemove.add(constraint);
-        break;
+          break;
+        }
       }
     }
     for (AtomicPathConstraint constraint : toRemove)
@@ -1152,6 +1219,22 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   public List<DependencyRule> getWitnessList() {
     return pointsToQuery.getWitnessList();
+  }
+  
+  @Override
+  public Iterator<? extends Constraint> constraints() {
+    List<Constraint> constraints = new ArrayList<Constraint>(this.pointsToQuery.constraints.size() + super.constraints.size());
+    for (Constraint constraint : this.pointsToQuery.constraints) {
+      constraints.add(constraint);
+    }
+    for (Constraint constraint : this.constraints) {
+      constraints.add(constraint);
+    }
+    return constraints.iterator();
+  }
+  
+  public int getNumberOfPathConstraints() {
+    return constraints.size();
   }
 
   /*

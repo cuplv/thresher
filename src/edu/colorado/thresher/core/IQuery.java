@@ -1,6 +1,7 @@
 package edu.colorado.thresher.core;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +158,8 @@ public interface IQuery { // extends Comparable {
   public void removeAllLocalConstraints();
 
   public AbstractDependencyRuleGenerator getDepRuleGenerator();
+  
+  public Iterator<? extends Constraint> constraints();
 
   /**
    * @return a map of constraint -> methods modifying constraint for each

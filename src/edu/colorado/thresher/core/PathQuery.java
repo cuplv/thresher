@@ -1,6 +1,8 @@
 package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -12,6 +14,8 @@ import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -46,9 +50,12 @@ import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SSAThrowInstruction;
 import com.ibm.wala.ssa.SSAUnaryOpInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.intset.OrdinalSet;
 import com.microsoft.z3.AST;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
@@ -623,33 +630,41 @@ public class PathQuery implements IQuery {
     if (pathVars.contains(varName)) {
       // can model array write as (array name).array.i, where i is the index of
       // interest
-      // TODO: add constraints for array loads
-      // Util.Unimp("path queries with arrays. this arrayLoad insruction " +
-      // instr + " might matter for " + this);
-      if (Options.DEBUG)
-        Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayLoad insruction " + instr
-            + " might matter for " + this);
-      // TMP: drop this constraint; we can't prove or disprove it
-      dropConstraintsContaining(varName);
+     
+      if (Options.INDEX_SENSITIVITY) {
+        PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
+        //PointerVariable indexVar = new ConcretePointerVariable(node, instr.getIndex(), this.heapModel);
+        //FieldReference indexRef = getFieldForIndex(instr.getIndex(), instr.getElementType());//FieldReference.findOrCreate(ClassLoaderReference.Primordial, "__fakeField", "v" + instr.getIndex(), 
+            //instr.getElementType().toString());
+        SimplePathTerm toSub = new SimplePathTerm(arrayVar, getFieldForIndex(instr.getIndex(), instr.getElementType(), tbl));      
+        substituteExpForVar(toSub, varName);
+        return isFeasible();
+      } else {
+        if (Options.DEBUG) {
+          Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayLoad insruction " + instr
+              + " might matter for " + this);
+        }
+        // drop this constraint; we can't prove or disprove it
+        dropConstraintsContaining(varName);
+      }
+      
     }
     return true;
   }
+  
+  static FieldReference getFieldForIndex(int index, TypeReference arrType, SymbolTable tbl) {
+    String indexStr = tbl.isIntegerConstant(index) ? "" + tbl.getIntValue(index) : "v" + index;
+    return FieldReference.findOrCreate(ClassLoaderReference.Primordial, "__arrIndex", indexStr, arrType.toString());
+  }
 
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
-    PointerVariable stored = new ConcretePointerVariable(node, instr.getUse(2), this.heapModel);
-    if (pathVars.contains(stored)) {
-      // TODO: add constraints for array stores
-      // Util.Unimp("path queries with arrays. this arrayStore instruction " +
-      // instr + " might matter for " + this);
-      if (Options.DEBUG)
+    PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);    
+    if (pathVars.contains(arrayVar)) {      
+      if (Options.DEBUG) {
         Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayStore insruction " + instr
-            + " might matter for " + this);
-      dropConstraintsContaining(stored);
-      
-      instr.getArrayRef();
-      instr.getIndex();
-      instr.getValue();
-      // return isFeasible();
+              + " might matter for " + this);
+      }
+      dropConstraintsContaining(arrayVar);
     }
     return true;
   }
@@ -678,7 +693,7 @@ public class PathQuery implements IQuery {
   public boolean visit(SSACheckCastInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
-      // TODO: add constraint for checking casts
+      // TODO: add constraint for checking casts?
       // for now casts are unchecked; just sub the rhs for the lhs
       PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
       substituteExpForVar(new SimplePathTerm(rhsVar), lhsVar);
@@ -1648,6 +1663,7 @@ public class PathQuery implements IQuery {
     return depRuleGenerator;
   }
   
+  @Override
   public Iterator<? extends Constraint> constraints() {
     return constraints.iterator();
   }
