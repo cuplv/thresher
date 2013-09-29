@@ -81,6 +81,10 @@ public class Options {
   
   @boolOpt(description = "check downcast safety", _default = false)
   public static boolean CHECK_CASTS = false;
+  
+  // should we use Manu's demand cast checker to easily prove the safety of casts requiring context-sensitivity?
+  @boolOpt(description = "filter cast checking results using demand cast checker", _default = false)
+  public static boolean USE_DEMAND_CAST_CHECKER = false;
 
   @boolOpt(description = "prints end-to-end list of witnessed heap edges for witnessed error", _default = true)
   public static boolean DUMP_WITNESSED_ERR_PATHS = true; // prints

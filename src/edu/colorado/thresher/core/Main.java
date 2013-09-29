@@ -33,6 +33,7 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.SyntheticMethod;
+import com.ibm.wala.demandpa.alg.DemandRefinementPointsTo;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -947,7 +948,7 @@ public class Main {
     */
   }
   
-  private static final String WALA_REGRESSION_EXCLUSIONS = "lib/WALA/com.ibm.wala.core.tests/dat/Java60RegressionExclusions.txt";
+  public static final String WALA_REGRESSION_EXCLUSIONS = "lib/WALA/com.ibm.wala.core.tests/dat/Java60RegressionExclusions.txt";
   
   public static IClassHierarchy setupScopeAndEntrypoints(String appPath, Collection<Entrypoint> entryPoints, AnalysisScope scope) 
       throws ClassHierarchyException, IOException {
@@ -1259,6 +1260,18 @@ public class Main {
     }
     */
     
+    Set<Integer> failSet;
+    if (Options.USE_DEMAND_CAST_CHECKER) {
+      AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
+      Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
+      IClassHierarchy cha = setupScopeAndEntrypoints("", entryPoints, scope);
+      AnalysisOptions options = new AnalysisOptions(scope, entryPoints); 
+      Pair<DemandRefinementPointsTo,PointerAnalysis> demandPair = 
+          DemandCastChecker.makeDemandPointerAnalysis(scope, (ClassHierarchy) cha, (Iterable<Entrypoint>) entryPoints, options, WALA_REGRESSION_EXCLUSIONS);
+      //List<Pair<CGNode, SSACheckCastInstruction>> mayFailCasts =
+      failSet = DemandCastChecker.findFailingCasts(demandPair.fst.getBaseCallGraph(), demandPair.snd, demandPair.fst);
+    } else failSet = Collections.EMPTY_SET;
+    
     //AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);
     CallGraph cg = depRuleGenerator.getCallGraph();
     HeapModel heapModel = depRuleGenerator.getHeapModel();
@@ -1350,6 +1363,10 @@ public class Main {
           }
           //Util.Print("checking cast #" + ++total);
           ++total;
+          if (Options.USE_DEMAND_CAST_CHECKER && !failSet.contains(total)) {
+            Util.Print("skipping cast " + total + " because demand checker proved safe.");
+            continue;
+          }
           //if (!REGRESSIONS && !failSet.contains(total)) {
           //if (!REGRESSIONS)  //&& total != 547) {
           //if (false) {
