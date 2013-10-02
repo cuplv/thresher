@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ssa.SSACFG;
@@ -16,6 +15,7 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
+import com.ibm.wala.types.FieldReference;
 
 public interface IQuery { // extends Comparable {
 
@@ -160,6 +160,8 @@ public interface IQuery { // extends Comparable {
   public AbstractDependencyRuleGenerator getDepRuleGenerator();
   
   public Iterator<? extends Constraint> constraints();
+  
+  public Set<FieldReference> getFields();
 
   /**
    * @return a map of constraint -> methods modifying constraint for each

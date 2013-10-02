@@ -1,5 +1,9 @@
 package edu.colorado.thresher.core;
 
+import java.util.Set;
+
+import com.ibm.wala.types.FieldReference;
+
 public interface Constraint {
 
   /**
@@ -7,4 +11,5 @@ public interface Constraint {
    *         constraints
    */
   // public int getId();
+  public Set<FieldReference> getFields();
 }

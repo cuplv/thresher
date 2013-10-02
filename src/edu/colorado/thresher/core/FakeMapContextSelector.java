@@ -70,7 +70,8 @@ public class FakeMapContextSelector implements ContextSelector {
     //options.setSelector(new Main.AndroidMethodTargetSelector(options.getMethodTargetSelector(), summaries, AndroidUIChecker.findMethods));
     options.setSelector(new LenientClassHierarchyClassTargetSelector(cha));
     
-    return new ZeroXContainerCFABuilder(cha, options, cache, appSelector, appInterpreter, ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY | ZeroXInstanceKeys.SMUSH_PRIMITIVE_HOLDERS
+    return new ZeroXContainerCFABuilder(cha, options, cache, appSelector, appInterpreter, ZeroXInstanceKeys.ALLOCATIONS 
+        | ZeroXInstanceKeys.SMUSH_MANY //| ZeroXInstanceKeys.SMUSH_PRIMITIVE_HOLDERS
         | ZeroXInstanceKeys.SMUSH_STRINGS | ZeroXInstanceKeys.SMUSH_THROWABLES);
   }
   
@@ -116,7 +117,7 @@ public class FakeMapContextSelector implements ContextSelector {
     SSAContextInterpreter appInterpreter = null;
 
     ZeroXFakeMapCFABuilder builder = new ZeroXFakeMapCFABuilder(cha, options, cache, appSelector, appInterpreter,
-        ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY | ZeroXInstanceKeys.SMUSH_PRIMITIVE_HOLDERS
+        ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY // | ZeroXInstanceKeys.SMUSH_PRIMITIVE_HOLDERS
             | ZeroXInstanceKeys.SMUSH_STRINGS | ZeroXInstanceKeys.SMUSH_THROWABLES);
     return builder;
   }

@@ -464,7 +464,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
-    
     if (Options.INDEX_SENSITIVITY) {
       List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
       for (AtomicPathConstraint constraint : this.constraints) {
@@ -1254,6 +1253,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     Map<Constraint, Set<CGNode>> mods = pointsToQuery.getModifiersForQuery();
     mods.putAll(getModifiersForQueryHelper());
     return mods;
+  }
+  
+  @Override
+  public Set<FieldReference> getFields() {
+    Set<FieldReference> fields = this.pointsToQuery.getFields();
+    fields.addAll(super.getFields());
+    return fields;
   }
 
   @Override

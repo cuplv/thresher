@@ -1632,11 +1632,12 @@ public class PointsToQuery implements IQuery {
   
   public PointerVariable getPointedTo(PointerVariable var, FieldReference field) {
     Util.Pre(var.isLocalVar());
+    Util.Pre(field != null);
     PointerVariable found = null;
     PointerVariable ref = getPointedTo(var);
     if (ref != null) {
       for (PointsToEdge edge : this.constraints) {
-        if (edge.getSource().equals(ref) && edge.getFieldRef().getReference().equals(field)) {
+        if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(field)) {
           Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
           found = edge.getSink();
         }
@@ -1654,6 +1655,16 @@ public class PointsToQuery implements IQuery {
       }
     }
     return pt;
+  }
+  
+  public Set<PointerVariable> getPointsAtSet(PointerVariable var) {
+    Set<PointerVariable> pa = HashSetFactory.make();
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSink().equals(var)) {
+        pa.add(edge.getSource());
+      }
+    }
+    return pa;
   }
   
   /**
@@ -2143,6 +2154,15 @@ public class PointsToQuery implements IQuery {
     if (!(constraint instanceof PointsToEdge))
       return false;
     return this.constraints.contains(constraint);
+  }
+  
+  @Override
+  public Set<FieldReference> getFields() {
+    Set<FieldReference> fields = HashSetFactory.make();
+    for (PointsToEdge edge : this.constraints) {
+      fields.addAll(edge.getFields());
+    }
+    return fields;
   }
   
   @Override

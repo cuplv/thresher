@@ -217,7 +217,7 @@ public class Main {
     String[] tests0 = new String[] { "ContainsKeyNoRefute" };
 
     String mainClass = "LAct";
-    for (String test : tests0) {
+    for (String test : tests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -1711,7 +1711,7 @@ public class Main {
     Collection<? extends Entrypoint> e = entryPoints;
     AnalysisOptions options = new AnalysisOptions(scope, e); 
     // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
-    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE); 
+    options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE);
     AnalysisCache cache = new AnalysisCache();
     
     CallGraphBuilder builder;

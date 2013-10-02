@@ -1,5 +1,6 @@
 package edu.colorado.thresher.core;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
 
 public class PointsToEdge implements Constraint, Comparable {
@@ -312,6 +314,12 @@ public class PointsToEdge implements Constraint, Comparable {
 
   public IField getFieldRef() {
     return fieldRef;
+  }
+  
+  @Override 
+  public Set<FieldReference> getFields() {
+    if (this.fieldRef == null) return Collections.EMPTY_SET;
+    return Collections.singleton(fieldRef.getReference());    
   }
 
   /*

@@ -467,6 +467,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
 
   }
 
+  @Override
   public Set<FieldReference> getFields() {
     Set<FieldReference> fields = HashSetFactory.make(); //new HashSet<FieldReference>();
     if (lhs.getFields() != null)

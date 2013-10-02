@@ -662,8 +662,12 @@ public class PathQuery implements IQuery {
   }
   
   
-  static boolean isArrayIndexField(FieldReference fld) {
-    return fld.getName().toString().equals(ARRAY_INDEX);
+  public static boolean isArrayIndexField(FieldReference fld) {
+    return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
+  }
+  
+  public static boolean isArrayLengthField(FieldReference fld) {
+    return fld == SimplePathTerm.LENGTH;
   }
   
   private static final String ARRAY_INDEX = "__arrIndex";
@@ -817,7 +821,10 @@ public class PathQuery implements IQuery {
    */
   boolean addConstraint(AtomicPathConstraint constraint) {
     // decline adding path constraints if we already have more than the max number
-    if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE) return true;
+    if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE) {
+      if (Options.DEBUG) Util.Print("not adding constraint " + constraint + " due to size restrictions");
+      return true;
+    }
 
     if (constraints.add(constraint)) {
       rebuildZ3Constraints();
@@ -1540,7 +1547,7 @@ public class PathQuery implements IQuery {
     Util.Assert(tbl.isIntegerConstant(switchCase.getUse(1)));
     AtomicPathConstraint switchConstraint = new AtomicPathConstraint(matchedTerm, new SimplePathTerm(tbl.getIntValue(switchCase.getUse(1))), op);
     Util.Assert(isFeasible());
-    Util.Debug("adding switch constraint " + switchConstraint);
+    Util.Print("adding switch constraint " + switchConstraint);
     this.addConstraint(switchConstraint);
     return isFeasible();
   }
@@ -1696,6 +1703,15 @@ public class PathQuery implements IQuery {
      * this.constraints) { if (con.getId() == id) return true; } return false;
      */
     return this.constraints.contains(constraint);
+  }
+  
+  @Override
+  public Set<FieldReference> getFields() {
+    Set<FieldReference> fields = HashSetFactory.make();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      fields.addAll(constraint.getFields());
+    }
+    return fields;
   }
 
   @Override
