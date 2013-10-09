@@ -44,6 +44,7 @@ import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.CallGraphStats;
 import com.ibm.wala.ipa.callgraph.Context;
+import com.ibm.wala.ipa.callgraph.ContextSelector;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNode;
@@ -55,7 +56,11 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
+import com.ibm.wala.ipa.callgraph.propagation.SSAPropagationCallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
+import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXContainerCFABuilder;
+import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXInstanceKeys;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -80,6 +85,7 @@ import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
+import com.ibm.wala.util.WalaException;
 import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -90,6 +96,7 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
+import com.ibm.wala.viz.DotUtil;
 
 public class Main {
   
@@ -119,7 +126,7 @@ public class Main {
   }
   
   public static void main(String[] args) throws Exception, IOException, ClassHierarchyException, IllegalArgumentException,
-      CallGraphBuilderCancelException {
+      CallGraphBuilderCancelException {    
     
     String target = Options.parseArgs(args);
     if (target == null) {
@@ -168,14 +175,12 @@ public class Main {
     Util.PRINT = true;
     
     runAndroidLeakRegressionTests();
-    /*
     Options.restoreDefaults();
     runCastCheckingRegressionTests();
     Options.restoreDefaults();
     runSynthesizerRegressionTests();
     Options.restoreDefaults();
     runImmutabilityRegressionTests();
-    */
    }
   
   
@@ -214,10 +219,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    String[] tests0 = new String[] { "ContainsKeyNoRefute" };
+    String[] tests0 = new String[] { "BranchRefute" };
 
     String mainClass = "LAct";
-    for (String test : tests) {
+    for (String test : tests0) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -510,6 +515,21 @@ public class Main {
     return buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath, false);
   }
   
+  public static SSAPropagationCallGraphBuilder makePrimArraySensitiveZeroOneContainer(AnalysisOptions options, AnalysisCache cache,
+      IClassHierarchy cha, AnalysisScope scope) {
+
+    if (options == null) {
+      throw new IllegalArgumentException("options is null");
+    }
+    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultSelectors(options, cha);
+    com.ibm.wala.ipa.callgraph.impl.Util.addDefaultBypassLogic(options, scope, com.ibm.wala.ipa.callgraph.impl.Util.class.getClassLoader(), cha);
+    ContextSelector appSelector = null;
+    SSAContextInterpreter appInterpreter = null;
+    return new ZeroXContainerCFABuilder(cha, options, cache, appSelector, appInterpreter, ZeroXInstanceKeys.ALLOCATIONS 
+        | ZeroXInstanceKeys.SMUSH_MANY 
+        | ZeroXInstanceKeys.SMUSH_STRINGS | ZeroXInstanceKeys.SMUSH_THROWABLES);
+  }
+  
   /**
    * build callgraph, points-to analysis, and mod/ref for given entrypoints
    * @return an abstract dependency rule generator containing these components
@@ -528,7 +548,10 @@ public class Main {
     else cache = new AnalysisCache();
     CallGraphBuilder builder;
     if (Options.ANDROID_UI) builder = FakeMapContextSelector.makeZeroOneContainerCFABuilder(options, cache, cha, scope); 
-    else if (!fakeMap) builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    else if (!fakeMap) {
+      if (Options.PRIM_ARRAY_SENSITIVITY) builder = makePrimArraySensitiveZeroOneContainer(options, cache, cha, scope);
+      else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    }
     else builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
     
     if (Options.DEBUG) DEBUG_cha = cha;
@@ -1715,13 +1738,21 @@ public class Main {
     AnalysisCache cache = new AnalysisCache();
     
     CallGraphBuilder builder;
-    if (Options.ANDROID_LEAK && REGRESSIONS) {
+    if (Options.ANDROID_LEAK && REGRESSIONS) 
       builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);
-    } else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+    else if (Options.PRIM_ARRAY_SENSITIVITY) builder = Main.makePrimArraySensitiveZeroOneContainer(options, cache, cha, scope);
+    else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
     
     Util.Print("Building call graph.");
-    CallGraph cg = builder.makeCallGraph(options, null);
-
+    CallGraph cg = builder.makeCallGraph(options, null);  
+    /*
+    try {
+      DotUtil.dotify(cg, null, "graph.dot", "graph.pdf", "/usr/bin/dot");
+    } catch (WalaException exc) {
+      Util.Print("Wala exception " + exc);
+    }
+    */
+    
     PointerAnalysis pointerAnalysis = builder.getPointerAnalysis();
     HeapGraph hg = new HeapGraphWrapper(pointerAnalysis, cg);
     HeapModel hm = pointerAnalysis.getHeapModel();
@@ -1795,7 +1826,7 @@ public class Main {
         ISymbolicExecutor exec = new OptimizedPathSensitiveSymbolicExecutor(cg, logger);
         // start at line BEFORE call
         Util.Print("Beginning symbolic execution.");
-        Util.Print(node.getIR());
+        //Util.Print(node.getIR());
         foundWitness = exec.executeBackward(node, startBlk, startLineBlkIndex - 1, new CombinedPathAndPointsToQuery(query));
         
         Collection<String> synthesized = exec.getSynthesizedClasses();

@@ -1853,7 +1853,7 @@ public class Util {
       // to have a local pointing at them in order to be written to the static field
       for (Iterator<Object> succs = hg.getSuccNodes(var.getInstanceKey()); succs.hasNext();) {
         Object succ = succs.next();
-        for (Iterator<Object> localPreds = hg.getPredNodes(succ); succs.hasNext();) {
+        for (Iterator<Object> localPreds = hg.getPredNodes(succ); localPreds.hasNext();) {
           Object localPred = localPreds.next();
           if (localPred instanceof LocalPointerKey) nodes.add(((LocalPointerKey) localPred).getNode());
         }

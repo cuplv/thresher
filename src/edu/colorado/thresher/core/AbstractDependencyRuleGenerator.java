@@ -648,7 +648,7 @@ public class AbstractDependencyRuleGenerator {
     else {
       
       if (instr instanceof SSASwitchInstruction) {
-        Util.Print(ir);
+        //Util.Print(ir);
         SymbolTable tbl = ir.getSymbolTable();
         SSASwitchInstruction switch_ = (SSASwitchInstruction) instr;
         int[] casesAndLabels = switch_.getCasesAndLabels();

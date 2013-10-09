@@ -22,7 +22,6 @@ import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
-import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
@@ -41,10 +40,13 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
@@ -391,7 +393,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return true;
   }
   
-
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
@@ -462,10 +463,16 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   @Override
+  // TODO: this is too slow--redo with local vars
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
+    //Util.Print("visiting arr store " + instr);
     PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
     if (Options.INDEX_SENSITIVITY) {
       List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
+      List<Pair<SimplePathTerm,PointerVariable>> toSub1 = new LinkedList<Pair<SimplePathTerm,PointerVariable>>();
+      List<Pair<SimplePathTerm,Pair<PointerVariable, FieldReference>>> toSub2 = 
+          new LinkedList<Pair<SimplePathTerm,Pair<PointerVariable, FieldReference>>>();      
+      
       for (AtomicPathConstraint constraint : this.constraints) {
         for (SimplePathTerm term : constraint.getTerms()) {
           PointerVariable arrayRef = null;
@@ -473,21 +480,43 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             if (term.getObject().isLocalVar() && term.getFirstField() != null) {
               PointerVariable localPtr = term.getObject();
               FieldReference fld = term.getFirstField();
-              arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld);
-              // sub out local.arrayField for the array ref pointed to by local.arrayField
-              substituteExpForFieldRead(new SimplePathTerm(arrayRef), localPtr, fld);
+              if (isArrayIndexField(fld)){
+                arrayRef = this.pointsToQuery.getPointedTo(localPtr);      
+                if (arrayRef != null) toSub1.add(Pair.make(new SimplePathTerm(arrayRef), localPtr));
+                  //substituteExpForVar(new SimplePathTerm(arrayRef), localPtr);
+                //}
+              } else {
+                // sub out local.arrayField for the array ref pointed to by local.arrayField
+                arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld); 
+                if (arrayRef != null) toSub2.add(Pair.make(new SimplePathTerm(arrayRef), Pair.make(localPtr, fld)));
+                  //substituteExpForFieldRead(new SimplePathTerm(arrayRef), localPtr, fld);
+                //}
+              }              
             }
           }
         }
       }
+      
+      for (Pair<SimplePathTerm,PointerVariable> pair : toSub1) {
+        //Util.Print("subbing in " + pair.fst + " for " + pair.snd);
+        substituteExpForVar(pair.fst, pair.snd);
+      }
+      for (Pair<SimplePathTerm,Pair<PointerVariable,FieldReference>> pair : toSub2) {
+        //Util.Print("subbing in " + pair.fst + " for " + pair.snd.fst + "." + pair.snd.snd);
+        substituteExpForFieldRead(pair.fst, pair.snd.fst, pair.snd.snd);
+      }
+      
       for (AtomicPathConstraint constraint : this.constraints) {
         for (SimplePathTerm term : constraint.getTerms()) {
+          //Util.Print("term is " + term);
           PointerVariable arrayRef = null;
           if (term.getObject() != null) {  
+            //Util.Print("termObj is " + term.getObject());
             if (term.getObject().isHeapVar() && term.getFirstField() != null) {                        
               arrayRef = term.getObject();
             }
-            if (arrayRef != null) {              
+            //Util.Print("arrayRef is " + arrayRef);
+            if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), arrayRef.getPossibleValues())) {              
               int storedVal = instr.getValue();
               SimplePathTerm stored;
               if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
@@ -495,6 +524,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
               FieldReference indexField = term.getFirstField();
               PointerVariable indexName = new ConcretePointerVariable(indexField.getName().toString());
               List<AtomicPathConstraint> constraintsWithVar = getConstraintsWithVar(indexName);
+              // if the size here is 0, this isn't actually an error; just means we lost index-sensitivity (by dropping the constraint on __arrIndex)
               Util.Assert(constraintsWithVar.size() == 1, " found " + constraintsWithVar.size() + " constraints with " + indexName);
               AtomicPathConstraint indexConstraint = constraintsWithVar.iterator().next();
               Util.Assert(indexConstraint.isEqualityConstraint());
@@ -508,14 +538,19 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
                 if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
                   // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
                   // constraint
+                  //Util.Print("instr " + instr + " does write to index " + indexExpr + ". subbing.");
                   toRemove.add(indexConstraint);
                   substituteExpForFieldRead(stored, arrayRef, indexField);
-                } // else, it does not write to our index. fall through 
+                } else {
+                  // else, it does not write to our index. fall through
+                  //Util.Print("instr " + instr + " does not write to index " + indexExpr + " constant " + ((SimplePathTerm) indexExpr).getIntegerConstant() +
+                      //" symbol table val " + tbl.getIntValue(instrIndex));
+                }
               } else {
                 // at least one of the indices is not a constant. we need to fork two cases: one where this
                 // instruction does produce our constraint (with an additional equality constraint on the indices)
                 // and one where this instruction does not produce our constraint (with an additional inequality 
-                // constraint on the indices)
+                // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
                 Util.Unimp("case split due to ambiguous array write");
               }
             }
@@ -547,16 +582,51 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
+  
+  // for now, only BOOLEAN_VALUE_OF; may need more general code later
+  public boolean handleStubbedMethod(SSAInvokeInstruction instr, IPathInfo currentPath) {
+    Util.Print("handling stub;");
+    CGNode caller = currentPath.getCurrentNode();
+    substituteExpForVar(new SimplePathTerm(new ConcretePointerVariable(caller, instr.getUse(0), this.depRuleGenerator.hm)),
+                        new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.hm));
+   return isFeasible();
+    
+    /*
+    if (tbl.isIntegerConstant(instr.getUse(0))) {
+      substituteExpForVar(new SimplePathTerm(tbl.getIntValue(instr.getUse(0))), 
+                          new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.hm));
+      return isFeasible();
+    }*/
+    //return true;
+  }
+  
+  private static final MethodReference BOOLEAN_VALUE = MethodReference.findOrCreate(TypeReference.JavaLangBoolean, "booleanValue", "()Z");
+  private static final MethodReference BOOLEAN_VALUE_OF = MethodReference.findOrCreate(TypeReference.JavaLangBoolean, "valueOf", "(Z)Ljava/lang/Boolean");
+
+  // TODO: hack to handle weirdness of boxing and unboxing booleans
+  private boolean isStubbedMethod(MethodReference method) { // avoid classLoader matching issues by checking class name and descriptor
+    return BOOLEAN_VALUE_OF.getDeclaringClass().getName().equals(method.getDeclaringClass().getName()) &&
+    BOOLEAN_VALUE_OF.getSelector().equals(method.getSelector());
+  }
+  
 
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
     Util.Pre(currentPath.query == this);
-    List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath);
-    if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    Util.Assert(ptResults.isEmpty(), "Unimp: handling case splits at calls!");
-    List<IQuery> pathResults = super.enterCall(instr, callee, currentPath);
-    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    return combinePathAndPointsToQueries(ptResults, pathResults);
+    Util.Print("val " + BOOLEAN_VALUE_OF + " target " + instr.getDeclaredTarget() + " eq? " + instr.getDeclaredTarget().equals(BOOLEAN_VALUE_OF));
+        
+    //if (!isStubbedMethod(instr.getDeclaredTarget())) {
+      List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath);
+      if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
+      Util.Assert(ptResults.isEmpty(), "Unimp: handling case splits at calls!");
+      List<IQuery> pathResults = super.enterCall(instr, callee, currentPath);
+      if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
+      return combinePathAndPointsToQueries(ptResults, pathResults);
+    //} else {
+      //if(!handleStubbedMethod(instr, currentPath)) return IQuery.INFEASIBLE;
+      //pointsToQuery.dropConstraintsProduceableInCall(instr, currentPath.getCurrentNode(), callee, true);
+     //return IQuery.FEASIBLE;
+    //}
   }
 
   /**
@@ -565,7 +635,27 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * the dependency rules to help us make relevant bindings
    */
   @Override
-  public void enterCallFromJump(CGNode callee) { 
+  public void enterCallFromJump(CGNode callee) {
+    // TODO: need to do this for path query as well? for non-parameter locals?
+    this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
+    int[] params = callee.getIR().getParameterValueNumbers();
+    HeapGraph hg = this.depRuleGenerator.getHeapGraph();
+    for (int i = 0; i < params.length; i++) { // for each parameter
+      PointerVariable param = new ConcretePointerVariable(callee, params[i], this.heapModel);
+      Set<InstanceKey> pt = param.getPointsToSet(hg);
+      if (!pt.isEmpty()) {
+        PointsToEdge toAdd = null;
+        PointerVariable paramPT = SymbolicPointerVariable.makeSymbolicVar(pt);
+        for (PointsToEdge edge : pointsToQuery.constraints) {
+          if (paramPT.symbEq(edge.getSource())) {
+            toAdd = new PointsToEdge(param, edge.getSource());
+            break;
+          }        
+        }
+        if (toAdd != null) this.pointsToQuery.constraints.add(toAdd);
+      }
+    }
+    /*
     this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
     int[] params = callee.getIR().getParameterValueNumbers();
     HeapModel hm = this.heapModel;
@@ -623,6 +713,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
     }
+    */
   }
 
   @Override
@@ -918,6 +1009,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     // IMPORTANT! must do this first, otherwise we lose the local pts-to info!
     this.removeAllLocalPathConstraints(); 
     pointsToQuery.removeAllLocalConstraints();
+  }
+  
+  @Override
+  public void removeAllNonClinitConstraints() {
+    super.removeAllNonClinitConstraints();
+    this.pointsToQuery.removeAllNonClinitConstraints();
   }
  
   /**

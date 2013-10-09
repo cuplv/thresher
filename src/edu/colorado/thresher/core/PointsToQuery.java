@@ -1212,6 +1212,7 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (!ruleEdge.getSource().isLocalVar() && !edge.getSource().isLocalVar())
+          Util.Print("doing non-local edge ruleEdge " + edge + " and edge " + edge);
           ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false);
       }
     }
@@ -1927,6 +1928,19 @@ public class PointsToQuery implements IQuery {
   }
   
   @Override
+  public void removeAllNonClinitConstraints() {
+    List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
+    for (PointsToEdge edge : constraints) {
+      if (!edge.isClinitConstraint()) {
+        toRemove.add(edge);
+      }
+    }
+    for (PointsToEdge edge : toRemove) constraints.remove(edge);
+    // about to do a piecewise jump; we no longer have any reliable produced information
+    this.produced.clear(); 
+  }
+  
+  @Override
   public Map<Constraint, Set<CGNode>> getRelevantNodes() {
     Map<Constraint, Set<CGNode>> constraintRelevantMap = HashMapFactory.make();
     HeapGraph hg = depRuleGenerator.getHeapGraph();
@@ -2126,6 +2140,11 @@ public class PointsToQuery implements IQuery {
 
     copy.intersect(startConstraints);
     Util.Unimp("non-destructive difference");
+    return null;
+  }
+  
+  @Override
+  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld) {
     return null;
   }
   

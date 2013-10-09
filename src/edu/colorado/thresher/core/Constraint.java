@@ -12,4 +12,15 @@ public interface Constraint {
    */
   // public int getId();
   public Set<FieldReference> getFields();
+  
+  public boolean isArrayIndexConstraint();
+  
+  public boolean isComparisonToConstant();
+  
+  public boolean isMultiDimArrayConstraint();
+  
+  public boolean isClinitConstraint();
+  
+  public Set<PointerVariable> getVars();
+
 }

@@ -151,6 +151,9 @@ public class Options {
   
   @boolOpt(description = "do index-sensitive reasoning", _default = false)
   public static boolean INDEX_SENSITIVITY = false;
+  
+  @boolOpt(description = "should the pointer analysis have object-sensitivity on arrays of primitive type?", _default = false)
+  public static boolean PRIM_ARRAY_SENSITIVITY = false;
 
   @intOpt(description = "if the path constraints are larger than this, we (soundly) refuse to collect new constraints", _default = 2)
   // how large do we allow the path constraints to grow?

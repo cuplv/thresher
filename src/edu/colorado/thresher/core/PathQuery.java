@@ -212,6 +212,45 @@ public class PathQuery implements IQuery {
       }
     }
   }
+  
+  @Override
+  public void removeAllNonClinitConstraints() {
+    Set<AtomicPathConstraint> toRemove = HashSetFactory.make();
+    Set<String> indexConstraintNames = HashSetFactory.make();
+
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.isClinitConstraint()) {
+        for (FieldReference fld : constraint.getFields()) {
+          if (isArrayIndexField(fld)) {
+            String indexConstraintName = fld.getName().toString();
+            indexConstraintNames.add(indexConstraintName);
+            break;
+          }
+        }
+        continue;
+      }
+      toRemove.add(constraint);
+    }
+    for (AtomicPathConstraint removeMe : toRemove) {
+      // remove this constraint as long as it is not an array index constraint associated with a constraint we want to keep
+      if (!removeMe.isArrayIndexConstraint() || 
+          !indexConstraintNames.contains(((SimplePathTerm) removeMe.lhs).getObject().getInstanceKey())) {
+        removeConstraint(removeMe);
+      }
+    }
+  }
+  
+  @Override
+  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld) {
+    Util.Pre(isArrayIndexField(fld));
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.isArrayIndexConstraint() && 
+          ((SimplePathTerm) constraint.lhs).getObject().getInstanceKey().equals(fld.getName().toString())) {
+        return constraint;
+      }
+    }
+    return null;
+  }
 
   /**
    * rebuild Z3 constraints to reflect update to constraint set
@@ -670,6 +709,15 @@ public class PathQuery implements IQuery {
     return fld == SimplePathTerm.LENGTH;
   }
   
+  public static boolean isArrayIndexVariable(PointerVariable var) {
+    return (var.getInstanceKey() instanceof String) && 
+            isArrayIndexVariableName((String) var.getInstanceKey());
+  }
+  
+  public static boolean isArrayIndexVariableName(String name) {
+    return name.contains(ARRAY_INDEX);
+  }
+  
   private static final String ARRAY_INDEX = "__arrIndex";
   
   private static int indexCounter = 0;
@@ -824,6 +872,62 @@ public class PathQuery implements IQuery {
     if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE) {
       if (Options.DEBUG) Util.Print("not adding constraint " + constraint + " due to size restrictions");
       return true;
+    }
+    
+    if (constraint.isEqualityConstraint()) {
+      // other constraints might become more precise from substitution here
+      SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
+      SimplePathTerm nonConstantTerm = null;
+      int intTerm = 0;
+      if (lhs.isIntegerConstant() && rhs.getObject() != null) {
+        substituteExpForVar(lhs, rhs.getObject());
+        nonConstantTerm = rhs;
+        intTerm = lhs.getIntegerConstant();
+      } else if (rhs.isIntegerConstant() && lhs.getObject() != null) {
+        substituteExpForVar(rhs, lhs.getObject());
+        nonConstantTerm = lhs;
+        intTerm = rhs.getIntegerConstant();
+      }
+      List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
+      // if we have a constant inequality constraint on the same var, we should remove it (unless it refutes!)
+      for (AtomicPathConstraint c : this.constraints) {
+        if (c.isInequalityConstraint()) {
+          SimplePathTerm lhs0 = (SimplePathTerm) constraint.getLhs(), rhs0 = (SimplePathTerm) constraint.getRhs();
+          if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs.equals(nonConstantTerm)) toRemove.add(c);
+          else if (rhs0.isIntegerConstant() && rhs0.getIntegerConstant() != intTerm && lhs.equals(nonConstantTerm)) toRemove.add(c);
+        }
+      }
+      
+      for (AtomicPathConstraint removeMe : toRemove) this.constraints.remove(removeMe);
+    } else if (constraint.isInequalityConstraint()) {
+      // if we already have an constant equality constraint on the same var, don't want to add the inequality constraint 
+      // (unless it refutes!) because it will be less precise
+      SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
+      SimplePathTerm nonConstantTerm = null;
+      int intTerm = 0;
+      if (lhs.isIntegerConstant()) {
+        nonConstantTerm = rhs;
+        intTerm = lhs.getIntegerConstant();
+      } else if (rhs.isIntegerConstant()) {
+        nonConstantTerm = lhs;
+        intTerm = rhs.getIntegerConstant();
+      }
+      if (nonConstantTerm != null) {
+        for (AtomicPathConstraint c : this.constraints) {
+          if (c.isEqualityConstraint()) {
+            SimplePathTerm lhs0 = (SimplePathTerm) constraint.getLhs(), rhs0 = (SimplePathTerm) constraint.getRhs();
+            if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs.equals(nonConstantTerm)) {
+              System.out.println("not adding " + constraint + " because we have " + c);
+              return true; // skip adding
+            }
+            else if (rhs0.isIntegerConstant() && rhs0.getIntegerConstant() != intTerm && lhs.equals(nonConstantTerm)) {
+              System.out.println("not adding " + constraint + " because we have " + c);
+              return true;
+            }
+          }
+        }
+      }
+      
     }
 
     if (constraints.add(constraint)) {

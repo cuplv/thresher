@@ -62,6 +62,8 @@ public interface PointerVariable extends Comparable {
   public Set<InstanceKey> getPointsToSet(HeapGraph hg);
   
   public boolean isParameter();
+  
+  public boolean isClinitVar();
 
   // unconstrained instance num
   public static final int ANY_INSTANCE_NUM = -1;

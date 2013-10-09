@@ -303,8 +303,6 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
             System.out.println("Can fail if: ");
             // print counterexample
             for (Map.Entry<SimplePathTerm,String> entry : termValMap.entrySet()) {
-              SimplePathTerm term = entry.getKey();
-              IR ir = term.getObject().getNode().getIR();
               System.out.println(entry.getKey() + " = " + entry.getValue());
             }
             

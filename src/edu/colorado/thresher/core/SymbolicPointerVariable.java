@@ -66,12 +66,12 @@ public class SymbolicPointerVariable implements PointerVariable {
     this.id = symbCounter++;
     Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
     this.possibleValues = possibleValues;
-    /*
-    if (Options.DEBUG) {
-      Util.Debug("Possible values for " + id + "symb:");
-      Util.Debug(Util.printCollection(possibleValues));
-    }
-    */  
+    
+    //if (Options.DEBUG) {
+      //Util.Print("Possible values for " + id + "symb:");
+      //Util.Print(Util.printCollection(possibleValues));
+    //}
+    
   }
 
   public CGNode getNode() {
@@ -219,7 +219,6 @@ public class SymbolicPointerVariable implements PointerVariable {
   }
 
   public boolean isHeapVar() {
-    Util.Assert(false, "untested");
     return true;
   }
 
@@ -275,6 +274,13 @@ public class SymbolicPointerVariable implements PointerVariable {
     }
     return false;
   }
+
+  @Override
+  public boolean isClinitVar() {
+    // TODO: just assuming that it's not; we'd need the callgraph to determine otherwise
+    return false;
+  }
+
 
   @Override
   public boolean equals(Object other) {

@@ -169,67 +169,6 @@ public class SimplePathTerm implements PathTerm {
       }
       newTerm.setSubstituted(true);
       return newTerm;
-
-      /*
-       * if (!this.isIntegerConstant() && object.equals(subFor.getObject())) {
-       * // SimplePathTerm newTerm; if (subFor.getFields() == null) { // subbing
-       * out any fields? // no fields; subbing for variable x if
-       * (toSub.getFields() != null) { LinkedList<FieldReference> newFields =
-       * this.fields; // subbing y.f for x if (this.fields != null) {
-       * FieldReference toAdd = toSub.getFieldsAsLinkedList().get(0);
-       * Util.Assert(!toAdd.equals(this.fields.getFirst()), "duplicate field " +
-       * toAdd); this.fields.addFirst(toAdd); } else newFields =
-       * toSub.getFieldsAsLinkedList(); newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), newFields); } else { //
-       * subbing y for x newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), this.fields); } } else {
-       * // subbing for x.f if (toSub.getFields() != null) { // subbing y.f for
-       * x.f
-       * Util.Assert(this.fields.removeFirst().equals(subFor.getFields().get(
-       * 0)), "fields don't match!"); newTerm = null; Util.Assert(false,
-       * "not sure how to do this!"); } else { // subbing y for x.f
-       * Util.Assert(this
-       * .fields.removeFirst().equals(subFor.getFields().get(0)),
-       * "fields don't match!"); newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), this.fields); } }
-       * newTerm.setSubstituted(true); return newTerm;
-       */
-
-      /*
-       * if (toSub.getFields() == null) { newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), this.fields); } else if
-       * (subFor.getFields() == null) { // subbing y.f for x
-       * Util.Assert(toSub.getFields().size() == 1,
-       * "shouldn't be able to sub more than one field!"); if
-       * (this.fields.getFirst().equals(toSub.getFields().get(0))) { // do the
-       * fields match? this.fields.removeFirst(); newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(),
-       * toSub.getFieldsAsLinkedList()); } } else
-       * Util.Unimp("not sure what to do here...");
-       * 
-       * if (this.fields == null) { // subbing x.f for y newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(),
-       * toSub.getFieldsAsLinkedList()); } else { Util.Assert(toSub.getFields()
-       * == null || toSub.getFields().size() == 1,
-       * "shouldn't be able to sub more than one field!"); if (toSub.getFields()
-       * != null) {
-       * this.fields.addFirst(toSub.getFieldsAsLinkedList().getFirst());
-       * 
-       * // DEBUG String name = null; for (FieldReference field : fields) { if
-       * (name != null) { Util.Assert(!name.equals(field.getName().toString()),
-       * "duplicate fields! " + this); this.setSubstituted(false); return this;
-       * } name = field.getName().toString(); } // END DEBUG } // subbing y for
-       * x newTerm = new SimplePathTerm(toSub.getObject().deepCopy(),
-       * this.fields);
-       * 
-       * } //Util.Assert(this.field != null,
-       * "FIELD SHOULD NOT BE NULL HERE; subbing " + toSub + " for " + this);
-       * //SimplePathTerm newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), this.field);
-       * //SimplePathTerm newTerm = new
-       * SimplePathTerm(toSub.getObject().deepCopy(), toSub.getField());
-       * newTerm.setSubstituted(true); return newTerm;
-       */
     }
     this.setSubstituted(false);
     return this;

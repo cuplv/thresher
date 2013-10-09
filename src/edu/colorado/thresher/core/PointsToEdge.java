@@ -10,12 +10,13 @@ import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.MultiNewArrayInNode;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.util.collections.HashSetFactory;
 
-public class PointsToEdge implements Constraint, Comparable {
+public class PointsToEdge extends AbstractConstraint implements Comparable {
 
   private final PointerVariable source;
   private final PointerVariable sink;
@@ -167,8 +168,10 @@ public class PointsToEdge implements Constraint, Comparable {
   public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
       Set<PointerVariable> alreadySubbed, boolean hard) {
     List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
-    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
-      if (this.source.isSymbolic()) {
+    //if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
+    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)) {
+      //if (this.source.isSymbolic()) {
+      if (this.source.isSymbolic() && !alreadySubbed.contains(this.source)) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
           PointerVariable sub = subMap.get(this.source);
           // more than one instantiation choice. must do a case split
@@ -199,7 +202,8 @@ public class PointsToEdge implements Constraint, Comparable {
         toAdd.clear();
       }
 
-      if (this.sink.isSymbolic() && this.sink.symbEq(other.getSink()) && !alreadySubbed.contains(this.sink)) {
+      //if (this.sink.isSymbolic() && this.sink.symbEq(other.getSink()) && !alreadySubbed.contains(this.sink)) {
+      if (this.sink.isSymbolic() && !alreadySubbed.contains(this.sink)) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
           PointerVariable sub = subMap.get(this.sink);
 
@@ -314,6 +318,20 @@ public class PointsToEdge implements Constraint, Comparable {
 
   public IField getFieldRef() {
     return fieldRef;
+  }
+
+  @Override
+  public boolean isArrayIndexConstraint() { return false; }
+
+  @Override
+  public boolean isComparisonToConstant() { return false; }
+  
+  @Override 
+  public Set<PointerVariable> getVars() {
+    Set<PointerVariable> varSet = HashSetFactory.make();
+    varSet.add(this.source);
+    varSet.add(this.sink);
+    return varSet;
   }
   
   @Override 

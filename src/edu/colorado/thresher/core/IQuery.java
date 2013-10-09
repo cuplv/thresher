@@ -70,6 +70,9 @@ public interface IQuery { // extends Comparable {
    * does this query contain constraint?
    */
   public boolean containsConstraint(Constraint constraint);
+  
+  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld);
+
 
   /**
    * modify query to simulate execution of non-call instr
@@ -162,6 +165,9 @@ public interface IQuery { // extends Comparable {
   public Iterator<? extends Constraint> constraints();
   
   public Set<FieldReference> getFields();
+  
+  public void removeAllNonClinitConstraints();
+
 
   /**
    * @return a map of constraint -> methods modifying constraint for each

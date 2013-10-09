@@ -26,7 +26,7 @@ import com.microsoft.z3.Z3Exception;
  * @author sam
  */
 
-public class AtomicPathConstraint implements Constraint { // , Comparable {
+public class AtomicPathConstraint extends AbstractConstraint implements Constraint { // , Comparable {
   public static boolean DEBUG = Options.DEBUG;
 
   public static AtomicPathConstraint TRUE = new AtomicPathConstraint();
@@ -485,6 +485,23 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
     return keys;
   }
   
+  @Override
+  public boolean isComparisonToConstant() {
+    if (this.isSimpleConstraint()) {
+      SimplePathTerm simpleLHS = (SimplePathTerm) lhs, simpleRHS = (SimplePathTerm) rhs; 
+      return simpleLHS.isIntegerConstant() || simpleRHS.isIntegerConstant();
+    }
+    return false;
+  }
+  
+  @Override
+  public boolean isArrayIndexConstraint() {
+    for (PointerVariable var : this.getVars()) {
+      if (PathQuery.isArrayIndexVariable(var)) return true;
+    }
+    return false;
+  }
+
   /**
    * @return - set of *all* pointer keys associated with constraint
    */
@@ -551,7 +568,7 @@ public class AtomicPathConstraint implements Constraint { // , Comparable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null) return false;
+    if (other == null || !(other instanceof AtomicPathConstraint)) return false;
     AtomicPathConstraint pc = (AtomicPathConstraint) other;
     return pc.getLhs().equals(lhs) && pc.getOp() == op && pc.getRhs().equals(rhs);
   }

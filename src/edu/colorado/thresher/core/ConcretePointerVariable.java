@@ -17,6 +17,8 @@ import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
+import com.ibm.wala.ipa.callgraph.propagation.MultiNewArrayInNode;
+import com.ibm.wala.ipa.callgraph.propagation.NormalAllocationInNode;
 import com.ibm.wala.ipa.callgraph.propagation.ReturnValueKey;
 import com.ibm.wala.ipa.callgraph.propagation.SmushedAllocationSiteInNode;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
@@ -255,7 +257,9 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     Set<InstanceKey> keys = HashSetFactory.make();
     for (Iterator<Object> succs = hg.getSuccNodes(this.instanceKey); succs.hasNext();) {
       keys.add((InstanceKey) succs.next());
-    }
+    }    
+    //Util.Print("Points-to set of " + this + ": " + Util.printCollection(keys));
+    
     return keys;
   }
   
@@ -389,6 +393,11 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     return instanceKey != null && (instanceKey instanceof LocalPointerKey || 
                                    instanceKey instanceof ReturnValueKey);
   }
+  
+  @Override
+  public boolean isClinitVar() {
+    return this.node != null && this.node.getMethod().isClinit();
+  }
 
   public boolean isHeapVar() {
     return instanceKey != null
@@ -397,6 +406,8 @@ public class ConcretePointerVariable implements PointerVariable { // implements
             instanceKey instanceof StaticFieldKey ||
             instanceKey instanceof ConcreteTypeKey||
             instanceKey instanceof AllocationSite || 
+            instanceKey instanceof MultiNewArrayInNode ||
+            instanceKey instanceof NormalAllocationInNode ||
             instanceKey instanceof SmushedAllocationSiteInNode); 
   }
 
