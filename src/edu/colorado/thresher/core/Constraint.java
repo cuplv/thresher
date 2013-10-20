@@ -13,6 +13,8 @@ public interface Constraint {
   // public int getId();
   public Set<FieldReference> getFields();
   
+  public boolean isArrayContentsConstraint();
+  
   public boolean isArrayIndexConstraint();
   
   public boolean isComparisonToConstant();

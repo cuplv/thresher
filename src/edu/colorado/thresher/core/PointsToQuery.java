@@ -245,11 +245,23 @@ public class PointsToQuery implements IQuery {
                                 // rules were found
     } else if (applicableRules.size() == 1) {
       DependencyRule rule = applicableRules.get(0);
-      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+      //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); 
       //if (!rule.getShown().getSource().isLocalVar()) {
       if (!rule.getShown().getSource().isLocalVar() && !(rule.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
-        Util.Debug("adding rule not applied path.");
-        caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is
+        boolean simultaneousPointsTo = false;
+        for (PointsToEdge toShow : rule.getToShow()) {
+          // if one of the preconditions for the rule is x -> A and we already have x -> A in our constraints,
+          // then we cannot add a rule not applied path because this would imply that x points to two different instances 
+          // of A, giving us a refutation based on simultaneous points-to
+          if (toShow.getSource().isLocalVar() && this.constraints.contains(toShow)) {
+            simultaneousPointsTo = true;
+            break;
+          }
+        }        
+        if (!simultaneousPointsTo) {
+          Util.Debug("adding rule not applied path.");
+          caseSplits.add(this.deepCopy()); // add "rule not applied" path. this is neede for soundness
+        }
       }
       if (applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return caseSplits;
       return IQuery.INFEASIBLE; // else, refuted
@@ -1412,7 +1424,8 @@ public class PointsToQuery implements IQuery {
   }
 
   public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
-    if (rule.isSymbolic()) return isSymbolicRuleRelevant(rule, currentPath);
+    //if (rule.isSymbolic()) return isSymbolicRuleRelevant(rule, currentPath);
+    if (true) return isSymbolicRuleRelevant(rule, currentPath);
     List<PointsToEdge> checkMe = new ArrayList<PointsToEdge>(3);
     checkMe.add(rule.getShown());
 

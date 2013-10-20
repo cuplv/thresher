@@ -1,6 +1,5 @@
 package edu.colorado.thresher.core;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,9 +15,7 @@ import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
-import com.ibm.wala.util.graph.impl.GraphInverter;
 import com.ibm.wala.util.graph.traverse.BFSPathFinder;
-import com.ibm.wala.util.graph.traverse.DFS;
 import com.ibm.wala.util.intset.IntIterator;
 
 public class PiecewiseSymbolicExecutor extends PruningSymbolicExecutor {

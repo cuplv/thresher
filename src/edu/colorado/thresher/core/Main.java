@@ -73,6 +73,7 @@ import com.ibm.wala.shrikeBT.ConditionalBranchInstruction;
 import com.ibm.wala.ssa.DefaultIRFactory;
 import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.ISSABasicBlock;
+import com.ibm.wala.ssa.InstanceOfPiPolicy;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
@@ -654,6 +655,7 @@ public class Main {
   
   public static void runAndroidBadMethodCheck(String appPath) throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;
+    Util.Unimp("remove all uses of cg.getNodes()! behaves badly with subclassing");
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
     Collection<Entrypoint> entryPoints = new LinkedList<Entrypoint>();
     Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
@@ -1735,8 +1737,12 @@ public class Main {
     AnalysisOptions options = new AnalysisOptions(scope, e); 
     // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
     options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE);
+    /* // handle instanceof guards 
+    SSAOptions ssaOpt = SSAOptions.defaultOptions();
+    ssaOpt.setPiNodePolicy(InstanceOfPiPolicy.createInstanceOfPiPolicy());
+    options.setSSAOptions(ssaOpt);
+    */
     AnalysisCache cache = new AnalysisCache();
-    
     CallGraphBuilder builder;
     if (Options.ANDROID_LEAK && REGRESSIONS) 
       builder = FakeMapContextSelector.makeZeroOneFakeMapCFABuilder(options, cache, cha, scope);

@@ -321,6 +321,12 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
   }
 
   @Override
+  public boolean isArrayContentsConstraint() { 
+    return fieldRef != null && (fieldRef.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS) || 
+        PathQuery.isArrayIndexField(fieldRef.getReference()));
+  }
+
+  @Override
   public boolean isArrayIndexConstraint() { return false; }
 
   @Override

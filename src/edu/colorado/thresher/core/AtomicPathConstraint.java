@@ -235,6 +235,7 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
   // rhs.isIntegerConstant()); }
   public boolean isConstant() {
     if (lhs.isIntegerConstant() && rhs.isIntegerConstant()) return true;
+    else if (this.isPointsToConstraint() && this.isSimple()) return true;    
     else if (this.op == ConditionalBranchInstruction.Operator.EQ || 
              this.op == ConditionalBranchInstruction.Operator.NE) {
       return (lhs.isIntegerConstant() && rhs.isHeapLocation()) ||
@@ -243,9 +244,7 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
     return false;
   }
 
-  public boolean isSimple() {
-    return this.lhs instanceof SimplePathTerm && this.rhs instanceof SimplePathTerm;
-  }
+ 
 
   public boolean substituted() {
     return substituted;
@@ -318,6 +317,11 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
         case NE: return rhsVal == 0; // we had heapLoc != lhsVal; lhsVal must zero or we refute
         default:  Util.Unimp("unsupported op for obj comparison " + op);
       }
+    } else if (this.isPointsToConstraint()) {
+      SimplePathTerm simpleLHS = (SimplePathTerm) this.lhs;
+      SimplePathTerm simpleRHS = (SimplePathTerm) this.rhs;
+      PointerVariable lhsVar = simpleLHS.getObject(), rhsVar = simpleRHS.getObject();
+      return lhsVar.symbEq(rhsVar);
     }
     Util.Unimp("should not be evaluating non-const constraint " + this);
     return true;
@@ -410,16 +414,16 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
     return false;
   }
   
-  boolean isSimpleConstraint() {
-    return this.rhs instanceof SimplePathTerm && this.lhs instanceof SimplePathTerm;
+  public boolean isSimple() {
+    return this.lhs instanceof SimplePathTerm && this.rhs instanceof SimplePathTerm;
   }
   
   public boolean isEqualityConstraint() {
-    return this.op == ConditionalBranchInstruction.Operator.EQ && isSimpleConstraint();
+    return this.op == ConditionalBranchInstruction.Operator.EQ && isSimple();
   }
   
   public boolean isInequalityConstraint() {
-    return this.op == ConditionalBranchInstruction.Operator.NE && isSimpleConstraint();
+    return this.op == ConditionalBranchInstruction.Operator.NE && isSimple();
   }
   
   public boolean isEqNullConstraint() {
@@ -487,7 +491,7 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
   
   @Override
   public boolean isComparisonToConstant() {
-    if (this.isSimpleConstraint()) {
+    if (this.isSimple()) {
       SimplePathTerm simpleLHS = (SimplePathTerm) lhs, simpleRHS = (SimplePathTerm) rhs; 
       return simpleLHS.isIntegerConstant() || simpleRHS.isIntegerConstant();
     }
@@ -498,6 +502,15 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
   public boolean isArrayIndexConstraint() {
     for (PointerVariable var : this.getVars()) {
       if (PathQuery.isArrayIndexVariable(var)) return true;
+    }
+    return false;
+  }
+  
+  @Override
+  public boolean isArrayContentsConstraint() { 
+    FieldReference arrContents = AbstractDependencyRuleGenerator.ARRAY_CONTENTS.getReference();
+    for (FieldReference fld : this.getFields()) {
+      if (fld.equals(arrContents) || PathQuery.isArrayIndexField(fld)) return true;
     }
     return false;
   }

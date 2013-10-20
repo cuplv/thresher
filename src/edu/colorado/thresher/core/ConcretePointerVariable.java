@@ -343,7 +343,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     if (other instanceof SymbolicPointerVariable)
       return 1;
     else if (other instanceof ConcretePointerVariable) {
-      ConcretePointerVariable p = (ConcretePointerVariable) other;
+      ConcretePointerVariable p = (ConcretePointerVariable) other;      
       //return this.id - p.id;
       return this.instanceKey.toString().compareTo(p.instanceKey.toString());
     } else {

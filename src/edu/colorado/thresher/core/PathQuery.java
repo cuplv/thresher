@@ -1,8 +1,6 @@
 package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,8 +12,6 @@ import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
-import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
-import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -55,7 +51,7 @@ import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
-import com.ibm.wala.util.intset.OrdinalSet;
+import com.ibm.wala.util.collections.Pair;
 import com.microsoft.z3.AST;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
@@ -238,6 +234,27 @@ public class PathQuery implements IQuery {
         removeConstraint(removeMe);
       }
     }
+  }
+  
+  public Pair<AtomicPathConstraint,FieldReference> getIndexConstraintFor(AtomicPathConstraint c) {
+    Util.Assert(c.getLhs() instanceof SimplePathTerm); 
+    SimplePathTerm arrTerm = (SimplePathTerm) c.getLhs();
+    Util.Assert(arrTerm.getFirstField() != null && isArrayIndexField(arrTerm.getFirstField()));
+    FieldReference indexField = arrTerm.getFirstField(); // find the term with the path var 
+    
+    /*
+    PointerVariable indexName = new ConcretePointerVariable(indexField.getName().toString());
+    List<AtomicPathConstraint> constraintsWithVar = getConstraintsWithVar(indexName);
+    // if the size here is 0, this isn't actually an error; just means we lost index-sensitivity (by dropping the constraint on __arrIndex)
+    Util.Assert(constraintsWithVar.size() == 1, " found " + constraintsWithVar.size() + " constraints with " + indexName);
+    AtomicPathConstraint indexConstraint = constraintsWithVar.iterator().next();
+    Util.Assert(indexConstraint.isEqualityConstraint());
+    Util.Assert(indexConstraint.getLhs().getVars().contains(indexName), indexConstraint.getLhs() + " does not have " + indexName);
+    */
+    AtomicPathConstraint indexConstraint = getIndexConstraintFor(indexField);
+    // TODO: this isn't actually an error; just the only thing we know how to handle right now
+    Util.Assert(indexConstraint.isEqualityConstraint());
+    return Pair.make(indexConstraint,indexField);
   }
   
   @Override
@@ -700,6 +717,15 @@ public class PathQuery implements IQuery {
     return true;
   }
   
+  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var) {
+    List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(var)) {
+        constraintsWithVar.add(constraint);
+      }
+    }
+    return constraintsWithVar;
+  }
   
   public static boolean isArrayIndexField(FieldReference fld) {
     return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
@@ -762,9 +788,10 @@ public class PathQuery implements IQuery {
   public boolean visit(SSACheckCastInstruction instr, CGNode node) {
     PointerVariable lhsVar = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
     if (pathVars.contains(lhsVar)) {
+      Util.Print("subbing path constraint check cast");
       // TODO: add constraint for checking casts?
       // for now casts are unchecked; just sub the rhs for the lhs
-      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel);
+      PointerVariable rhsVar = new ConcretePointerVariable(node, instr.getVal(), this.heapModel);
       substituteExpForVar(new SimplePathTerm(rhsVar), lhsVar);
       return isFeasible();
     }
@@ -900,6 +927,8 @@ public class PathQuery implements IQuery {
       
       for (AtomicPathConstraint removeMe : toRemove) this.constraints.remove(removeMe);
     } else if (constraint.isInequalityConstraint()) {
+      List<AtomicPathConstraint> toAdd = new LinkedList<AtomicPathConstraint>();
+      Util.Print("adding inequality constraint " + constraint);
       // if we already have an constant equality constraint on the same var, don't want to add the inequality constraint 
       // (unless it refutes!) because it will be less precise
       SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
@@ -913,23 +942,33 @@ public class PathQuery implements IQuery {
         intTerm = rhs.getIntegerConstant();
       }
       if (nonConstantTerm != null) {
+        Util.Print("have non-null nonConstantTerm " + nonConstantTerm);
         for (AtomicPathConstraint c : this.constraints) {
           if (c.isEqualityConstraint()) {
-            SimplePathTerm lhs0 = (SimplePathTerm) constraint.getLhs(), rhs0 = (SimplePathTerm) constraint.getRhs();
-            if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs.equals(nonConstantTerm)) {
+            SimplePathTerm lhs0 = (SimplePathTerm) c.getLhs(), rhs0 = (SimplePathTerm) c.getRhs();
+            Util.Print("have equality constraint " + c + " and rhs0 " + rhs0 + " rhs0 eq nonConstantTerm? " + rhs0.equals(nonConstantTerm));
+            if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs0.equals(nonConstantTerm)) {
               System.out.println("not adding " + constraint + " because we have " + c);
               return true; // skip adding
-            }
-            else if (rhs0.isIntegerConstant() && rhs0.getIntegerConstant() != intTerm && lhs.equals(nonConstantTerm)) {
+            } else if (rhs0.isIntegerConstant() && rhs0.getIntegerConstant() != intTerm && lhs0.equals(nonConstantTerm)) {
               System.out.println("not adding " + constraint + " because we have " + c);
               return true;
+            } else if (rhs0.equals(nonConstantTerm)) { 
+              // we have x == y in the constraints, and our new constraint is y != c for some constant c
+              // add constraint x != c as well
+              AtomicPathConstraint addMe = new AtomicPathConstraint(lhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
+              Util.Print("adding extra constraint " + addMe);
+              toAdd.add(addMe);
+            } else if (lhs0.equals(nonConstantTerm)) {
+              AtomicPathConstraint addMe = new AtomicPathConstraint(rhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
+              Util.Print("adding extra constraint " + addMe);
+              toAdd.add(addMe);
             }
           }
         }
       }
-      
+      for (AtomicPathConstraint addMe : toAdd) this.constraints.add(addMe);
     }
-
     if (constraints.add(constraint)) {
       rebuildZ3Constraints();
       return true;

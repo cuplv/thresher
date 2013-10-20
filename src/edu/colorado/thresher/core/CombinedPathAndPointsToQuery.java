@@ -452,14 +452,44 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return true; // didn't add any constraints, can't be infeasible
   }
   
-  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var) {
-    List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
-    for (AtomicPathConstraint constraint : this.constraints) {
-      if (constraint.getVars().contains(var)) {
-        constraintsWithVar.add(constraint);
-      }
+  boolean visitArrayStoreInternal(SSAArrayStoreInstruction instr, CGNode node,SymbolTable tbl, PointerVariable arrayVar) {
+    int storedVal = instr.getValue();
+    SimplePathTerm stored;
+    if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
+    else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
+    
+    List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar);
+    // TODO: generalize this to multiple constraints on arr; not expected for now
+    Util.Assert(arrConstraints.size() == 1);
+    AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
+    Pair<AtomicPathConstraint,FieldReference> indexPair = getIndexConstraintFor(arrConstraint);
+    AtomicPathConstraint indexConstraint = indexPair.fst;
+    FieldReference indexField = indexPair.snd;
+  
+    // compare index constraint to index here
+    PathTerm indexExpr = indexConstraint.getRhs();
+    int instrIndex = instr.getIndex();
+    if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
+      // both index expression and index of array store instruction are constants. we can determine
+      // unambiguously whether this instruction writes to the index of interest
+      if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
+        // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
+        // constraint
+        //Util.Print("instr " + instr + " does write to index " + indexExpr + ". subbing.");
+        removeConstraint(indexConstraint);
+        //Util.Unimp("need to extract this to avoid concurrent modification exception");
+        substituteExpForFieldRead(stored, arrayVar, indexField);
+        //toSub.add(Pair.make(stored, Pair.make(arrayRef, indexField)));
+      } // else, it definitely does not write to our index. fall through
+    } else {
+      // TODO:
+      // at least one of the indices is not a constant. we need to fork two cases: one where this
+      // instruction does produce our constraint (with an additional equality constraint on the indices)
+      // and one where this instruction does not produce our constraint (with an additional inequality 
+      // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
+      Util.Unimp("case split due to ambiguous array write");
     }
-    return constraintsWithVar;
+    return isFeasible();
   }
   
   @Override
@@ -468,11 +498,15 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     //Util.Print("visiting arr store " + instr);
     PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
     if (Options.INDEX_SENSITIVITY) {
-      List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
+      if (pathVars.contains(arrayVar)) {
+        return visitArrayStoreInternal(instr, node, tbl, arrayVar);
+      }
+      
       List<Pair<SimplePathTerm,PointerVariable>> toSub1 = new LinkedList<Pair<SimplePathTerm,PointerVariable>>();
       List<Pair<SimplePathTerm,Pair<PointerVariable, FieldReference>>> toSub2 = 
           new LinkedList<Pair<SimplePathTerm,Pair<PointerVariable, FieldReference>>>();      
       
+      outer:
       for (AtomicPathConstraint constraint : this.constraints) {
         for (SimplePathTerm term : constraint.getTerms()) {
           PointerVariable arrayRef = null;
@@ -482,16 +516,22 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
               FieldReference fld = term.getFirstField();
               if (isArrayIndexField(fld)){
                 arrayRef = this.pointsToQuery.getPointedTo(localPtr);      
-                if (arrayRef != null) toSub1.add(Pair.make(new SimplePathTerm(arrayRef), localPtr));
-                  //substituteExpForVar(new SimplePathTerm(arrayRef), localPtr);
-                //}
-              } else {
+                //if (arrayRef != null) toSub1.add(Pair.make(new SimplePathTerm(arrayRef), localPtr));
+                if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), 
+                    arrayRef.getPossibleValues())) {
+                  toSub1.add(Pair.make(new SimplePathTerm(arrayVar), localPtr));
+                  break outer;
+                }
+              } else {  
                 // sub out local.arrayField for the array ref pointed to by local.arrayField
                 arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld); 
-                if (arrayRef != null) toSub2.add(Pair.make(new SimplePathTerm(arrayRef), Pair.make(localPtr, fld)));
-                  //substituteExpForFieldRead(new SimplePathTerm(arrayRef), localPtr, fld);
-                //}
-              }              
+                //if (arrayRef != null) toSub2.add(Pair.make(new SimplePathTerm(arrayRef), Pair.make(localPtr, fld)));                
+                if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), 
+                                                                arrayRef.getPossibleValues())) {
+                  toSub2.add(Pair.make(new SimplePathTerm(arrayVar), Pair.make(localPtr, fld)));
+                  break outer;
+                }
+              }                           
             }
           }
         }
@@ -505,60 +545,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         //Util.Print("subbing in " + pair.fst + " for " + pair.snd.fst + "." + pair.snd.snd);
         substituteExpForFieldRead(pair.fst, pair.snd.fst, pair.snd.snd);
       }
-      
-      for (AtomicPathConstraint constraint : this.constraints) {
-        for (SimplePathTerm term : constraint.getTerms()) {
-          //Util.Print("term is " + term);
-          PointerVariable arrayRef = null;
-          if (term.getObject() != null) {  
-            //Util.Print("termObj is " + term.getObject());
-            if (term.getObject().isHeapVar() && term.getFirstField() != null) {                        
-              arrayRef = term.getObject();
-            }
-            //Util.Print("arrayRef is " + arrayRef);
-            if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), arrayRef.getPossibleValues())) {              
-              int storedVal = instr.getValue();
-              SimplePathTerm stored;
-              if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
-              else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
-              FieldReference indexField = term.getFirstField();
-              PointerVariable indexName = new ConcretePointerVariable(indexField.getName().toString());
-              List<AtomicPathConstraint> constraintsWithVar = getConstraintsWithVar(indexName);
-              // if the size here is 0, this isn't actually an error; just means we lost index-sensitivity (by dropping the constraint on __arrIndex)
-              Util.Assert(constraintsWithVar.size() == 1, " found " + constraintsWithVar.size() + " constraints with " + indexName);
-              AtomicPathConstraint indexConstraint = constraintsWithVar.iterator().next();
-              Util.Assert(indexConstraint.isEqualityConstraint());
-              Util.Assert(indexConstraint.getLhs().getVars().contains(indexName), indexConstraint.getLhs() + " does not have " + indexName);
-              // compare index constraint to index here
-              PathTerm indexExpr = indexConstraint.getRhs();
-              int instrIndex = instr.getIndex();
-              if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
-                // both index expression and index of array store instruction are constants. we can determine
-                // unambiguously whether this instruction writes to the index of interest
-                if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
-                  // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
-                  // constraint
-                  //Util.Print("instr " + instr + " does write to index " + indexExpr + ". subbing.");
-                  toRemove.add(indexConstraint);
-                  substituteExpForFieldRead(stored, arrayRef, indexField);
-                } else {
-                  // else, it does not write to our index. fall through
-                  //Util.Print("instr " + instr + " does not write to index " + indexExpr + " constant " + ((SimplePathTerm) indexExpr).getIntegerConstant() +
-                      //" symbol table val " + tbl.getIntValue(instrIndex));
-                }
-              } else {
-                // at least one of the indices is not a constant. we need to fork two cases: one where this
-                // instruction does produce our constraint (with an additional equality constraint on the indices)
-                // and one where this instruction does not produce our constraint (with an additional inequality 
-                // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
-                Util.Unimp("case split due to ambiguous array write");
-              }
-            }
-          }
-        }
+
+      if (pathVars.contains(arrayVar)) {
+        return visitArrayStoreInternal(instr, node, tbl, arrayVar);
       }
-      for (AtomicPathConstraint removeMe : toRemove) constraints.remove(removeMe);
-      return isFeasible();
+      return true;      
     } else {
       if (Options.DEBUG) {
         Util.Debug("we don't handle path queries with arrays precisely; dropping constraints. this arrayStore insruction " + instr
