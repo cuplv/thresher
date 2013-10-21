@@ -462,13 +462,17 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     // TODO: generalize this to multiple constraints on arr; not expected for now
     Util.Assert(arrConstraints.size() == 1);
     AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
-    Pair<AtomicPathConstraint,FieldReference> indexPair = getIndexConstraintFor(arrConstraint);
-    AtomicPathConstraint indexConstraint = indexPair.fst;
-    FieldReference indexField = indexPair.snd;
-  
-    // compare index constraint to index here
+    Pair<FieldReference, List<AtomicPathConstraint>> indexPair = getIndexConstraintsFor(arrConstraint);
+    FieldReference indexField = indexPair.fst;
+    List<AtomicPathConstraint> indexConstraints = indexPair.snd;
+    
+    Util.Assert(indexConstraints.size() == 1, "more than 1 index constraint " + indexConstraints.size());
+    AtomicPathConstraint indexConstraint = indexConstraints.iterator().next();
+    // compare index constraint to index
     PathTerm indexExpr = indexConstraint.getRhs();
     int instrIndex = instr.getIndex();
+    // TODO: check inequality constraints also!
+    // TODO: check if rhs is wrong
     if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
       // both index expression and index of array store instruction are constants. we can determine
       // unambiguously whether this instruction writes to the index of interest
@@ -589,8 +593,14 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       return isFeasible();
     }*/
     //return true;
+   
+     //Util.Assert(instr.hasDef() && instr.getNumberOfUses() == 1);
+     //PointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.heapModel);
+     //PointerVariable receiver = new ConcretePointerVariable(caller, instr.getReceiver(), this.heapModel);
+   
   }
   
+  private static final MethodReference INT_VALUE = MethodReference.findOrCreate(TypeReference.JavaLangInteger, "intValue", "()I");
   private static final MethodReference BOOLEAN_VALUE = MethodReference.findOrCreate(TypeReference.JavaLangBoolean, "booleanValue", "()Z");
   private static final MethodReference BOOLEAN_VALUE_OF = MethodReference.findOrCreate(TypeReference.JavaLangBoolean, "valueOf", "(Z)Ljava/lang/Boolean");
 
@@ -600,12 +610,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     BOOLEAN_VALUE_OF.getSelector().equals(method.getSelector());
   }
   
-
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    Util.Pre(currentPath.query == this);
-    Util.Print("val " + BOOLEAN_VALUE_OF + " target " + instr.getDeclaredTarget() + " eq? " + instr.getDeclaredTarget().equals(BOOLEAN_VALUE_OF));
-        
+    Util.Pre(currentPath.query == this);        
     //if (!isStubbedMethod(instr.getDeclaredTarget())) {
       List<IQuery> ptResults = pointsToQuery.enterCall(instr, callee, currentPath);
       if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
@@ -839,6 +846,15 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return this.pointsToQuery.isDispatchFeasible(instr, caller, callee) &&
         super.isDispatchFeasible(instr, caller, callee);
   }
+  
+  @Override
+  public void dropReturnValueConstraintsForCall(SSAInvokeInstruction instr, CGNode caller) {
+    if (instr.hasDef()) {
+      this.pointsToQuery.dropReturnValueConstraintsForCall(instr, caller);
+      super.dropReturnValueConstraintsForCall(instr, caller);
+    }
+  }
+
 
   @Override
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {  
@@ -931,6 +947,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
   }
 
+  /*
+  @Override
+  void dropConstraintsContaining(PointerVariable retval) {
+    super.dropConstraintsContaining(retval);
+    for (PointsToE)
+  }*/
+  
   void dropPathConstraintsProduceableByCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
     ConcretePointerVariable retval = null;
     if (instr.hasDef()) {

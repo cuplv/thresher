@@ -181,6 +181,14 @@ public class PathQuery implements IQuery {
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {
     Util.Unimp("dropping constraints produced in call for path constraints");
   }
+  
+  @Override
+  public void dropReturnValueConstraintsForCall(SSAInvokeInstruction instr, CGNode caller) {
+    if (instr.hasDef()) {
+      PointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.heapModel);
+      dropConstraintsContaining(retval);
+    }
+  }
 
   @Override
   public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode) {
@@ -236,37 +244,28 @@ public class PathQuery implements IQuery {
     }
   }
   
-  public Pair<AtomicPathConstraint,FieldReference> getIndexConstraintFor(AtomicPathConstraint c) {
+  
+  public Pair<FieldReference,List<AtomicPathConstraint>> getIndexConstraintsFor(AtomicPathConstraint c) {
     Util.Assert(c.getLhs() instanceof SimplePathTerm); 
     SimplePathTerm arrTerm = (SimplePathTerm) c.getLhs();
     Util.Assert(arrTerm.getFirstField() != null && isArrayIndexField(arrTerm.getFirstField()));
-    FieldReference indexField = arrTerm.getFirstField(); // find the term with the path var 
-    
-    /*
-    PointerVariable indexName = new ConcretePointerVariable(indexField.getName().toString());
-    List<AtomicPathConstraint> constraintsWithVar = getConstraintsWithVar(indexName);
-    // if the size here is 0, this isn't actually an error; just means we lost index-sensitivity (by dropping the constraint on __arrIndex)
-    Util.Assert(constraintsWithVar.size() == 1, " found " + constraintsWithVar.size() + " constraints with " + indexName);
-    AtomicPathConstraint indexConstraint = constraintsWithVar.iterator().next();
-    Util.Assert(indexConstraint.isEqualityConstraint());
-    Util.Assert(indexConstraint.getLhs().getVars().contains(indexName), indexConstraint.getLhs() + " does not have " + indexName);
-    */
-    AtomicPathConstraint indexConstraint = getIndexConstraintFor(indexField);
-    // TODO: this isn't actually an error; just the only thing we know how to handle right now
-    Util.Assert(indexConstraint.isEqualityConstraint());
-    return Pair.make(indexConstraint,indexField);
+    FieldReference indexField = arrTerm.getFirstField(); // find the term with the path var
+    List<AtomicPathConstraint> indexConstraints = getIndexConstraintsFor(indexField);
+    return Pair.make(indexField,indexConstraints);
   }
   
   @Override
-  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld) {
+  public List<AtomicPathConstraint> getIndexConstraintsFor(FieldReference fld) {
     Util.Pre(isArrayIndexField(fld));
+    List<AtomicPathConstraint> indexConstraints = new LinkedList<>();
     for (AtomicPathConstraint constraint : this.constraints) {
       if (constraint.isArrayIndexConstraint() && 
           ((SimplePathTerm) constraint.lhs).getObject().getInstanceKey().equals(fld.getName().toString())) {
-        return constraint;
+        //return constraint;
+        indexConstraints.add(constraint);
       }
     }
-    return null;
+    return indexConstraints;
   }
 
   /**
@@ -928,7 +927,6 @@ public class PathQuery implements IQuery {
       for (AtomicPathConstraint removeMe : toRemove) this.constraints.remove(removeMe);
     } else if (constraint.isInequalityConstraint()) {
       List<AtomicPathConstraint> toAdd = new LinkedList<AtomicPathConstraint>();
-      Util.Print("adding inequality constraint " + constraint);
       // if we already have an constant equality constraint on the same var, don't want to add the inequality constraint 
       // (unless it refutes!) because it will be less precise
       SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
@@ -942,11 +940,9 @@ public class PathQuery implements IQuery {
         intTerm = rhs.getIntegerConstant();
       }
       if (nonConstantTerm != null) {
-        Util.Print("have non-null nonConstantTerm " + nonConstantTerm);
         for (AtomicPathConstraint c : this.constraints) {
           if (c.isEqualityConstraint()) {
             SimplePathTerm lhs0 = (SimplePathTerm) c.getLhs(), rhs0 = (SimplePathTerm) c.getRhs();
-            Util.Print("have equality constraint " + c + " and rhs0 " + rhs0 + " rhs0 eq nonConstantTerm? " + rhs0.equals(nonConstantTerm));
             if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs0.equals(nonConstantTerm)) {
               System.out.println("not adding " + constraint + " because we have " + c);
               return true; // skip adding

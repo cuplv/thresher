@@ -197,7 +197,7 @@ public class PointsToQuery implements IQuery {
     Set<DependencyRule> rulesAtLine = getRulesForInstr(instr, currentPath);
     return visitInternal(instr, currentPath, rulesAtLine);
   }
-
+  
   /**
    * @return
    */
@@ -250,10 +250,12 @@ public class PointsToQuery implements IQuery {
       if (!rule.getShown().getSource().isLocalVar() && !(rule.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
         boolean simultaneousPointsTo = false;
         for (PointsToEdge toShow : rule.getToShow()) {
-          // if one of the preconditions for the rule is x -> A and we already have x -> A in our constraints,
-          // then we cannot add a rule not applied path because this would imply that x points to two different instances 
-          // of A, giving us a refutation based on simultaneous points-to
-          if (toShow.getSource().isLocalVar() && this.constraints.contains(toShow)) {
+          // if one of the preconditions for the rule is x -> A and we already have x -> B in our constraints,
+          // then we cannot add a rule not applied path because this would imply that x points to two different locations simultaneouly.
+          // even if A = B, this would imply that x points to two different instances of A, still giving us a refutation based on
+          // simultaneous points-to
+          if (toShow.getSource().isLocalVar() && (this.constraints.contains(toShow) || containsLocalVar(toShow.getSource()))) {
+          //if (toShow.getSource().isLocalVar() && this.constraints.contains(toShow)) {
             simultaneousPointsTo = true;
             break;
           }
@@ -1791,6 +1793,21 @@ public class PointsToQuery implements IQuery {
     if (this.constraints.isEmpty()) return false;
     return !getConstraintsRelevantToCall(instr, caller, callee, true).isEmpty();
   }
+  
+  @Override
+  public void dropReturnValueConstraintsForCall(SSAInvokeInstruction instr, CGNode caller) {
+    if (instr.hasDef()) {
+      ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
+      PointsToEdge toRemove = null;
+      for (PointsToEdge edge : this.constraints) {
+        if (edge.getSource().equals(retval)) {
+          toRemove = edge;
+          break;
+        }
+      }
+      if (toRemove != null) this.constraints.remove(toRemove);
+    }
+  }
 
   @Override
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {
@@ -1848,6 +1865,14 @@ public class PointsToQuery implements IQuery {
       }
     }
     return locals;
+  }
+  
+  public boolean containsLocalVar(PointerVariable loc) {
+    Util.Pre(loc.isLocalVar());
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().equals(loc)) return true;
+    }
+    return false;
   }
 
   @Override
@@ -2157,7 +2182,7 @@ public class PointsToQuery implements IQuery {
   }
   
   @Override
-  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld) {
+  public List<AtomicPathConstraint> getIndexConstraintsFor(FieldReference fld) {
     return null;
   }
   

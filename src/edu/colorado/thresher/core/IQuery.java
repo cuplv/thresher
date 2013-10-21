@@ -71,7 +71,7 @@ public interface IQuery { // extends Comparable {
    */
   public boolean containsConstraint(Constraint constraint);
   
-  public AtomicPathConstraint getIndexConstraintFor(FieldReference fld);
+  public List<AtomicPathConstraint> getIndexConstraintsFor(FieldReference fld);
 
 
   /**
@@ -139,6 +139,8 @@ public interface IQuery { // extends Comparable {
    */
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints);
 
+  public void dropReturnValueConstraintsForCall(SSAInvokeInstruction instr, CGNode caller);
+  
   /**
    * reflect context-sensitivity of node in query, if applicable
    * 
