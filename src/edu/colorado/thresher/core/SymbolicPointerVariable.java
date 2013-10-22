@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 import com.ibm.wala.analysis.pointers.HeapGraph;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
@@ -13,6 +14,8 @@ import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
+import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.intset.OrdinalSet;
 
@@ -45,6 +48,23 @@ public class SymbolicPointerVariable implements PointerVariable {
     Set<InstanceKey> possibleValues = HashSetFactory.make();
     for (Iterator<Object> succs = hg.getSuccNodes(key); succs.hasNext();) {
       possibleValues.add((InstanceKey) succs.next());
+    }
+    if (possibleValues.isEmpty()) return null;
+    return makeSymbolicVar(possibleValues);
+  }
+
+  /**
+   * make a symbolic variable from the points-to set of @param key in @param hg, but only include allocation sites of type @param typ
+   */
+  public static PointerVariable makeSymbolicVar(Object key, TypeReference typ, IClassHierarchy cha, HeapGraph hg) {
+    Set<InstanceKey> possibleValues = HashSetFactory.make();
+    IClass desiredTyp = cha.lookupClass(typ);
+    for (Iterator<Object> succs = hg.getSuccNodes(key); succs.hasNext();) {
+      InstanceKey ik = (InstanceKey) succs.next();
+      // filter pts-to set by desiredTyp
+      if (cha.isSubclassOf(ik.getConcreteType(), desiredTyp)) {
+        possibleValues.add(ik);
+      }
     }
     if (possibleValues.isEmpty()) return null;
     return makeSymbolicVar(possibleValues);

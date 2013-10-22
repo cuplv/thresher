@@ -994,6 +994,7 @@ public class Main {
       JarFile appJar = new JarFile(appPath + "/" + appName + ".jar");
       JarFile appDepsJar = new JarFile(appPath + "/" + appName + "-deps.jar");
       scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
+      // TODO: should we stick this in application as well?
       scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
       scope.addToScope(scope.getApplicationLoader(), appJar);
       //File exclusionsFile = new File("config/synthesis_exclusions.txt");
