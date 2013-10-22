@@ -1737,11 +1737,13 @@ public class Main {
     AnalysisOptions options = new AnalysisOptions(scope, e); 
     // turn off handling of Method.invoke(), which dramatically speeds up pts-to analysis
     options.setReflectionOptions(ReflectionOptions.NO_METHOD_INVOKE);
-    /* // handle instanceof guards 
-    SSAOptions ssaOpt = SSAOptions.defaultOptions();
-    ssaOpt.setPiNodePolicy(InstanceOfPiPolicy.createInstanceOfPiPolicy());
-    options.setSSAOptions(ssaOpt);
-    */
+    if (Options.USE_PI_NODES) {
+      //  use WALA's pi nodes to get cheap and easy handling of instanceof guards for cast checking 
+      SSAOptions ssaOpt = SSAOptions.defaultOptions();
+      ssaOpt.setPiNodePolicy(InstanceOfPiPolicy.createInstanceOfPiPolicy());
+      options.setSSAOptions(ssaOpt);
+    }
+
     AnalysisCache cache = new AnalysisCache();
     CallGraphBuilder builder;
     if (Options.ANDROID_LEAK && REGRESSIONS) 

@@ -305,24 +305,21 @@ public class DemandCastChecker {
             numSafe++;
             break;
           case NOMOREREFINE:
-            boolean add;
             if (queryResult.snd != null) {
               System.err.println("MIGHT FAIL: no more refinement possible for " + castInstr + " in " + node.getMethod());
-              add = true;
             } else {
               System.err.println("MIGHT FAIL: exceeded budget for " + castInstr + " in " + node.getMethod());
               System.err.println("skipping.");
-              add = false;
             }
-            if (add) {
-              failing.add(Pair.make(node, castInstr));
-              failingSet.add(count);
-            }
+            failing.add(Pair.make(node, castInstr));
+            failingSet.add(count);            
             numMightFail++;
             break;
           case BUDGETEXCEEDED:
             System.err.println("MIGHT FAIL: exceeded budget for " + castInstr + " in " + node.getMethod());
             System.err.println("skipping.");
+            failing.add(Pair.make(node, castInstr));
+            failingSet.add(count); 
             //failing.add(Pair.make(node, castInstr));
             numMightFail++;
             break;
