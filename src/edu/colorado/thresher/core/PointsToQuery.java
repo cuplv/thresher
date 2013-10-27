@@ -380,12 +380,11 @@ public class PointsToQuery implements IQuery {
    * 
    * @return - list of formals that we added new constraints for
    */
-  Set<PointerVariable> bindActualsToFormals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
+  void bindActualsToFormals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
     Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     Util.Debug("binding actuals to formals: callee " + calleeMethod + "; caller: " + callerMethod + " instr " + instr);
     SymbolTable tbl = callerMethod.getIR().getSymbolTable();
     Set<PointsToEdge> toAdd = new TreeSet<PointsToEdge>(), toRemove = new TreeSet<PointsToEdge>();
-    Set<PointerVariable> formalsAssigned = HashSetFactory.make();
     MutableIntSet argsSeen = new BitVectorIntSet();
     Set<PointerVariable> possiblyAliased = HashSetFactory.make();
     HeapGraph hg = this.depRuleGenerator.getHeapGraph();
@@ -404,19 +403,29 @@ public class PointsToQuery implements IQuery {
       for (PointsToEdge edge : constraints) {
         PointerVariable src = edge.getSource();
         if (src.equals(formal)) {
-          if (tbl.isNullConstant(instr.getUse(i))) {
-            if (Options.DEBUG)
-              Util.Debug("refuted! " + formal + " must point to " + edge.getSink() + ", but it points to null.");
-            this.feasible = false;
-            return formalsAssigned;
+          if (tbl.isConstant(argUse)) {
+            if (tbl.isNullConstant(argUse)) {
+              if (Options.DEBUG) Util.Debug("refuted! " + formal + " must point to " + edge.getSink() + ", but it points to null.");
+              this.feasible = false;
+              return;// formalsAssigned;
+            } else {
+              // TODO: add support for checking equality of specific string constraints
+              // need to drop constraint
+              toRemove.add(edge);
+              continue;
+            }
           }
+          
           // get the points-to set of arg, intersect with the sink of edge
-          Set<InstanceKey> possibeVals = HashSetFactory.make();
+          Set<InstanceKey> possibleVals = HashSetFactory.make();
           for (Iterator<Object> succs = hg.getSuccNodes(arg.getInstanceKey()); succs.hasNext();) {
             Object succ = succs.next();
-            if (succ instanceof InstanceKey) possibeVals.add((InstanceKey) succ);
+            if (succ instanceof InstanceKey) possibleVals.add((InstanceKey) succ);
           }
-          PointerVariable argVar = SymbolicPointerVariable.makeSymbolicVar(possibeVals);
+        
+          Util.Assert(!possibleVals.isEmpty(), "possible vals for " + arg + " empty. instance key " + arg.getInstanceKey());
+          
+          PointerVariable argVar = SymbolicPointerVariable.makeSymbolicVar(possibleVals);
           PointerVariable merged = SymbolicPointerVariable.mergeVars(argVar, edge.getSink());
           if (argVar.equals(merged)) continue;
           if (merged == null) {
@@ -424,7 +433,7 @@ public class PointsToQuery implements IQuery {
               Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty old edge " + edge);
             }
             this.feasible = false;
-            return formalsAssigned;
+            return;// formalsAssigned;
           }
                
           Util.Assert(!subMap.containsKey(argVar) || subMap.get(argVar) == merged, "subMap already has " + argVar + Util.printMap(subMap));
@@ -436,7 +445,7 @@ public class PointsToQuery implements IQuery {
           PointsToEdge newEdge = new PointsToEdge(arg, merged);
           toAdd.add(newEdge);
           toRemove.add(edge);
-          formalsAssigned.add(formal);
+          //formalsAssigned.add(formal);
         }
       }
     }
@@ -469,7 +478,7 @@ public class PointsToQuery implements IQuery {
           if (newRHS == null) {
             if (Options.DEBUG) Util.Debug("refuted by multiple binding! " + edge + " and " + addMe);
             this.feasible = false;
-            return formalsAssigned;
+            return;// formalsAssigned;
           }
           add = false;
           toAdd2.add(new PointsToEdge(lhs, newRHS));
@@ -515,7 +524,7 @@ public class PointsToQuery implements IQuery {
               if (Options.DEBUG)
                 Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
               this.feasible = false;
-              return formalsAssigned;
+              return;// formalsAssigned;
             } 
             
             else if (!Options.NARROW_FROM_CONSTRAINTS) {
@@ -542,7 +551,7 @@ public class PointsToQuery implements IQuery {
                 if (Options.DEBUG)
                   Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
                 this.feasible = false;
-                return formalsAssigned;
+                return;// formalsAssigned;
               }
             } else if (edge1Sink.isSymbolic()) {
               if (edge1Sink.getPossibleValues().contains(edge2Sink.getInstanceKey())) {
@@ -552,7 +561,7 @@ public class PointsToQuery implements IQuery {
                 if (Options.DEBUG)
                   Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
                 this.feasible = false;
-                return formalsAssigned;
+                return;// formalsAssigned;
               }
             } else { // edge2 sink is symbolic
               if (edge2Sink.getPossibleValues().contains(edge1Sink.getInstanceKey())) {
@@ -562,7 +571,7 @@ public class PointsToQuery implements IQuery {
                 if (Options.DEBUG)
                   Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
                 this.feasible = false;
-                return formalsAssigned;
+                return;// formalsAssigned;
               }
             }
           }
@@ -579,7 +588,7 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    return formalsAssigned;
+    return;// formalsAssigned;
   }
 
   /**
@@ -881,7 +890,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      //Util.Debug("removing " + toRemove);
+      Util.Debug("removing " + toRemove + " due to symbolic edge matching concrete edge");
       query.constraints.remove(removeMe);
     }
 
@@ -908,10 +917,11 @@ public class PointsToQuery implements IQuery {
         // look for other instances of the symbolic var to subsitute
         if (edge.getSource().isSymbolic()) {
           subMap.put((SymbolicPointerVariable) edge.getSource(), rule.getShown().getSource());
-          Util.Debug("replacing " + edge.getSource() + " with " + rule.getShown().getSource());
-        } else if (edge.getSink().isSymbolic()) {
+          Util.Debug("replacing symbolic src " + edge.getSource() + " with shown src " + rule.getShown().getSource());
+        }
+        if (edge.getSink().isSymbolic()) {
           subMap.put((SymbolicPointerVariable) edge.getSink(), rule.getShown().getSink());
-          Util.Debug("replacing " + edge.getSink() + " with " + rule.getShown().getSink());
+          Util.Debug("replacing symbolic snk " + edge.getSink() + " with shown snk " + rule.getShown().getSink());
         }
       }
     }
@@ -1226,7 +1236,6 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : constraints) {
       for (PointsToEdge ruleEdge : ruleEdges) {
         if (!ruleEdge.getSource().isLocalVar() && !edge.getSource().isLocalVar())
-          Util.Print("doing non-local edge ruleEdge " + edge + " and edge " + edge);
           ruleEdge.getSubsFromEdge(edge, subMaps, alreadySubbed, false);
       }
     }

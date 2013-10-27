@@ -452,7 +452,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return true; // didn't add any constraints, can't be infeasible
   }
   
-  boolean visitArrayStoreInternal(SSAArrayStoreInstruction instr, CGNode node,SymbolTable tbl, PointerVariable arrayVar) {
+  boolean visitArrayStoreInternal(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl, PointerVariable arrayVar) {
     int storedVal = instr.getValue();
     SimplePathTerm stored;
     if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
@@ -466,7 +466,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     FieldReference indexField = indexPair.fst;
     List<AtomicPathConstraint> indexConstraints = indexPair.snd;
     
-    Util.Assert(indexConstraints.size() == 1, "more than 1 index constraint " + indexConstraints.size());
+    if (indexConstraints.isEmpty()) {
+      Util.Debug("dropping constraints on " + arrayVar + " because we don't have an expression associated with the array index");
+      dropConstraintsContaining(arrayVar);
+      return true;
+    }
+    Util.Assert(indexConstraints.size() == 1, "more or less than 1 index constraint for index expr " + indexConstraints.size());
     AtomicPathConstraint indexConstraint = indexConstraints.iterator().next();
     // compare index constraint to index
     PathTerm indexExpr = indexConstraint.getRhs();
