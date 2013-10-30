@@ -246,6 +246,9 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     Util.Post(!pointsToSet.isEmpty()); 
     return pointsToSet;
     */
+    // if the var is a local var, we should get the points-to set of the local, *then* get
+    // the points-to set of the field    
+    Util.Pre(!this.isLocalVar());
     return getPointsToSet(Collections.singleton((InstanceKey) this.instanceKey), fld, hg);
   }
   
@@ -253,17 +256,18 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     Set<InstanceKey> pointsToSet = HashSetFactory.make();
     boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
     boolean staticFld = fld.isStatic();
-
+    
     for (InstanceKey key : keys) {
       for (Iterator<Object> fldIter = hg.getSuccNodes(key); fldIter.hasNext();) {
         Object fldKey = fldIter.next();
+
         boolean match = false;
         if (arrayFld) match = fldKey instanceof ArrayContentsKey;
         else if (staticFld) pointsToSet.add((InstanceKey) fldKey);
         else {
           // instance field
           InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
-          match = ifk.getField().equals(fld);
+          match = ifk.getField().getReference().equals(fld.getReference());
         }
         if (!staticFld && match) {
           for (Iterator<Object> keyIter = hg.getSuccNodes(fldKey); keyIter.hasNext();) {
@@ -273,7 +277,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
       }
     }
     // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
-    Util.Post(!pointsToSet.isEmpty()); 
+    Util.Assert(!pointsToSet.isEmpty());//, " bad usage -- pts to set for " + Util.printCollection(keys) + "." + fld + " empty"); 
     return pointsToSet;
   }
   

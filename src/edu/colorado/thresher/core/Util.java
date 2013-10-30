@@ -1112,7 +1112,6 @@ public class Util {
   public static void Pre(boolean assertion, String msg) {
     if (!assertion) {
       Util.Print("FAILED PRECONDITION: " + msg);
-      Util.Debug("FAILED PRECONDITION: " + msg);
       Thread.dumpStack();
       throw new NullPointerException();
       // System.exit(1);
@@ -1126,7 +1125,6 @@ public class Util {
   public static void Post(boolean assertion, String msg) {
     if (!assertion) {
       Util.Print("FAILED POSTCONDITION: " + msg);
-      Util.Debug("FAILED POSTCONDITION: " + msg);
       Thread.dumpStack();
       // System.exit(1);
       throw new NullPointerException();

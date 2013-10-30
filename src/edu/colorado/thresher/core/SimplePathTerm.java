@@ -146,8 +146,9 @@ public class SimplePathTerm implements PathTerm {
           } else {
             // see if we already have f in our fields
             FieldReference toAdd = toSub.getFieldsAsLinkedList().get(0);
-            if (toAdd.getName().equals(this.fields.getFirst().getName())) {
-              Util.Debug("already have field " + toAdd.getName());
+            //if (toAdd.getName().equals(this.fields.getFirst().getName())) {
+            if (toAdd.equals(this.fields.getFirst())) {
+              //Util.Debug("already have field " + toAdd.getName());
               // already have the field, don't add it again
               LinkedList<FieldReference> newFields = Util.deepCopyStackList(this.fields);
               newTerm = new SimplePathTerm(toSub.getObject().deepCopy(), newFields);

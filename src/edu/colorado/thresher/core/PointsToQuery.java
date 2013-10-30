@@ -21,6 +21,7 @@ import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -417,15 +418,39 @@ public class PointsToQuery implements IQuery {
             }
           }
           
-          // get the points-to set of arg, intersect with the sink of edge
+          /*
+          OrdinalSet<InstanceKey> pt = hg.getPointerAnalysis().getPointsToSet((LocalPointerKey) arg.getInstanceKey());
           Set<InstanceKey> possibleVals = HashSetFactory.make();
-          for (Iterator<Object> succs = hg.getSuccNodes(arg.getInstanceKey()); succs.hasNext();) {
-            Object succ = succs.next();
-            if (succ instanceof InstanceKey) possibleVals.add((InstanceKey) succ);
-          }
-        
-          Util.Assert(!possibleVals.isEmpty(), "possible vals for " + arg + " empty. instance key " + arg.getInstanceKey());
+          for (Iterator<InstanceKey> iter = pt.getMapping().iterator(); iter.hasNext();) {
+            possibleVals.add(iter.next());
+          } */ 
           
+          // get the points-to set of arg, intersect with the sink of edge
+          Set<InstanceKey> possibleVals = arg.getPointsToSet(hg);//HashSetFactory.make();
+          /*
+          //int added = 0;
+          for (Iterator<Object> succs = hg.getSuccNodes(arg.getInstanceKey()); succs.hasNext();) {
+            Object succ = succs.next();          
+            Util.Debug("succ is " + succ);
+            
+            if (succ instanceof InstanceKey) {
+              //Util.Assert(possibleVals.contains(succ), "pts-to set of " + arg + " should have " + succ);
+              possibleVals.add((InstanceKey) succ);
+              //Util.Print("succ is " + succ);
+              //added++;
+            }
+          }     
+          
+          //Util.Assert(added == possibleVals.size(), " their pts-to set for " + arg + " has " + possibleVals.size() + " ours has " + added + Util.printCollection(possibleVals));
+          Util.Assert(!possibleVals.isEmpty(), "possible vals for " + arg + " empty. instance key " + 
+              arg.getInstanceKey() + "type " + arg.getInstanceKey().getClass());
+          */
+          if (possibleVals.isEmpty()) {
+            Util.Debug("refuted by parameter binding! pts-to set of " + arg + " is empty");
+            this.feasible = false;
+            return;
+          }
+            
           PointerVariable argVar = SymbolicPointerVariable.makeSymbolicVar(possibleVals);
           PointerVariable merged = SymbolicPointerVariable.mergeVars(argVar, edge.getSink());
           if (argVar.equals(merged)) continue;
@@ -434,7 +459,7 @@ public class PointsToQuery implements IQuery {
               Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty old edge " + edge);
             }
             this.feasible = false;
-            return;// formalsAssigned;
+            return;
           }
                
           if (Options.CHECK_ASSERTS) {
@@ -1655,13 +1680,19 @@ public class PointsToQuery implements IQuery {
     return true;
   }
   
-  /**
-   * @return - the points-to set of var if it is a singleton, otherwise err
-   */
+  // return the points-to set of var according to our constraints
   public PointerVariable getPointedTo(PointerVariable var) {
     return getPointedTo(var, true);
   }
   
+  // return the points-to set of var according to our constraints if possible,
+  // otherwise ask the points-to graph
+  public PointerVariable getPointedToOrPtSet(PointerVariable var, HeapGraph hg) {
+    PointerVariable pt = getPointedTo(var);
+    if (pt != null) return pt;
+    else return SymbolicPointerVariable.makeSymbolicVar(var.getPointsToSet(hg));
+  }
+  /*
   public PointerVariable getPointedToThrough(PointerVariable var, IField field, HeapGraph hg) {
     Util.Pre(var.isLocalVar());
     Util.Pre(field != null);
@@ -1675,8 +1706,23 @@ public class PointsToQuery implements IQuery {
     // if we can't find it in our constraints, return the points-to set
     if (found == null) return SymbolicPointerVariable.makeSymbolicVar(var.getPointsToSet(hg, field));
     else return found;
-  }
+  }*/
   
+  public PointerVariable getPointedToOrPtSet(PointerVariable var, IField field, HeapGraph hg) {    
+    PointerVariable found = null;
+    PointerVariable ref = getPointedToOrPtSet(var, hg);
+    Util.Debug("original var is " + var + "\nref is " + ref);
+    Util.Assert(ref != null);
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(field)) {
+        Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        found = edge.getSink();
+      }
+    }
+    if (found != null) return found;
+    else return SymbolicPointerVariable.makeSymbolicVar(ref.getPointsToSet(hg, field));
+  }
+    
   public PointerVariable getPointedTo(PointerVariable var, FieldReference field) {
     Util.Pre(var.isLocalVar());
     Util.Pre(field != null);
@@ -1685,7 +1731,7 @@ public class PointsToQuery implements IQuery {
     if (ref != null) {
       for (PointsToEdge edge : this.constraints) {
         if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(field)) {
-          Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+          Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
           found = edge.getSink();
         }
       }
@@ -1745,7 +1791,7 @@ public class PointsToQuery implements IQuery {
     PointerVariable found = null;
     for (PointsToEdge edge : set) {
       if (edge.getSource().equals(var)) {
-        Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
         found = edge.getSink();
       }
     }
