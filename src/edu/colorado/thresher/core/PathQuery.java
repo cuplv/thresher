@@ -660,10 +660,11 @@ public class PathQuery implements IQuery {
   
   void dropConstraintsContaining(PointerVariable varName, IField fld) {
     List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
+
     for (AtomicPathConstraint constraint : this.constraints) {
       if (constraint.getVars().contains(varName)) {
-        List<FieldReference> fields = constraint.getLhs().getFields();
-        if (fields != null && fields.contains(fld.getReference())) {
+        Set<FieldReference> fields = constraint.getFields();
+        if (fields.contains(fld.getReference())) {
           toRemove.add(constraint);
         }
       }
@@ -673,9 +674,10 @@ public class PathQuery implements IQuery {
   
   void dropConstraintsContaining(PointerVariable varName) {
     List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
-    for (AtomicPathConstraint constraint : this.constraints) {
-      if (constraint.getVars().contains(varName))
+    for (AtomicPathConstraint constraint : this.constraints) {  
+      if (constraint.getVars().contains(varName)) {
         toRemove.add(constraint);
+      }
     }
     dropConstraints(toRemove);
   }
@@ -1394,7 +1396,7 @@ public class PathQuery implements IQuery {
    */
   boolean substituteActualsForFormals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod,
       SymbolTable callerSymbolTable) {
-    Util.Pre(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
+    //Util.Pre(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     if (Options.DEBUG)
       Util.Debug("substituting actuals for formals in path query");
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
@@ -1429,7 +1431,7 @@ public class PathQuery implements IQuery {
    * call
    */
   boolean substituteFormalsForActuals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
-    Util.Pre(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
+    //Util.Pre(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     if (Options.DEBUG)
       Util.Debug("substituting formals for actuals in path query");
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {

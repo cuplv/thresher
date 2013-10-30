@@ -30,20 +30,24 @@
 package edu.colorado.thresher.core;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.demandpa.alg.ContextSensitiveStateMachine;
 import com.ibm.wala.demandpa.alg.DemandRefinementPointsTo;
 import com.ibm.wala.demandpa.alg.DemandRefinementPointsTo.PointsToResult;
+import com.ibm.wala.demandpa.alg.refinepolicy.AbstractRefinementPolicy;
+import com.ibm.wala.demandpa.alg.refinepolicy.AlwaysRefineCGPolicy;
 import com.ibm.wala.demandpa.alg.refinepolicy.FieldRefinePolicy;
 import com.ibm.wala.demandpa.alg.refinepolicy.ManualFieldPolicy;
 import com.ibm.wala.demandpa.alg.refinepolicy.ManualRefinementPolicy;
+import com.ibm.wala.demandpa.alg.refinepolicy.RefinementPolicy;
 import com.ibm.wala.demandpa.alg.refinepolicy.RefinementPolicyFactory;
+import com.ibm.wala.demandpa.alg.refinepolicy.TunedFieldRefinementPolicy;
 import com.ibm.wala.demandpa.alg.refinepolicy.TunedRefinementPolicy;
 import com.ibm.wala.demandpa.alg.statemachine.StateMachineFactory;
 import com.ibm.wala.demandpa.flowgraph.IFlowLabel;
@@ -70,11 +74,13 @@ import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.NullProgressMonitor;
 import com.ibm.wala.util.Predicate;
 import com.ibm.wala.util.ProgressMaster;
+import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.debug.Assertions;
@@ -209,25 +215,62 @@ public class DemandCastChecker {
   private static RefinementPolicyFactory chooseRefinePolicyFactory(ClassHierarchy cha) {
     if (true) {
       return new TunedRefinementPolicy.Factory(cha);
+      //return new MyRefinementPolicy.Factory(cha);
     } else {
       return new ManualRefinementPolicy.Factory(cha);
     }
   }
 
+  static class MyRefinementPolicy extends AbstractRefinementPolicy {
+    
+    private static final int DEFAULT_NUM_PASSES = 8;
+    private static final int SHORTER_PASS_BUDGET = 2000;
+    protected static final int LONGER_PASS_BUDGET = 24000;
+
+    static int[] makeBudgetArr() {
+      int[] tmp = new int[DEFAULT_NUM_PASSES];
+      tmp[0] = SHORTER_PASS_BUDGET;
+      Arrays.fill(tmp, 1, DEFAULT_NUM_PASSES, LONGER_PASS_BUDGET);
+      return tmp;
+    }
+    
+    public MyRefinementPolicy(IClassHierarchy cha) {
+      super(new TunedFieldRefinementPolicy(cha), new AlwaysRefineCGPolicy(), DEFAULT_NUM_PASSES, makeBudgetArr());
+    }
+    
+    public static class Factory implements RefinementPolicyFactory {
+
+      private final IClassHierarchy cha;
+
+      public Factory(IClassHierarchy cha) {
+        this.cha = cha;
+      }
+
+      @Override
+      public RefinementPolicy make() {
+        return new MyRefinementPolicy(cha);
+      }
+
+    }
+    
+  }
+  
   private static StateMachineFactory<IFlowLabel> makeStateMachineFactory() {
     return new ContextSensitiveStateMachine.Factory();
   }
 
-  //public static List<Pair<CGNode, SSACheckCastInstruction>> findFailingCasts(CallGraph cg, PointerAnalysis pa, DemandRefinementPointsTo dmp) {
-  public static Set<Integer> findFailingCasts(CallGraph cg, PointerAnalysis pa, DemandRefinementPointsTo dmp) {
+  public static Map<MethodReference, Set<Integer>> findFailingCasts(CallGraph cg, PointerAnalysis pa, DemandRefinementPointsTo dmp) {
+  //public static Set<Integer> findFailingCasts(CallGraph cg, PointerAnalysis pa, DemandRefinementPointsTo dmp) {
     final IClassHierarchy cha = dmp.getClassHierarchy();
-    List<Pair<CGNode, SSACheckCastInstruction>> failing = new ArrayList<Pair<CGNode, SSACheckCastInstruction>>();
-
+    //List<Pair<CGNode, SSACheckCastInstruction>> failing = new ArrayList<Pair<CGNode, SSACheckCastInstruction>>();
+    Map<MethodReference, Set<Integer>> failing = HashMapFactory.make();
     Set<Integer> failingSet = HashSetFactory.make();
+    Set<Integer> noMoreRefinement = HashSetFactory.make();
     
     int numSafe = 0, numMightFail = 0, safeViaPointsTo = 0, count = 0;
     outer: for (Iterator<? extends CGNode> nodeIter = cg.iterator(); nodeIter.hasNext();) {
       CGNode node = nodeIter.next();
+      MethodReference method = node.getMethod().getReference();
       TypeReference declaringClass = node.getMethod().getReference().getDeclaringClass();
       // skip library classes
       if (declaringClass.getClassLoader().equals(ClassLoaderReference.Primordial)) {
@@ -295,37 +338,38 @@ public class DemandCastChecker {
           System.err.println("running time: " + runningTime + "ms");
           final FieldRefinePolicy fieldRefinePolicy = dmp.getRefinementPolicy().getFieldRefinePolicy();
           switch (queryResult.fst) {
-          case SUCCESS:
-            System.err.println("SAFE: " + castInstr + " in " + node.getMethod());
-            if (fieldRefinePolicy instanceof ManualFieldPolicy) {
-              ManualFieldPolicy hackedFieldPolicy = (ManualFieldPolicy) fieldRefinePolicy;
-              System.err.println(hackedFieldPolicy.getHistory());
-            }
-            System.err.println("TRAVERSED " + dmp.getNumNodesTraversed() + " nodes");
-            numSafe++;
-            break;
-          case NOMOREREFINE:
-            if (queryResult.snd != null) {
-              System.err.println("MIGHT FAIL: no more refinement possible for " + castInstr + " in " + node.getMethod());
-            } else {
+            case SUCCESS:
+              System.err.println("SAFE: " + castInstr + " in " + node.getMethod());
+              if (fieldRefinePolicy instanceof ManualFieldPolicy) {
+                ManualFieldPolicy hackedFieldPolicy = (ManualFieldPolicy) fieldRefinePolicy;
+                System.err.println(hackedFieldPolicy.getHistory());
+              }
+              System.err.println("TRAVERSED " + dmp.getNumNodesTraversed() + " nodes");
+              numSafe++;
+              break;
+            case NOMOREREFINE:
+              if (queryResult.snd != null) {
+                System.err.println("MIGHT FAIL: no more refinement possible for " + castInstr + " in " + node.getMethod());
+                noMoreRefinement.add(count);
+              } else {
+                System.err.println("MIGHT FAILs: exceeded budget for " + castInstr + " in " + node.getMethod());
+                System.err.println("skipping.");
+              }
+              addToFails(method, i, failing);
+              failingSet.add(count);            
+              numMightFail++;
+              break;
+            case BUDGETEXCEEDED:
               System.err.println("MIGHT FAIL: exceeded budget for " + castInstr + " in " + node.getMethod());
               System.err.println("skipping.");
+              addToFails(method, i, failing);
+              //failing.add(Pair.make(node.getMethod().getReference(), castInstr));
+              failingSet.add(count); 
+              numMightFail++;
+              break;
+            default:
+              Assertions.UNREACHABLE();
             }
-            failing.add(Pair.make(node, castInstr));
-            failingSet.add(count);            
-            numMightFail++;
-            break;
-          case BUDGETEXCEEDED:
-            System.err.println("MIGHT FAIL: exceeded budget for " + castInstr + " in " + node.getMethod());
-            System.err.println("skipping.");
-            failing.add(Pair.make(node, castInstr));
-            failingSet.add(count); 
-            //failing.add(Pair.make(node, castInstr));
-            numMightFail++;
-            break;
-          default:
-            Assertions.UNREACHABLE();
-          }
         }
       }
       // break outer;
@@ -333,8 +377,19 @@ public class DemandCastChecker {
     System.err.println("TOTAL SAFE: " + numSafe);
     System.err.println("TOTAL SAFE VIA POINTS-TO: " + safeViaPointsTo);    
     System.err.println("TOTAL MIGHT FAIL: " + numMightFail);
-    System.err.println("TOTAL NO MORE REFINEMENT: " + failingSet.size());
-    return failingSet;
+    //System.err.println("TOTAL NO MORE REFINEMENT: " + failingSet.size());
+    System.err.println("TOTAL NO MORE REFINEMENT: " + noMoreRefinement.size());
+    //return failingSet;
+    return failing;
+  }
+  
+  private static void addToFails(MethodReference method, Integer cast, Map<MethodReference, Set<Integer>> failing) {
+    Set<Integer> fails = failing.get(method);
+    if (fails == null) {
+      fails = HashSetFactory.make();
+      failing.put(method, fails);
+    }
+    fails.add(cast);
   }
   
 }

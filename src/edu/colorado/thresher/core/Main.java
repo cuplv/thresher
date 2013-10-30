@@ -1295,7 +1295,8 @@ public class Main {
       Pair<DemandRefinementPointsTo,PointerAnalysis> demandPair = 
           DemandCastChecker.makeDemandPointerAnalysis(scope, (ClassHierarchy) cha, (Iterable<Entrypoint>) entryPoints, options, WALA_REGRESSION_EXCLUSIONS);
       //List<Pair<CGNode, SSACheckCastInstruction>> mayFailCasts =
-      failSet = DemandCastChecker.findFailingCasts(demandPair.fst.getBaseCallGraph(), demandPair.snd, demandPair.fst);
+      Util.Unimp("this is wrong -- use scwala version");
+      failSet = null;//DemandCastChecker.findFailingCasts(demandPair.fst.getBaseCallGraph(), demandPair.snd, demandPair.fst);
     } else failSet = Collections.EMPTY_SET;
     
     //AbstractDependencyRuleGenerator depRuleGenerator = buildCallGraphAndPointsToAnalysis(scope, cha, entryPoints, appPath);

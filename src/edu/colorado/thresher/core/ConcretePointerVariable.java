@@ -222,6 +222,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
    */
   @Override
   public Set<InstanceKey> getPointsToSet(HeapGraph hg, IField fld) {
+    /*
     Set<InstanceKey> pointsToSet = HashSetFactory.make();
     boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
     boolean staticFld = fld.isStatic();
@@ -238,6 +239,36 @@ public class ConcretePointerVariable implements PointerVariable { // implements
       if (!staticFld && match) {
         for (Iterator<Object> keyIter = hg.getSuccNodes(fldKey); keyIter.hasNext();) {
           pointsToSet.add((InstanceKey) keyIter.next());
+        }
+      }
+    }
+    // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
+    Util.Post(!pointsToSet.isEmpty()); 
+    return pointsToSet;
+    */
+    return getPointsToSet(Collections.singleton((InstanceKey) this.instanceKey), fld, hg);
+  }
+  
+  public static Set<InstanceKey> getPointsToSet(Set<InstanceKey> keys, IField fld, HeapGraph hg) {
+    Set<InstanceKey> pointsToSet = HashSetFactory.make();
+    boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
+    boolean staticFld = fld.isStatic();
+
+    for (InstanceKey key : keys) {
+      for (Iterator<Object> fldIter = hg.getSuccNodes(key); fldIter.hasNext();) {
+        Object fldKey = fldIter.next();
+        boolean match = false;
+        if (arrayFld) match = fldKey instanceof ArrayContentsKey;
+        else if (staticFld) pointsToSet.add((InstanceKey) fldKey);
+        else {
+          // instance field
+          InstanceFieldKey ifk = (InstanceFieldKey) fldKey;
+          match = ifk.getField().equals(fld);
+        }
+        if (!staticFld && match) {
+          for (Iterator<Object> keyIter = hg.getSuccNodes(fldKey); keyIter.hasNext();) {
+            pointsToSet.add((InstanceKey) keyIter.next());
+          }
         }
       }
     }

@@ -24,6 +24,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.ssa.IR;
 import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
@@ -381,7 +382,7 @@ public class PointsToQuery implements IQuery {
    * @return - list of formals that we added new constraints for
    */
   void bindActualsToFormals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
-    Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
+    //Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     Util.Debug("binding actuals to formals: callee " + calleeMethod + "; caller: " + callerMethod + " instr " + instr);
     SymbolTable tbl = callerMethod.getIR().getSymbolTable();
     Set<PointsToEdge> toAdd = new TreeSet<PointsToEdge>(), toRemove = new TreeSet<PointsToEdge>();
@@ -436,8 +437,14 @@ public class PointsToQuery implements IQuery {
             return;// formalsAssigned;
           }
                
-          Util.Assert(!subMap.containsKey(argVar) || subMap.get(argVar) == merged, "subMap already has " + argVar + Util.printMap(subMap));
-          Util.Assert(!subMap.containsKey(edge.getSink()));
+          if (Options.CHECK_ASSERTS) {
+            if (subMap.containsKey(argVar) && subMap.get(argVar) != merged) {
+              Util.Assert(false, "subMap already has " + argVar + Util.printMap(subMap));  
+            }          
+            if (subMap.containsKey(edge.getSink()) && subMap.get(edge.getSink()) != merged) {
+              Util.Assert(false, "subMap already has " + edge.getSink() + Util.printMap(subMap));
+            }
+          }
 
           subMap.put(argVar, merged);
           subMap.put(edge.getSink(), merged);
@@ -601,7 +608,7 @@ public class PointsToQuery implements IQuery {
     // TODO: optimization: the receiver of a constructor must have the same type
     // as the obj it's constructing. we can refute even earlier in this case
     // Util.Debug("before binding " + this);
-    Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
+    //Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     List<PointsToEdge> toAdd = new LinkedList<PointsToEdge>(), toRemove = new LinkedList<PointsToEdge>();
     if (instr.hasDef()) {
       // bind return value of method, if appropriate
@@ -1655,6 +1662,21 @@ public class PointsToQuery implements IQuery {
     return getPointedTo(var, true);
   }
   
+  public PointerVariable getPointedToThrough(PointerVariable var, IField field, HeapGraph hg) {
+    Util.Pre(var.isLocalVar());
+    Util.Pre(field != null);
+    PointerVariable found = null;
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().equals(var) && edge.getFieldRef() != null && edge.getFieldRef().equals(field)) {
+        Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        found = edge.getSink();
+      }
+    }   
+    // if we can't find it in our constraints, return the points-to set
+    if (found == null) return SymbolicPointerVariable.makeSymbolicVar(var.getPointsToSet(hg, field));
+    else return found;
+  }
+  
   public PointerVariable getPointedTo(PointerVariable var, FieldReference field) {
     Util.Pre(var.isLocalVar());
     Util.Pre(field != null);
@@ -2006,16 +2028,19 @@ public class PointsToQuery implements IQuery {
         List<CGNode> toRemove = new ArrayList<CGNode>(nodes.size());
         for (CGNode node : nodes) {
           boolean found = false;
-          for (SSAInstruction instr : node.getIR().getInstructions()) {
-            if (!array && instr instanceof SSAPutInstruction) {
-              SSAPutInstruction put = (SSAPutInstruction) instr;
-              if (put.getDeclaredField().equals(fldRef)) {
-                found = true;
+          IR ir = node.getIR();
+          if (ir != null) {
+            for (SSAInstruction instr : ir.getInstructions()) {
+              if (!array && instr instanceof SSAPutInstruction) {
+                SSAPutInstruction put = (SSAPutInstruction) instr;
+                if (put.getDeclaredField().equals(fldRef)) {
+                  found = true;
+                  break;
+                }
+              } else if (array && instr instanceof SSAArrayStoreInstruction) {
+                found = true; 
                 break;
               }
-            } else if (array && instr instanceof SSAArrayStoreInstruction) {
-              found = true; 
-              break;
             }
           }
           // didn't find the field

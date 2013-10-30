@@ -2,6 +2,7 @@ package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -58,11 +59,11 @@ public class SymbolicPointerVariable implements PointerVariable {
    */
   public static PointerVariable makeSymbolicVar(Object key, TypeReference typ, IClassHierarchy cha, HeapGraph hg) {
     Set<InstanceKey> possibleValues = HashSetFactory.make();
-    IClass desiredTyp = cha.lookupClass(typ);
+    IClass desiredTyp = cha.lookupClass(typ);   
     for (Iterator<Object> succs = hg.getSuccNodes(key); succs.hasNext();) {
       InstanceKey ik = (InstanceKey) succs.next();
       // filter pts-to set by desiredTyp
-      if (cha.isSubclassOf(ik.getConcreteType(), desiredTyp)) {
+      if (desiredTyp == null || cha.isSubclassOf(ik.getConcreteType(), desiredTyp)) {
         possibleValues.add(ik);
       }
     }
@@ -177,6 +178,9 @@ public class SymbolicPointerVariable implements PointerVariable {
    */
   @Override
   public Set<InstanceKey> getPointsToSet(HeapGraph hg, IField fld) {
+    return ConcretePointerVariable.getPointsToSet(possibleValues, fld, hg);
+
+    /*
     Util.Pre(!fld.isStatic());
     Set<InstanceKey> pointsToSet = HashSetFactory.make();
     boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
@@ -199,7 +203,7 @@ public class SymbolicPointerVariable implements PointerVariable {
     }
     // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
     Util.Post(!pointsToSet.isEmpty()); 
-    return pointsToSet;
+    return pointsToSet;*/
   }
 
   @Override

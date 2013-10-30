@@ -932,20 +932,20 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         if (put.isStatic()) {
           PointerVariable staticFieldVar = Util.makePointerVariable(depRuleGenerator.getHeapModel().getPointerKeyForStaticField(fld));
           if (pathVars.contains(staticFieldVar)) {
-            //Util.Debug("dropping constraints with " + staticFieldVar + " due to " + instr);
+            Util.Debug("dropping constraints with " + staticFieldVar + " due to loop instr " + instr);
             dropConstraintsContaining(staticFieldVar);
           }
         } else {
           PointerVariable varName = new ConcretePointerVariable(node, instr.getUse(0), this.heapModel); 
           if (pathVars.contains(varName)) {
-            //Util.Debug("dropping constraints with " + varName + " due to " + instr);
+            Util.Debug("dropping constraints with " + varName + " due to loop instr " + instr);
             dropConstraintsContaining(varName, fld);
           }
         }
       } else if (instr.hasDef()) {
         PointerVariable var = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
         if (this.pathVars.contains(var)) {
-          //Util.Debug("dropping constraints with " + var + " due to " + instr);
+          Util.Debug("dropping constraints with " + var + " due to loop insr " + instr);
           dropConstraintsContaining(var);
         }
       }

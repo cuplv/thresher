@@ -1874,18 +1874,21 @@ public class Util {
       List<CGNode> toRemove = new ArrayList<CGNode>(nodes.size());
       for (CGNode node : nodes) {
         boolean found = false;
-        for (SSAInstruction instr : node.getIR().getInstructions()) {
-          if (!array && instr instanceof SSAPutInstruction) {
-            SSAPutInstruction put = (SSAPutInstruction) instr;
-            if (put.getDeclaredField().equals(fldRef)) {
-              //Util.Debug("instr " + instr + " writes to " + var + "." + field + " in " + node);
-              found = true;
+        IR ir = node.getIR();
+        if (ir != null) {
+          for (SSAInstruction instr : ir.getInstructions()) {
+            if (!array && instr instanceof SSAPutInstruction) {
+              SSAPutInstruction put = (SSAPutInstruction) instr;
+              if (put.getDeclaredField().equals(fldRef)) {
+                //Util.Debug("instr " + instr + " writes to " + var + "." + field + " in " + node);
+                found = true;
+                break;
+              }
+            } else if (array && instr instanceof SSAArrayStoreInstruction) {
+              //Util.Debug("instr " + instr + " writes to " + var + "[contents] in " + node);
+              found = true; 
               break;
             }
-          } else if (array && instr instanceof SSAArrayStoreInstruction) {
-            //Util.Debug("instr " + instr + " writes to " + var + "[contents] in " + node);
-            found = true; 
-            break;
           }
         }
         // didn't find the field

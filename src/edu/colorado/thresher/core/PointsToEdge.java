@@ -267,7 +267,7 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null) return false;
+    if (other == null || !(other instanceof PointsToEdge)) return false;
     PointsToEdge p = (PointsToEdge) other;
     // return source.equals(p.getSource()) && Util.equal(this.field, p.field) &&
     // sink.equals(p.getSink());
@@ -284,10 +284,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
 
   public Set<SymbolicPointerVariable> getSymbolicVars() {
     Set<SymbolicPointerVariable> symbolicVars = HashSetFactory.make();
-    if (this.source.isSymbolic())
-      symbolicVars.add((SymbolicPointerVariable) this.source);
-    if (this.sink.isSymbolic())
-      symbolicVars.add((SymbolicPointerVariable) this.sink);
+    if (this.source.isSymbolic()) symbolicVars.add((SymbolicPointerVariable) this.source);
+    if (this.sink.isSymbolic()) symbolicVars.add((SymbolicPointerVariable) this.sink);
     return symbolicVars;
   }
 
