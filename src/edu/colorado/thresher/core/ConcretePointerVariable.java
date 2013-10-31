@@ -253,6 +253,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
   }
   
   public static Set<InstanceKey> getPointsToSet(Set<InstanceKey> keys, IField fld, HeapGraph hg) {
+    Util.Pre(fld != null);
     Set<InstanceKey> pointsToSet = HashSetFactory.make();
     boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
     boolean staticFld = fld.isStatic();

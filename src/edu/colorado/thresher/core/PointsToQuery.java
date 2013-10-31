@@ -1708,13 +1708,13 @@ public class PointsToQuery implements IQuery {
     else return found;
   }*/
   
-  public PointerVariable getPointedToOrPtSet(PointerVariable var, IField field, HeapGraph hg) {    
+  public PointerVariable getPointedToOrPtSet(PointerVariable var, IField field, HeapGraph hg) { 
+    Util.Pre(field != null);
     PointerVariable found = null;
     PointerVariable ref = getPointedToOrPtSet(var, hg);
-    Util.Debug("original var is " + var + "\nref is " + ref);
     Util.Assert(ref != null);
     for (PointsToEdge edge : this.constraints) {
-      if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(field)) {
+      if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().equals(field)) {
         Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
         found = edge.getSink();
       }
@@ -1723,14 +1723,14 @@ public class PointsToQuery implements IQuery {
     else return SymbolicPointerVariable.makeSymbolicVar(ref.getPointsToSet(hg, field));
   }
     
-  public PointerVariable getPointedTo(PointerVariable var, FieldReference field) {
+  public PointerVariable getPointedTo(PointerVariable var, IField field) {
     Util.Pre(var.isLocalVar());
     Util.Pre(field != null);
     PointerVariable found = null;
     PointerVariable ref = getPointedTo(var);
     if (ref != null) {
       for (PointsToEdge edge : this.constraints) {
-        if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(field)) {
+        if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().equals(field)) {
           Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
           found = edge.getSink();
         }

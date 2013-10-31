@@ -148,12 +148,10 @@ public class SimplePathTerm implements PathTerm {
             FieldReference toAdd = toSub.getFieldsAsLinkedList().get(0);
             //if (toAdd.getName().equals(this.fields.getFirst().getName())) {
             if (toAdd.equals(this.fields.getFirst())) {
-              //Util.Debug("already have field " + toAdd.getName());
               // already have the field, don't add it again
               LinkedList<FieldReference> newFields = Util.deepCopyStackList(this.fields);
               newTerm = new SimplePathTerm(toSub.getObject().deepCopy(), newFields);
             } else { // don't have this field; add it whole
-              Util.Debug("don't have field");
               LinkedList<FieldReference> newFields = null;
               if (this.fields != null)
                 newFields = Util.deepCopyStackList(this.fields);
@@ -190,7 +188,7 @@ public class SimplePathTerm implements PathTerm {
       this.setSubstituted(false); // this.substituted = false;
       return this;
     } else if (this.object.equals(subFor) && this.fields != null && this.fields.getFirst().equals(subForFieldName)) {
-      Util.Debug("substitution successful! subbing in " + toSub);
+      //Util.Debug("substitution successful! subbing in " + toSub);
       // we found the field read we are looking for. make the substitution
       LinkedList<FieldReference> newFields = null;
       SimplePathTerm newTerm;

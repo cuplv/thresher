@@ -425,12 +425,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         substituteExpForVar(new SimplePathTerm(newVar), local);
       }
       
-      if (Options.INDEX_SENSITIVITY) {
+      if (Options.INDEX_SENSITIVITY) {        
         final SimplePathTerm DEFAULT_ARR_VAL = new SimplePathTerm(0);
         // initialize all array fields to default values
         if (instr.getNewSite().getDeclaredType().isArrayType()) {
           if (Options.DEBUG) Util.Debug("initializing array indices to default vals.");
           List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
+          List<SimplePathTerm> toSub = new LinkedList<SimplePathTerm>();
           InstanceKey arrRef = this.depRuleGenerator.getHeapModel().getInstanceKeyForAllocation(node, instr.getNewSite());
           for (AtomicPathConstraint constraint : this.constraints) {
             for (SimplePathTerm term : constraint.getTerms()) {
@@ -440,11 +441,13 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
                 PointerVariable indexName = new ConcretePointerVariable(term.getFirstField().getName().toString());
                 toRemove.addAll(this.getConstraintsWithVar(indexName));
                 // assign to default value
-                substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
+                //substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
+                toSub.add(term);
               }
             }
           }
           for (AtomicPathConstraint removeMe : toRemove) this.constraints.remove(removeMe);
+          for (SimplePathTerm term : toSub) substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
         }
       }            
       return isFeasible();
@@ -523,7 +526,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
             if (term.getObject().isLocalVar() && term.getFirstField() != null) {
               PointerVariable localPtr = term.getObject();
               FieldReference fld = term.getFirstField();
-              if (isArrayIndexField(fld)){
+              if (isArrayIndexField(fld)) {
                 arrayRef = this.pointsToQuery.getPointedTo(localPtr);      
                 //if (arrayRef != null) toSub1.add(Pair.make(new SimplePathTerm(arrayRef), localPtr));
                 if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), 
@@ -533,7 +536,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
                 }
               } else {  
                 // sub out local.arrayField for the array ref pointed to by local.arrayField
-                arrayRef = this.pointsToQuery.getPointedTo(localPtr, fld); 
+                arrayRef = this.pointsToQuery.getPointedTo(localPtr, this.depRuleGenerator.getClassHierarchy().resolveField(fld)); 
                 //if (arrayRef != null) toSub2.add(Pair.make(new SimplePathTerm(arrayRef), Pair.make(localPtr, fld)));                
                 if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), 
                                                                 arrayRef.getPossibleValues())) {
@@ -737,8 +740,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     List<IQuery> pathResults = super.returnFromCall(instr, callee, currentPath);
-    if (pathResults == IQuery.INFEASIBLE)
-      return IQuery.INFEASIBLE;
+    if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }
 
