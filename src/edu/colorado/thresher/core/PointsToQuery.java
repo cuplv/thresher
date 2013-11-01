@@ -706,43 +706,6 @@ public class PointsToQuery implements IQuery {
           toRemove.clear();
           if (!Options.NARROW_FROM_CONSTRAINTS) produced.add(newEdge);
           formalsAssigned.add(formal);
-          /*
-          for (PointsToEdge prod : constraints) {
-
-            if (prod.getSource().equals(formal) && !prod.equals(newEdge)) {
-              // multiple assignments to formal; let's see if they're consistent
-              if (prod.getSink().isSymbolic() && !newEdge.getSink().isSymbolic()) {
-                
-                if (Options.NARROW_FROM_CONSTRAINTS) {
-                
-                  SymbolicPointerVariable sink = (SymbolicPointerVariable) prod.getSink();
-                  if (sink.getPossibleValues().contains(newEdge.getSink().getInstanceKey())) {
-                    // new assignment is more precise; remove old one
-                    toRemove.add(prod);
-                  } else {
-                    if (Options.DEBUG) {
-                      Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
-                              + newEdge + " produced " + Util.constraintSetToString(produced));
-                    }
-                    // refuted
-                    this.feasible = false;
-                    return null;
-                  }
-                } else { // not narrowing
-                  toRemove.add(prod);
-                }
-              }
-            }
-          }
-          // end ugliness
-           
-          for (PointsToEdge removeMe : toRemove) {
-            Util.Assert(constraints.remove(removeMe), "couldn't remove edge " + removeMe + " from " + produced);
-          }
-          toRemove.clear();
-          if (!Options.NARROW_FROM_CONSTRAINTS) constraints.add(newEdge);
-          formalsAssigned.add(formal);
-          */
         }
       }
       toAdd.clear();
@@ -922,7 +885,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      Util.Debug("removing " + toRemove + " due to symbolic edge matching concrete edge");
+      //Util.Debug("removing " + toRemove + " due to symbolic edge matching concrete edge");
       query.constraints.remove(removeMe);
     }
 
@@ -949,16 +912,16 @@ public class PointsToQuery implements IQuery {
         // look for other instances of the symbolic var to subsitute
         if (edge.getSource().isSymbolic()) {
           subMap.put((SymbolicPointerVariable) edge.getSource(), rule.getShown().getSource());
-          Util.Debug("replacing symbolic src " + edge.getSource() + " with shown src " + rule.getShown().getSource());
+          //Util.Debug("replacing symbolic src " + edge.getSource() + " with shown src " + rule.getShown().getSource());
         }
         if (edge.getSink().isSymbolic()) {
           subMap.put((SymbolicPointerVariable) edge.getSink(), rule.getShown().getSink());
-          Util.Debug("replacing symbolic snk " + edge.getSink() + " with shown snk " + rule.getShown().getSink());
+          //Util.Debug("replacing symbolic snk " + edge.getSink() + " with shown snk " + rule.getShown().getSink());
         }
       }
     }
     for (PointsToEdge removeMe : toRemove) {
-      Util.Debug("removing " + removeMe);
+      //Util.Debug("removing " + removeMe);
       query.constraints.remove(removeMe);
     }
 
@@ -978,13 +941,13 @@ public class PointsToQuery implements IQuery {
         }
         if (remove) {
           PointsToEdge newEdge = new PointsToEdge(newSrc, newSnk, edge.getFieldRef());
-          Util.Debug("now adding " + newEdge);
+          //Util.Debug("now adding " + newEdge);
           toAdd.add(newEdge);
           toRemove.add(edge);
         }
       }
       for (PointsToEdge removeMe : toRemove) {
-        Util.Debug("removing " + removeMe);
+        //Util.Debug("removing " + removeMe);
         query.constraints.remove(removeMe);
       }
       //query.constraints.removeAll(toRemove);
@@ -1818,6 +1781,21 @@ public class PointsToQuery implements IQuery {
     return getConstraintsRelevantToCall(null, null, callee, earlyRet);
   }
   
+  /*
+  public boolean dropRelevantOrReplaceWithPointsToSet(SSAInvokeInstruction instr, CGNode caller, CGNode callee) {
+    ConcretePointerVariable retval = new ConcretePointerVariable(caller, instr.getDef(), this.depRuleGenerator.getHeapModel());
+    Set<PointsToEdge> relevant = getConstraintsRelevantToCall(instr, caller, callee, false);
+    if (relevant.size() == 1 && relevant.contains(retval)) {
+      PointsToEdge retvalConstraint = relevant.iterator().next();
+      // do replacement
+      Set<InstanceKey> retvalPT = retval.getFilteredPointsToSet(retvalConstraint.getSink(), this.depRuleGenerator.getHeapGraph());
+      Util.Assert(!retvalPT.isEmpty());
+      PointerVariable newRetvalPT = SymbolicPointerVariable.makeSymbolicVar(retvalPT);
+      
+      
+    }
+  }*/
+  
   public Set<PointsToEdge> getConstraintsRelevantToCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean earlyRet) {
     Set<PointsToEdge> toRemove = HashSetFactory.make();
     if (instr != null && instr.hasDef()) {
@@ -1884,6 +1862,18 @@ public class PointsToQuery implements IQuery {
       }
       if (toRemove != null) this.constraints.remove(toRemove);
     }
+  }
+  
+  @Override
+  public void dropConstraintsContaining(Set<PointerVariable> vars) {
+    List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>();
+    for (PointsToEdge edge : this.constraints) {
+      if (vars.contains(edge.getSource()) || vars.contains(edge.getSink())) {
+        Util.Print("dropping constraint " + edge);
+        toRemove.add(edge);
+      }
+    }
+    for (PointsToEdge removeMe : toRemove) this.constraints.remove(removeMe);
   }
 
   @Override

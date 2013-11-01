@@ -133,6 +133,8 @@ public interface IQuery { // extends Comparable {
    */
   public boolean isCallRelevant(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg);
 
+  public void dropConstraintsContaining(Set<PointerVariable> vars);
+  
   /**
    * rather than entering a call, overapproximate its effect by dropping all of
    * the constraints it can produce

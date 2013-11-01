@@ -17,6 +17,7 @@ import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
+import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.functions.Function;
 import com.ibm.wala.util.intset.IntIterator;
@@ -41,6 +42,28 @@ public final class WALACallGraphUtil {
    */
   public static Collection<Pair<SSAInvokeInstruction,CGNode>> getCallInstrsForNode(CGNode node, CallGraph cg) {
     return getCallInstrsForNodes(Collections.singleton(node), cg);
+  }
+  
+  /**
+   * 
+   * @param caller
+   * @param callee
+   * @param cg
+   * @return all instruction indices corresponding to possilble calls of @param calle in @caller according to @param cg
+   */
+  public static Collection<Integer> getCallInstrIndices(CGNode caller, CGNode callee, CallGraph cg) {
+    Set<Integer> siteIndices = HashSetFactory.make();
+    IR callerIR = caller.getIR();
+    Iterator<CallSiteReference> sites = cg.getPossibleSites(caller, callee);
+    while (sites.hasNext()) { // for each each caller
+      CallSiteReference possibleCaller = sites.next();
+      // caller may call callee multiple times. consider each call site
+      IntSet indices = callerIR.getCallInstructionIndices(possibleCaller);
+      for (IntIterator indexIter = indices.intIterator(); indexIter.hasNext();) {
+        siteIndices.add(indexIter.next());
+      }
+    }
+    return siteIndices;
   }
   
   /**

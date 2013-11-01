@@ -75,6 +75,9 @@ public class PathQuery implements IQuery {
   // ordered for comparison
   final Set<AtomicPathConstraint> constraints; // these need to be ordered for
                                                // comparison
+  
+  // TMP! because Scwala needs it
+  public Set<AtomicPathConstraint> getConstraints() { return constraints; }
 
   // set of path constraints that we have had in our constraint set at some
   // point
@@ -86,7 +89,7 @@ public class PathQuery implements IQuery {
 
   // set of variables contained in our path constraints. used for relevancy
   // lookups
-  final Set<PointerVariable> pathVars;
+  public final Set<PointerVariable> pathVars;
 
   // Z3Context shared among all paths. do not make copies of this unless you dispose of them properly!
   //final Z3Context ctx;
@@ -672,10 +675,22 @@ public class PathQuery implements IQuery {
    dropConstraints(toRemove);
   }
   
-  void dropConstraintsContaining(PointerVariable varName) {
+  public void dropConstraintsContaining(PointerVariable varName) {
     List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : this.constraints) {  
       if (constraint.getVars().contains(varName)) {
+        toRemove.add(constraint);
+      }
+    }
+    dropConstraints(toRemove);
+  }
+  
+  @Override
+  public void dropConstraintsContaining(Set<PointerVariable> vars) {
+    List<AtomicPathConstraint> toRemove = new ArrayList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {  
+      //if (constraint.getVars().contains(varName)) {
+      if (Util.intersectionNonEmpty(vars, constraint.getVars())) {
         toRemove.add(constraint);
       }
     }
@@ -967,6 +982,9 @@ public class PathQuery implements IQuery {
       }
       for (AtomicPathConstraint addMe : toAdd) this.constraints.add(addMe);
     }
+    
+    
+    
     if (constraints.add(constraint)) {
       rebuildZ3Constraints();
       return true;
@@ -1327,12 +1345,9 @@ public class PathQuery implements IQuery {
       Util.Unimp("odd comparison " + instruction);
     }
 
-    if (negate)
-      result = !result;
-    if (!result)
-      this.feasible = false;
-    if (Options.DEBUG)
-      Util.Debug("primitive comparison result: " + result);
+    if (negate) result = !result;
+    if (!result) this.feasible = false;
+    if (Options.DEBUG) Util.Debug("primitive comparison result: " + result);
     return result;
   }
 

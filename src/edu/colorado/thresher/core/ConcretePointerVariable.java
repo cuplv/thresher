@@ -249,16 +249,16 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     // if the var is a local var, we should get the points-to set of the local, *then* get
     // the points-to set of the field    
     Util.Pre(!this.isLocalVar());
-    return getPointsToSet(Collections.singleton((InstanceKey) this.instanceKey), fld, hg);
+    return getPointsToSet(Collections.singleton(this.instanceKey), fld, hg);
   }
   
-  public static Set<InstanceKey> getPointsToSet(Set<InstanceKey> keys, IField fld, HeapGraph hg) {
+  public static Set<InstanceKey> getPointsToSet(Set keys, IField fld, HeapGraph hg) {
     Util.Pre(fld != null);
     Set<InstanceKey> pointsToSet = HashSetFactory.make();
     boolean arrayFld = fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
     boolean staticFld = fld.isStatic();
     
-    for (InstanceKey key : keys) {
+    for (Object key : keys) {
       for (Iterator<Object> fldIter = hg.getSuccNodes(key); fldIter.hasNext();) {
         Object fldKey = fldIter.next();
 
@@ -293,6 +293,19 @@ public class ConcretePointerVariable implements PointerVariable { // implements
     Set<InstanceKey> keys = HashSetFactory.make();
     for (Iterator<Object> succs = hg.getSuccNodes(this.instanceKey); succs.hasNext();) {
       keys.add((InstanceKey) succs.next());
+    }    
+    //Util.Print("Points-to set of " + this + ": " + Util.printCollection(keys));
+    
+    return keys;
+  }
+  
+  public Set<InstanceKey> getFilteredPointsToSet(PointerVariable filterBy, HeapGraph hg) {
+    Util.Pre(this.isLocalVar());
+    Set<InstanceKey> filterSet = filterBy.getPossibleValues();
+    Set<InstanceKey> keys = HashSetFactory.make();
+    for (Iterator<Object> succs = hg.getSuccNodes(this.instanceKey); succs.hasNext();) {
+      InstanceKey succ = (InstanceKey) succs.next();
+      if (filterSet.contains(succ)) keys.add(succ);
     }    
     //Util.Print("Points-to set of " + this + ": " + Util.printCollection(keys));
     

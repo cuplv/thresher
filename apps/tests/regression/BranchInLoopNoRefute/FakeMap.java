@@ -11,7 +11,7 @@ public class FakeMap {
     }
 
     public Object put(String i, Object value, int count) {
-	while (count > 0) {
+	while (count < 0) {
 	    if (foo() == 3) {
 		count--;
 	    } else {

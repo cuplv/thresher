@@ -861,7 +861,12 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       super.dropReturnValueConstraintsForCall(instr, caller);
     }
   }
-
+  
+  @Override
+  public void dropConstraintsContaining(Set<PointerVariable> vars) {
+    super.dropConstraintsContaining(vars);
+    this.pointsToQuery.dropConstraintsContaining(vars);
+  }
 
   @Override
   public void dropConstraintsProduceableInCall(SSAInvokeInstruction instr, CGNode caller, CGNode callee, boolean dropPtConstraints) {  
