@@ -913,10 +913,11 @@ public class PathQuery implements IQuery {
   boolean addConstraint(AtomicPathConstraint constraint) {
     // decline adding path constraints if we already have more than the max number
     if (constraints.size() >= Options.MAX_PATH_CONSTRAINT_SIZE) {
-      if (Options.DEBUG) Util.Print("not adding constraint " + constraint + " due to size restrictions");
+      Util.Print("not adding constraint " + constraint + " due to size restrictions");
       return true;
     }
-    
+    //Util.Print("trying to add constraint " + constraint);
+    /*
     if (constraint.isEqualityConstraint()) {
       // other constraints might become more precise from substitution here
       SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
@@ -970,11 +971,11 @@ public class PathQuery implements IQuery {
               // we have x == y in the constraints, and our new constraint is y != c for some constant c
               // add constraint x != c as well
               AtomicPathConstraint addMe = new AtomicPathConstraint(lhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
-              Util.Print("adding extra constraint " + addMe);
+              Util.Print("adding extra constraint1 " + addMe);
               toAdd.add(addMe);
             } else if (lhs0.equals(nonConstantTerm)) {
               AtomicPathConstraint addMe = new AtomicPathConstraint(rhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
-              Util.Print("adding extra constraint " + addMe);
+              Util.Print("adding extra constraint2 " + addMe);
               toAdd.add(addMe);
             }
           }
@@ -982,9 +983,8 @@ public class PathQuery implements IQuery {
       }
       for (AtomicPathConstraint addMe : toAdd) this.constraints.add(addMe);
     }
-    
-    
-    
+    */
+        
     if (constraints.add(constraint)) {
       rebuildZ3Constraints();
       return true;
@@ -1755,7 +1755,7 @@ public class PathQuery implements IQuery {
         AtomicPathConstraint switchConstraint = new AtomicPathConstraint(switchTargetTerm, new SimplePathTerm(casesAndLabels[i]), 
                                                                          ConditionalBranchInstruction.Operator.EQ);
         copy.addConstraint(switchConstraint);
-        Util.Assert(copy.isFeasible()); // need to do something fancier if one of these is infeasible
+        Util.Assert(copy.isFeasible(), "adding constraint " + switchConstraint + " to " + copy + " made it infeasible"); // need to do something fancier if one of these is infeasible
       }
     }
   

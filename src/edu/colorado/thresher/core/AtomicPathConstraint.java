@@ -470,6 +470,10 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
     return new PointsToEdge(lhs, rhs);
 
   }
+  
+  public AtomicPathConstraint negate() {
+    return new AtomicPathConstraint(this.lhs, this.rhs, Util.negateOperator(this.op));
+  }  
 
   @Override
   public Set<FieldReference> getFields() {
