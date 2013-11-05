@@ -2117,13 +2117,25 @@ public class PointsToQuery implements IQuery {
   }
 
   @Override
+  public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getFieldRef() != null && !edge.getFieldRef().isStatic() &&
+          edge.getSource().getNode().equals(constructor)) {
+        Util.Print("refuted by instance fields to default values! needed " + edge + ", but got initialization to null");
+        this.feasible = false;
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  @Override
   public void intializeStaticFieldsToDefaultValues() {
     for (PointsToEdge edge : this.constraints) {
       // if a constraint required a static field to point to something, that
       // constraint will never be satisfied. refute.
       if (edge.getSource().getInstanceKey() instanceof StaticFieldKey) {
-        if (Options.DEBUG)
-          Util.Debug("refuted by default values for static fields!");
+        Util.Debug("refuted by default values for static fields!");
         this.feasible = false;
         return;
       }

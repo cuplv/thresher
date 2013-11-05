@@ -959,6 +959,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
   }
 
+  @Override
+  public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    return super.initializeInstanceFieldsToDefaultValues(constructor) && 
+        this.pointsToQuery.initializeInstanceFieldsToDefaultValues(constructor);
+  }
   /*
   @Override
   void dropConstraintsContaining(PointerVariable retval) {

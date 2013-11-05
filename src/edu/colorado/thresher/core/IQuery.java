@@ -192,12 +192,6 @@ public interface IQuery { // extends Comparable {
   public boolean containsLoopProduceableConstraints(SSACFG.BasicBlock loopHead, CGNode currentNode);
 
   /**
-   * to be called after exiting class initializers; write default values to all
-   * static fields
-   */
-  public void intializeStaticFieldsToDefaultValues();
-
-  /**
    * special case for entering a call without being able to do direct parameter
    * binding
    */
@@ -206,6 +200,14 @@ public interface IQuery { // extends Comparable {
   public List<DependencyRule> getWitnessList();
   
   public Map<Constraint, Set<CGNode>> getRelevantNodes();
+  
+  public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor);
+  
+  /**
+   * to be called after exiting class initializers; write default values to *all*
+   * static fields
+   */
+  public void intializeStaticFieldsToDefaultValues();
   
   public void dispose();
 

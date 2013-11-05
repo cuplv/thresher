@@ -1014,32 +1014,38 @@ public class PathQuery implements IQuery {
   }
 
   @Override
+  public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    Util.Debug("initializing fields to default values");
+    // returning from constructors is a special case because we have to
+    // initialize all untouched fields to their default values
+    // the "this" var is always v1
+    final int THIS = 1;
+    PointerVariable thisVar = new ConcretePointerVariable(constructor, THIS, this.heapModel); 
+    List<FieldReference> toSub = new LinkedList<FieldReference>();
+    for (AtomicPathConstraint constraint : constraints) {
+      Set<SimplePathTerm> terms = constraint.getTerms();
+      for (SimplePathTerm term : terms) {
+        if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
+          toSub.add(term.getFirstField());
+        }
+      }
+    }
+    
+    // init to default values
+    for (FieldReference field : toSub) {
+      if (Options.DEBUG) Util.Debug("initializing " + field + " to default value");
+      substituteExpForFieldRead(new SimplePathTerm(0), thisVar, field);
+      // check if substitution made query infeasible
+      if (!this.isFeasible()) return false;
+    }
+    return true;
+  }
+  
+  @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
     // if (callee.getMethod().isInit()) {
     if (WALACFGUtil.isConstructor(instr)) { // if this is a constructor
-      Util.Debug("initializing fields to default values");
-      // returning from constructors is a special case because we have to
-      // initialize all untouched fields to their default values
-      // the "this" var is always v1
-      final int THIS = 1;
-      PointerVariable thisVar = new ConcretePointerVariable(callee, THIS, this.heapModel); 
-      List<FieldReference> toSub = new LinkedList<FieldReference>();
-      for (AtomicPathConstraint constraint : constraints) {
-        Set<SimplePathTerm> terms = constraint.getTerms();
-        for (SimplePathTerm term : terms) {
-          if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
-            toSub.add(term.getFirstField());
-          }
-        }
-      }
-      
-      // init to default values
-      for (FieldReference field : toSub) {
-        if (Options.DEBUG) Util.Debug("initializing " + field + " to default value");
-        substituteExpForFieldRead(new SimplePathTerm(0), thisVar, field);
-        // check if substitution made query infeasible
-        if (!this.isFeasible()) return IQuery.INFEASIBLE;
-      }
+      if (!initializeInstanceFieldsToDefaultValues(callee)) return IQuery.INFEASIBLE;
     }
     if (WALACFGUtil.isClassInit(instr) || WALACFGUtil.isConstructor(instr)) {
       if (Options.DEBUG)
