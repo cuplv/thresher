@@ -249,7 +249,7 @@ public class PathQuery implements IQuery {
   
   
   public Pair<FieldReference,List<AtomicPathConstraint>> getIndexConstraintsFor(AtomicPathConstraint c) {
-    Util.Assert(c.getLhs() instanceof SimplePathTerm); 
+    Util.Assert(c.getLhs() instanceof SimplePathTerm, "lhs of " + c + " is not simple"); 
     SimplePathTerm arrTerm = (SimplePathTerm) c.getLhs();
     Util.Assert(arrTerm.getFirstField() != null && isArrayIndexField(arrTerm.getFirstField()));
     FieldReference indexField = arrTerm.getFirstField(); // find the term with the path var
@@ -1361,7 +1361,7 @@ public class PathQuery implements IQuery {
     int uses = instruction.getNumberOfUses();
     Util.Assert(uses == 2, "ONLY TWO USES please");
     Util.Assert(!(tbl.isConstant(instruction.getUse(0)) && tbl.isConstant(instruction.getUse(1))),
-        "AT LEAST ONE USE SHOULD NOT BE A CONSTANT!");
+        "AT LEAST ONE USE SHOULD NOT BE A CONSTANT! weird instr " + instruction + " ir " + node.getIR());
     int use0 = instruction.getUse(0), use1 = instruction.getUse(1);
 
     AtomicPathConstraint constraint;

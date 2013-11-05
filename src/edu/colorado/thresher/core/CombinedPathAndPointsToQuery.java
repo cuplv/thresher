@@ -463,7 +463,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     
     List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar);
     // TODO: generalize this to multiple constraints on arr; not expected for now
-    Util.Assert(arrConstraints.size() == 1);
+    Util.Assert(arrConstraints.size() == 1, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size());
     AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
     Pair<FieldReference, List<AtomicPathConstraint>> indexPair = getIndexConstraintsFor(arrConstraint);
     FieldReference indexField = indexPair.fst;

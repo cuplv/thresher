@@ -385,6 +385,7 @@ public class PointsToQuery implements IQuery {
   void bindActualsToFormals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
     //Util.Assert(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
     Util.Debug("binding actuals to formals: callee " + calleeMethod + "; caller: " + callerMethod + " instr " + instr);
+    Util.Debug("query is " + this);
     SymbolTable tbl = callerMethod.getIR().getSymbolTable();
     Set<PointsToEdge> toAdd = new TreeSet<PointsToEdge>(), toRemove = new TreeSet<PointsToEdge>();
     MutableIntSet argsSeen = new BitVectorIntSet();
@@ -399,8 +400,7 @@ public class PointsToQuery implements IQuery {
 
       // necessary for cases when we pass the same value as two parameters i.e.
       // Object o; foo(o, o).
-      if (!argsSeen.add(argUse))
-        possiblyAliased.add(arg);
+      if (!argsSeen.add(argUse)) possiblyAliased.add(arg);
       
       for (PointsToEdge edge : constraints) {
         PointerVariable src = edge.getSource();
@@ -417,34 +417,8 @@ public class PointsToQuery implements IQuery {
               continue;
             }
           }
-          
-          /*
-          OrdinalSet<InstanceKey> pt = hg.getPointerAnalysis().getPointsToSet((LocalPointerKey) arg.getInstanceKey());
-          Set<InstanceKey> possibleVals = HashSetFactory.make();
-          for (Iterator<InstanceKey> iter = pt.getMapping().iterator(); iter.hasNext();) {
-            possibleVals.add(iter.next());
-          } */ 
-          
           // get the points-to set of arg, intersect with the sink of edge
-          Set<InstanceKey> possibleVals = arg.getPointsToSet(hg);//HashSetFactory.make();
-          /*
-          //int added = 0;
-          for (Iterator<Object> succs = hg.getSuccNodes(arg.getInstanceKey()); succs.hasNext();) {
-            Object succ = succs.next();          
-            Util.Debug("succ is " + succ);
-            
-            if (succ instanceof InstanceKey) {
-              //Util.Assert(possibleVals.contains(succ), "pts-to set of " + arg + " should have " + succ);
-              possibleVals.add((InstanceKey) succ);
-              //Util.Print("succ is " + succ);
-              //added++;
-            }
-          }     
-          
-          //Util.Assert(added == possibleVals.size(), " their pts-to set for " + arg + " has " + possibleVals.size() + " ours has " + added + Util.printCollection(possibleVals));
-          Util.Assert(!possibleVals.isEmpty(), "possible vals for " + arg + " empty. instance key " + 
-              arg.getInstanceKey() + "type " + arg.getInstanceKey().getClass());
-          */
+          Set<InstanceKey> possibleVals = arg.getPointsToSet(hg);
           if (possibleVals.isEmpty()) {
             Util.Debug("refuted by parameter binding! pts-to set of " + arg + " is empty");
             this.feasible = false;
@@ -475,9 +449,14 @@ public class PointsToQuery implements IQuery {
           subMap.put(edge.getSink(), merged);
           
           PointsToEdge newEdge = new PointsToEdge(arg, merged);
+          Util.Debug("here, adding " + newEdge + " and removing " + edge);
           toAdd.add(newEdge);
           toRemove.add(edge);
+          // need to check for an edge with arg on the LHS here
           //formalsAssigned.add(formal);
+        } else if (src.equals(arg)) {
+          // TODO: should merge here, but just drop for now in order to prevent assertion failure. ugh
+          toRemove.add(edge);
         }
       }
     }
@@ -488,16 +467,8 @@ public class PointsToQuery implements IQuery {
     toRemove.clear();
     toAdd.clear();
     subMap.clear();
-    
-    /*
-    // TODO: might have to simplify w.r.t merged var
-    for (PointsToEdge edge : toRemove) {
-      boolean removed = constraints.remove(edge);
-      if (!removed) Util.Assert(removed, "couldn't remove edge " + edge + " from " + Util.printCollection(constraints));
-    }
-    toRemove.clear();
-    */
-    
+
+    // TODO: this code is dead! remove stuff above and see what happens
     Set<PointsToEdge> toAdd2 = HashSetFactory.make();
     for (PointsToEdge addMe : toAdd) {
       PointerVariable lhs = addMe.getSource();
@@ -620,7 +591,7 @@ public class PointsToQuery implements IQuery {
       }
     }
 
-    return;// formalsAssigned;
+    return;
   }
 
   /**
@@ -761,7 +732,7 @@ public class PointsToQuery implements IQuery {
       return IQuery.INFEASIBLE;
     }
 
-    Util.Debug("PRODUCED " + Util.constraintSetToString(produced));
+    //Util.Debug("PRODUCED " + Util.constraintSetToString(produced));
 
     //Set<DependencyRule> rulesAtLine = depRuleGenerator.getRulesForInstr(instr, caller);
     // get only the rules specific to entering this callee
@@ -867,6 +838,7 @@ public class PointsToQuery implements IQuery {
   }
 
   static boolean applyRule(DependencyRule rule, PointsToQuery query, HeapGraph hg) {
+    //Util.Debug("before applying rule " + rule + " query is " + query);
     // TODO: this is a giant mess that's impossible to reason about. clean it up
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
     // special case for when the constraints contain a symbolic edge that
@@ -996,7 +968,7 @@ public class PointsToQuery implements IQuery {
         }
          
         if (add) {
-          //Util.Debug("adding " + edge);
+          Util.Debug("adding " + edge);
           query.addConstraint(edge);
         }
         for (PointsToEdge removeMe : toRemove) {
@@ -1151,12 +1123,13 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge edge : qry.constraints) {
       PointsToEdge subbed = edge.substitute(subMap);
       if (subbed != edge) {
+        Util.Debug("adding " + subbed + " removing " + edge + " from subMap");
         toRemove.add(edge);
         toAdd.add(subbed);
       }
     }
     for (PointsToEdge removeMe : toRemove) qry.constraints.remove(removeMe);
-    for (PointsToEdge addMe : toAdd) qry.addConstraint(addMe);//qry.constraints.add(addMe
+    for (PointsToEdge addMe : toAdd) qry.addConstraint(addMe);
   }
 
   /**
@@ -1754,7 +1727,7 @@ public class PointsToQuery implements IQuery {
     PointerVariable found = null;
     for (PointsToEdge edge : set) {
       if (edge.getSource().equals(var)) {
-        Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
         found = edge.getSink();
       }
     }

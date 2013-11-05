@@ -648,17 +648,16 @@ public class AbstractDependencyRuleGenerator {
     else {
       
       if (instr instanceof SSASwitchInstruction) {
+        /*
         //Util.Print(ir);
         SymbolTable tbl = ir.getSymbolTable();
         SSASwitchInstruction switch_ = (SSASwitchInstruction) instr;
         int[] casesAndLabels = switch_.getCasesAndLabels();
         for (int i = 0; i < casesAndLabels.length; i += 2) {
-          Util.Print("case " + casesAndLabels[i]);
-          Util.Print("label " + casesAndLabels[i+1]);
-          
           //Util.Print("target " + switch_.getTarget(casesAndLabels[i]));
           //Util.Print("const: " + tbl.getConstant(casesAndLabels[i]));
         }
+        */
       }
       if (Options.DEBUG) Util.Debug("instr " + instr + " does not manipulate the heap.");
       // Util.Unimp("UNHANDLED INSTR " + instr);

@@ -293,11 +293,7 @@ public class SymbolicPointerVariable implements PointerVariable {
     
     if (other instanceof SymbolicPointerVariable) {
       SymbolicPointerVariable symb = (SymbolicPointerVariable) other;
-      boolean containsAll = this.getPossibleValues().containsAll(symb.getPossibleValues());
-      Util.Print("checking if " + this + " symbContains " + other + " " + containsAll);
-
-      return containsAll;
-      //return this.getPossibleValues().containsAll(symb.getPossibleValues());
+      return this.getPossibleValues().containsAll(symb.getPossibleValues());
     } else if (other instanceof ConcretePointerVariable) {
       return this.possibleValues.contains(other.getInstanceKey());
     }
