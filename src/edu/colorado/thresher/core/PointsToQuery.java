@@ -21,7 +21,6 @@ import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
-import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -39,6 +38,7 @@ import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
+import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.debug.Assertions;
@@ -2118,12 +2118,13 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    TypeReference initClass = constructor.getMethod().getDeclaringClass().getReference();
     for (PointsToEdge edge : this.constraints) {
-      if (edge.getFieldRef() != null && !edge.getFieldRef().isStatic() &&
-          edge.getSource().getNode().equals(constructor)) {
-        Util.Print("refuted by instance fields to default values! needed " + edge + ", but got initialization to null");
-        this.feasible = false;
-        return false;
+      if (edge.getSource().isLocalVar() && edge.getFieldRef() != null && !edge.getFieldRef().isStatic() && 
+          edge.getFieldRef().getDeclaringClass().getReference().equals(initClass)) {
+          Util.Print("refuted by instance fields to default values! needed " + edge + ", but got initialization to null");
+          this.feasible = false;
+          return false;
       }
     }
     return true;
