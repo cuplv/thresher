@@ -127,8 +127,6 @@ public class PointsToQuery implements IQuery {
     this.constraints.retainAll(otherQuery.constraints);
     this.produced.retainAll(otherQuery.produced);
   }
-
-  //static boolean USE_STALE_CONSTRAINTS = false;
   
   @Override
   public boolean containsStaleConstraints(CGNode node) {

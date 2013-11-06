@@ -1698,16 +1698,34 @@ public class PathQuery implements IQuery {
   @Override
   public void removeAllLocalConstraints() {
     List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
+    List<FieldReference> indexFldsToRemove = new LinkedList<>();
     for (AtomicPathConstraint constraint : constraints) {
       for (PointerVariable var : constraint.getVars()) {
-        if (var.isLocalVar())
+        if (var.isLocalVar()) {
+          if (Options.INDEX_SENSITIVITY) {
+            // special hack for array index constraints; if we remove the constraint 
+            // on the array write, we have to remove the constraint on its index as well
+            for (FieldReference fld : this.getFields()) {
+              if (isArrayIndexField(fld)) indexFldsToRemove.add(fld);
+            }
+          }        
           toRemove.add(constraint);
+        }
         break;
       }
     }
+    
+    if (Options.INDEX_SENSITIVITY) {
+      for (FieldReference fld : indexFldsToRemove) {
+        // make another pass to remove relevant index constraints
+        for (AtomicPathConstraint constraint : constraints) {
+          if (constraint.getFields().contains(fld)) toRemove.add(constraint);
+        }
+      }
+    }
+    
     for (AtomicPathConstraint constraint : toRemove) {
-      if (Options.DEBUG)
-        Util.Debug("removing local constraint " + constraint);
+      if (Options.DEBUG) Util.Debug("removing local constraint " + constraint);
       removeConstraint(constraint);
       // constraints.remove(constraint);
     }

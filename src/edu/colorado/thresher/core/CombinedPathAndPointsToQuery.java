@@ -13,13 +13,13 @@ import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.classLoader.NewSiteReference;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.ContextItem;
 import com.ibm.wala.ipa.callgraph.ContextKey;
 import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
-import com.ibm.wala.ipa.callgraph.propagation.HeapModel;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
@@ -40,15 +40,12 @@ import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.ssa.SSAPutInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
-import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.FieldReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.Pair;
-import com.ibm.wala.util.intset.BitVectorIntSet;
-import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
 
 /**
@@ -409,6 +406,16 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     PointerVariable subFor = null;
     if (pathVars.contains(local)) subFor = local;
     else if (pathVars.contains(allocated)) subFor = allocated;
+    else {
+      // check if one of the pathVars is a symbolic var containing this site
+      for (PointerVariable var : pathVars) {
+        Set<InstanceKey> possibleValues = var.getPossibleValues();
+        if (possibleValues != null && possibleValues.contains(allocatedKey)) {
+          Util.Assert(subFor == null, "more than one sub target!");
+          subFor = var;
+        }
+      }
+    }
     if (subFor != null) {
       // special case for arrays
       if (instr.getNewSite().getDeclaredType().isArrayType()) { 
@@ -644,7 +651,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    * the dependency rules to help us make relevant bindings
    */
   @Override
-  public void enterCallFromJump(CGNode callee) {
+  public void enterCallFromJump(CGNode callee) {    
+    Util.Print("callee is " + callee);
     // TODO: need to do this for path query as well? for non-parameter locals?
     this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
     int[] params = callee.getIR().getParameterValueNumbers();
@@ -664,6 +672,51 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         if (toAdd != null) this.pointsToQuery.constraints.add(toAdd);
       }
     }
+    /*
+    // special case for array length constraints, which create problems because we may not have
+    //
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.isArrayLengthConstraint()) {
+        Util.Print("found array length constraint " + constraint);
+        // find the term with the array length field and add a PT 
+        // constraint for the local of callee that creates the array, if applicable
+        for (SimplePathTerm term : constraint.getTerms()) {
+          FieldReference fld = term.getFirstField();
+          if (fld != null && fld.equals(SimplePathTerm.LENGTH)) {
+            PointerVariable arrayVar = term.getObject();
+            Util.Print("found array length term " + term);
+            // if we already have a local pointer to this array in the pts-to constraints;
+            // there's nothing to worry about
+            if (!this.pointsToQuery.getPointsAtSet(arrayVar).isEmpty()) {
+              Util.Print("we already have a local ptr to " + arrayVar + "; continuing");
+              continue;
+            }
+            
+            // otherwise, check if there are any new sites in callee that could create arrayVar            
+            boolean added = false;
+            Set<InstanceKey> possibleVals = arrayVar.getPossibleValues();
+            for (Iterator<SSAInstruction> iter = callee.getIR().iterateAllInstructions(); iter.hasNext();) {
+              SSAInstruction instr = iter.next();
+              Util.Print("instr is " + instr);
+              if (instr instanceof SSANewInstruction) {
+                SSANewInstruction newInstr = (SSANewInstruction) instr;
+                InstanceKey site = heapModel.getInstanceKeyForAllocation(callee, newInstr.getNewSite());
+                Util.Print("checking out new " + instr + "; site is " + site);
+                if (possibleVals.contains(site)) {                  
+                  // found one. add a new points-to edge connecting the local associated with this new site to arrayVar
+                  Util.Assert(!added); // more than one possible local ptr to array var! need to do case split
+                  PointerVariable local = new ConcretePointerVariable(callee, newInstr.getDef(), heapModel);
+                  PointsToEdge edge = new PointsToEdge(local, arrayVar);
+                  Util.Print("adding local constraint " + edge + " for array index constraint");
+                  this.pointsToQuery.constraints.add(edge);
+                  added = true;
+                }
+              }
+            }    
+          }
+        }
+      }
+    }*/
     /*
     this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
     int[] params = callee.getIR().getParameterValueNumbers();
@@ -1037,7 +1090,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
 
     return false;
   }
-
+  
   @Override
   public void removeAllLocalConstraints() {
     // IMPORTANT! must do this first, otherwise we lose the local pts-to info!
@@ -1054,15 +1107,14 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   /**
    * take advantage of pts-to information to sub out locals for their heap
    * value, if known
-   * TODO: should also replace with points-to sets if not in constraints. also, do we need to consider aliasing?
+   * TODO: should also replace with points-to sets if not in constraints, and also need to consider aliasing
    */
   public void removeAllLocalPathConstraints() {
     // first, sub out all locals for their corresponding heap locations, if we know them
     for (PointsToEdge edge : pointsToQuery.constraints) {
       PointerVariable src = edge.getSource();
       if (src.isLocalVar() && this.pathVars.contains(src)) {
-        if (Options.DEBUG)
-          Util.Debug("subbing out for " + src + "; replacing with " + edge.getSink());
+        if (Options.DEBUG) Util.Debug("subbing out for " + src + "; replacing with " + edge.getSink());
         // do substitution for snk of edge
         this.substituteExpForVar(new SimplePathTerm(edge.getSink()), src);
       } 
@@ -1071,8 +1123,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     for (PointsToEdge edge : pointsToQuery.produced) {
       PointerVariable src = edge.getSource();
       if (src.isLocalVar() && this.pathVars.contains(src)) {
-        if (Options.DEBUG)
-          Util.Debug("subbing out for " + src + "; replacing with " + edge.getSink());
+        if (Options.DEBUG) Util.Debug("subbing out for " + src + "; replacing with " + edge.getSink());
         // do substitution for snk of edge
         this.substituteExpForVar(new SimplePathTerm(edge.getSink()), src);
       }

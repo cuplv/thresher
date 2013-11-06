@@ -502,6 +502,13 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
     return false;
   }
   
+  public boolean isArrayLengthConstraint() {
+    for (FieldReference field : this.getFields()) {
+      if (field.equals(SimplePathTerm.LENGTH)) return true;
+    }
+    return false;
+  }
+  
   @Override
   public boolean isArrayIndexConstraint() {
     for (PointerVariable var : this.getVars()) {
