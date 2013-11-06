@@ -652,7 +652,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
    */
   @Override
   public void enterCallFromJump(CGNode callee) {    
-    Util.Print("callee is " + callee);
     // TODO: need to do this for path query as well? for non-parameter locals?
     this.pointsToQuery.produced.clear(); // all bets on contents of produced are off
     int[] params = callee.getIR().getParameterValueNumbers();
@@ -673,7 +672,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       }
     }
     /*
-    // special case for array length constraints, which create problems because we may not have
+    // this is now handled by proper constraint dropping
     //
     for (AtomicPathConstraint constraint : this.constraints) {
       if (constraint.isArrayLengthConstraint()) {
@@ -1150,6 +1149,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
 
     // now, can remove all local constraints
+    super.removeAllLocalConstraints();
+    /*
     List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : constraints) {
       for (PointerVariable var : constraint.getVars()) {
@@ -1159,8 +1160,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
     }
-    for (AtomicPathConstraint constraint : toRemove)
-      removeConstraint(constraint);// constraints.remove(constraint);
+    for (AtomicPathConstraint constraint : toRemove) removeConstraint(constraint);
+    */
   }
 
   @Override

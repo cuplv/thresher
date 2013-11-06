@@ -299,7 +299,6 @@ public class PathQuery implements IQuery {
     for (AtomicPathConstraint constraint : this.constraints) {
       if (constraint.isArrayIndexConstraint() && 
           ((SimplePathTerm) constraint.lhs).getObject().getInstanceKey().equals(fld.getName().toString())) {
-        //return constraint;
         indexConstraints.add(constraint);
       }
     }
@@ -1697,8 +1696,8 @@ public class PathQuery implements IQuery {
 
   @Override
   public void removeAllLocalConstraints() {
-    List<AtomicPathConstraint> toRemove = new LinkedList<AtomicPathConstraint>();
-    List<FieldReference> indexFldsToRemove = new LinkedList<>();
+    Set<AtomicPathConstraint> toRemove = HashSetFactory.make();
+    Set<FieldReference> indexFldsToRemove = HashSetFactory.make();
     for (AtomicPathConstraint constraint : constraints) {
       for (PointerVariable var : constraint.getVars()) {
         if (var.isLocalVar()) {
@@ -1710,24 +1709,21 @@ public class PathQuery implements IQuery {
             }
           }        
           toRemove.add(constraint);
+          break;
         }
-        break;
       }
     }
     
     if (Options.INDEX_SENSITIVITY) {
+      // make another pass to remove relevant index constraints
       for (FieldReference fld : indexFldsToRemove) {
-        // make another pass to remove relevant index constraints
-        for (AtomicPathConstraint constraint : constraints) {
-          if (constraint.getFields().contains(fld)) toRemove.add(constraint);
-        }
+        toRemove.addAll(getIndexConstraintsFor(fld));       
       }
     }
     
     for (AtomicPathConstraint constraint : toRemove) {
       if (Options.DEBUG) Util.Debug("removing local constraint " + constraint);
       removeConstraint(constraint);
-      // constraints.remove(constraint);
     }
   }
 
