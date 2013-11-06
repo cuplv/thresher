@@ -203,6 +203,9 @@ public interface IQuery { // extends Comparable {
   
   public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor);
   
+  public PointerVariable getPointedTo(PointerVariable var);
+
+  
   /**
    * to be called after exiting class initializers; write default values to *all*
    * static fields

@@ -247,14 +247,49 @@ public class PathQuery implements IQuery {
     }
   }
   
+  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var, boolean mustHaveField) {
+    List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(var) && (!mustHaveField || !constraint.getFields().isEmpty())) {
+        constraintsWithVar.add(constraint);
+      }
+    }
+    return constraintsWithVar;
+  }    
+  
+  /*
+  public Map<FieldReference,Set<AtomicPathConstraint>> getIndexConstraintsFor(PointerVariable var) {
+    Map<FieldReference,Set<AtomicPathConstraint>> fldMap = HashMapFactory.make();   
+
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getVars().contains(var)) {
+       for (SimplePathTerm term : constraint.getTerms()) {
+         if (term.getFirstField() != null && isArrayIndexField(term.getFirstField())) {
+           FieldReference indexFld = term.getFirstField();
+           Set<AtomicPathConstraint> indexConstraints = fldMap.get(indexFld);
+           if (indexConstraints == null) {
+             indexConstraints = HashSetFactory.make();
+             fldMap.put(indexFld, indexConstraints);
+           }
+           indexConstraints.add(constraint);
+           break; // continue to next constraint
+         }
+       }
+      }
+    }
+    return fldMap;
+  }*/
   
   public Pair<FieldReference,List<AtomicPathConstraint>> getIndexConstraintsFor(AtomicPathConstraint c) {
-    Util.Assert(c.getLhs() instanceof SimplePathTerm, "lhs of " + c + " is not simple"); 
-    SimplePathTerm arrTerm = (SimplePathTerm) c.getLhs();
-    Util.Assert(arrTerm.getFirstField() != null && isArrayIndexField(arrTerm.getFirstField()));
-    FieldReference indexField = arrTerm.getFirstField(); // find the term with the path var
-    List<AtomicPathConstraint> indexConstraints = getIndexConstraintsFor(indexField);
-    return Pair.make(indexField,indexConstraints);
+    for (SimplePathTerm term : c.getTerms()) {
+      if (term.getFirstField() != null && isArrayIndexField(term.getFirstField())) {
+        FieldReference indexField = term.getFirstField(); // find the term with the path var
+        List<AtomicPathConstraint> indexConstraints = getIndexConstraintsFor(indexField);
+        return Pair.make(indexField,indexConstraints);
+      }
+    }
+    Util.Unimp("couldn't find index constraints for " + c);
+    return null;
   }
   
   @Override
@@ -733,16 +768,6 @@ public class PathQuery implements IQuery {
     return true;
   }
   
-  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var) {
-    List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
-    for (AtomicPathConstraint constraint : this.constraints) {
-      if (constraint.getVars().contains(var)) {
-        constraintsWithVar.add(constraint);
-      }
-    }
-    return constraintsWithVar;
-  }
-  
   public static boolean isArrayIndexField(FieldReference fld) {
     return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
   }
@@ -917,7 +942,8 @@ public class PathQuery implements IQuery {
       return true;
     }
     //Util.Print("trying to add constraint " + constraint);
-    /*
+    
+    // TODO: this is very ugly, but necessary for now
     if (constraint.isEqualityConstraint()) {
       // other constraints might become more precise from substitution here
       SimplePathTerm lhs = (SimplePathTerm) constraint.getLhs(), rhs = (SimplePathTerm) constraint.getRhs();
@@ -983,7 +1009,7 @@ public class PathQuery implements IQuery {
       }
       for (AtomicPathConstraint addMe : toAdd) this.constraints.add(addMe);
     }
-    */
+    
         
     if (constraints.add(constraint)) {
       rebuildZ3Constraints();
@@ -1854,6 +1880,11 @@ public class PathQuery implements IQuery {
   public Iterator<? extends Constraint> constraints() {
     return constraints.iterator();
   }
+  
+  @Override
+  public PointerVariable getPointedTo(PointerVariable var) {
+    return null;
+  }  
 
   @Override
   public boolean containsConstraint(Constraint constraint) {

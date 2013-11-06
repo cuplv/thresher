@@ -396,7 +396,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   boolean visit(SSANewInstruction instr, CGNode node, SymbolTable tbl) {
     PointerVariable local = new ConcretePointerVariable(node, instr.getDef(), this.heapModel);
-    InstanceKey allocatedKey = this.heapModel.getInstanceKeyForAllocation(node, instr.getNewSite());
+    InstanceKey allocatedKey = null;
+    try {
+      allocatedKey = this.heapModel.getInstanceKeyForAllocation(node, instr.getNewSite());
+    } catch (NullPointerException e) {} // hack to get around WALA bug -- see AbstractDependencyRuleGenerator for descripton
     if (allocatedKey == null) { // this can happen due to exclusions
       if (Options.DEBUG) Util.Debug("can't find key for allocation instr " + instr);
       dropConstraintsContaining(local);
@@ -439,7 +442,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
                 Util.Assert(term.getFirstField() != null);
                 // remove constraints on index value
                 PointerVariable indexName = new ConcretePointerVariable(term.getFirstField().getName().toString());
-                toRemove.addAll(this.getConstraintsWithVar(indexName));
+                toRemove.addAll(this.getConstraintsWithVar(indexName, false));
                 // assign to default value
                 //substituteExpForFieldRead(DEFAULT_ARR_VAL, term.getObject(), term.getFirstField());
                 toSub.add(term);
@@ -461,7 +464,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
     else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
     
-    List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar);
+    List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar, true);    
+    
     // TODO: generalize this to multiple constraints on arr; not expected for now
     Util.Assert(arrConstraints.size() == 1, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size());
     AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
@@ -507,7 +511,6 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   @Override
   // TODO: this is too slow--redo with local vars
   boolean visit(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl) {
-    //Util.Print("visiting arr store " + instr);
     PointerVariable arrayVar = new ConcretePointerVariable(node, instr.getArrayRef(), this.heapModel);
     if (Options.INDEX_SENSITIVITY) {
       if (pathVars.contains(arrayVar)) {
@@ -1413,6 +1416,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
     return constraints.iterator();
   }
+  
+  @Override
+  public PointerVariable getPointedTo(PointerVariable var) {
+    return this.pointsToQuery.getPointedTo(var);
+  }  
   
   public int getNumberOfPathConstraints() {
     return constraints.size();

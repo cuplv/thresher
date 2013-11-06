@@ -45,6 +45,7 @@ import com.ibm.wala.util.debug.Assertions;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
+import com.sun.crypto.provider.HmacMD5;
 
 /**
  * query regarding feasability of heap state involving points-to edges
@@ -52,7 +53,7 @@ import com.ibm.wala.util.intset.OrdinalSet;
  * @author sam
  */
 public class PointsToQuery implements IQuery {
-
+  
   final AbstractDependencyRuleGenerator depRuleGenerator;
   // constraints that have not been produced yet
   final Set<PointsToEdge> constraints; 
@@ -127,6 +128,8 @@ public class PointsToQuery implements IQuery {
     this.produced.retainAll(otherQuery.produced);
   }
 
+  //static boolean USE_STALE_CONSTRAINTS = false;
+  
   @Override
   public boolean containsStaleConstraints(CGNode node) {
     
@@ -138,6 +141,7 @@ public class PointsToQuery implements IQuery {
         if (Options.DEBUG) {
           Util.Debug("found stale constraint " + edge + "\nfor method " + node + "\nin " + this);
         }
+        
         this.feasible = false;
         return true;
       }
@@ -325,6 +329,11 @@ public class PointsToQuery implements IQuery {
   @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
     List<IQuery> caseSplits;
+    
+    if (callee.getMethod().isInit() && !initializeInstanceFieldsToDefaultValues(callee)) {
+      return IQuery.INFEASIBLE;
+    }
+    
     if (currentPath.isCallStackEmpty()) { // special case; entering entirely new
                                           // node rather than returning to node
                                           // we were already in
@@ -454,10 +463,11 @@ public class PointsToQuery implements IQuery {
           toRemove.add(edge);
           // need to check for an edge with arg on the LHS here
           //formalsAssigned.add(formal);
-        } else if (src.equals(arg)) {
+        } //else if (src.equals(arg)) {
+          //Util.Print("doing bad thing!");
           // TODO: should merge here, but just drop for now in order to prevent assertion failure. ugh
-          toRemove.add(edge);
-        }
+          //toRemove.add(edge);
+        //}
       }
     }
 
@@ -1256,10 +1266,7 @@ public class PointsToQuery implements IQuery {
     Collection<PointsToEdge> toCheck = new ArrayList<PointsToEdge>(3);
     toCheck.add(rule.getShown());
     toCheck.addAll(rule.getToShow());
-    
-    // TMP: desired?
-    //for (PointsToEdge shown : toCheck) {
-    
+        
     boolean shownSymbolic = shown.getSource().isSymbolic();
     for (PointsToEdge edge : constraints) {
       boolean lhsMatch;
@@ -1279,8 +1286,7 @@ public class PointsToQuery implements IQuery {
       }
 
       if (lhsMatch && fieldsEqual) {
-        if (Options.DEBUG)
-          Util.Debug("relevant: " + edge);
+        if (Options.DEBUG) Util.Debug("relevant: " + edge);
         return true;
       }
     }
@@ -1309,8 +1315,7 @@ public class PointsToQuery implements IQuery {
       
       //if (lhsMatch && fieldsEqual) {
       if (lhsMatch && fieldsEqual && notArrays) {
-        if (Options.DEBUG)
-          Util.Debug("relevant (produced): " + edge);
+        if (Options.DEBUG)Util.Debug("relevant (produced): " + edge);
         return true;
       }
     }
@@ -1616,6 +1621,7 @@ public class PointsToQuery implements IQuery {
     return true;
   }
   
+  @Override
   // return the points-to set of var according to our constraints
   public PointerVariable getPointedTo(PointerVariable var) {
     return getPointedTo(var, true);
@@ -2118,6 +2124,18 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    PointerVariable thisVar = new ConcretePointerVariable(constructor, 1, depRuleGenerator.hm);
+    PointerVariable pt = getPointedTo(thisVar);
+    if (pt != null) {
+      for (PointsToEdge edge : this.constraints) {
+        if (edge.getSource().equals(pt)) {
+            Util.Print("refuted by instance fields to default values! needed " + edge + ", but got initialization to null");
+            this.feasible = false;
+            return false;
+        }
+      }
+    }
+    /*
     TypeReference initClass = constructor.getMethod().getDeclaringClass().getReference();
     for (PointsToEdge edge : this.constraints) {
       if (edge.getSource().isLocalVar() && edge.getFieldRef() != null && !edge.getFieldRef().isStatic() && 
@@ -2126,7 +2144,7 @@ public class PointsToQuery implements IQuery {
           this.feasible = false;
           return false;
       }
-    }
+    }*/
     return true;
   }
   

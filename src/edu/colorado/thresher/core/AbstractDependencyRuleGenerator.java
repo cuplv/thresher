@@ -395,7 +395,14 @@ public class AbstractDependencyRuleGenerator {
       // Util.Unimp("dealing with NEW's!");
       SSANewInstruction instruction = (SSANewInstruction) instr;
       Util.Assert(instruction.hasDef(), "no def for new instr " + instr);
-      InstanceKey site = hm.getInstanceKeyForAllocation(node, instruction.getNewSite());
+      InstanceKey site = null;
+      // TODO: hack to get around bug in WALA--NPE in IR.getNewInstructionIndex(). Try PiecewiseOpcodeNoRefute to see t
+      try {
+        site = hm.getInstanceKeyForAllocation(node, instruction.getNewSite());
+      } catch (NullPointerException e) { 
+        Util.Print("caught WALA exception; moving on");
+        return rules;
+      }
       PointerKey local = hm.getPointerKeyForLocal(node, instruction.getDef());
       Util.Assert(local != null, "null local for " + local);
       if (site == null) {
