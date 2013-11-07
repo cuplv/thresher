@@ -472,7 +472,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
     
     List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar, true);    
-    
+    if (arrConstraints.isEmpty()) return true; // can't affect us
     // TODO: generalize this to multiple constraints on arr; not expected for now
     Util.Assert(arrConstraints.size() == 1, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size());
     AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();

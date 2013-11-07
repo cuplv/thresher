@@ -768,6 +768,7 @@ public class PathQuery implements IQuery {
   }
   
   public static boolean isArrayIndexField(FieldReference fld) {
+    Util.Pre(fld != null);
     return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
   }
   

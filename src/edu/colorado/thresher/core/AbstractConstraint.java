@@ -6,12 +6,21 @@ public abstract class AbstractConstraint implements Constraint {
 
   @Override
   public boolean isClinitConstraint() {
+    /*
     for (PointerVariable var : this.getVars()) {
       if (var.isClinitVar()) {
         return true;
       }
     }
     return false;
+    */
+    // a constraint is a clinit constraint if *all* of it's vars are clinit vars
+    for (PointerVariable var : this.getVars()) {
+      if (!var.isClinitVar()) {
+        return false;
+      }
+    }
+    return true;
   }
   
   @Override
