@@ -1520,7 +1520,7 @@ public class PointsToQuery implements IQuery {
           Set<DependencyRule> newRules = bindSymbolicRule(rule, this, currentNode);
           boolean considerNotApplied = false;
 
-          if (!newRules.contains(rule)) {
+          if (!rule.getShown().getSource().isLocalVar() && !newRules.contains(rule)) {
             Util.Debug("considering rule not applied case.");
             considerNotApplied = true;
           }
