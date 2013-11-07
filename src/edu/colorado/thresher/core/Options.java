@@ -164,6 +164,10 @@ public class Options {
 
   @intOpt(description = "if we explore more paths than this while trying to refute/witness an edge, we report a timeout and (falsely) witness the edge", _default = 10000)
   public static int PATH_EXPLORE_LIMIT = 10000;
+  
+  @intOpt(description = "if we explore more paths than this while trying to refute/witness an edge, we report a timeout and (falsely) witness the edge", _default = 1000)
+  // same name for the different thing; scwala's path budget
+  public static int PATH_BUDGET = 100;
 
   @stringOpt(description = "usage: -app <path to directory of .class files to analyze>", _default = "")
   public static String APP;

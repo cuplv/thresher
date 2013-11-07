@@ -128,10 +128,13 @@ public class PointsToQuery implements IQuery {
     this.produced.retainAll(otherQuery.produced);
   }
   
+  // if true, we remove stale constraints rather than refuting because of them
+  static final boolean IGNORE_STALE_CONSTRAINTS = false;
+  
   @Override
   public boolean containsStaleConstraints(CGNode node) {
     
-    //List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>();
+    List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>();
     
     for (PointsToEdge edge : constraints) {
       // do any constraints have a local var from node on the LHS?
@@ -139,11 +142,14 @@ public class PointsToQuery implements IQuery {
         if (Options.DEBUG) {
           Util.Debug("found stale constraint " + edge + "\nfor method " + node + "\nin " + this);
         }
-        
-        this.feasible = false;
-        return true;
+        if (IGNORE_STALE_CONSTRAINTS) toRemove.add(edge);
+        else {
+          this.feasible = false;
+          return true;
+        }
       }
     }
+    this.constraints.removeAll(toRemove);    
     return false;
   }
 
