@@ -210,7 +210,9 @@ public interface IQuery { // extends Comparable {
    * to be called after exiting class initializers; write default values to *all*
    * static fields
    */
-  public void intializeStaticFieldsToDefaultValues();
+  
+  public boolean initializeStaticFieldsToDefaultValues();    
+
   
   public void dispose();
 

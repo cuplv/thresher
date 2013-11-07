@@ -1255,9 +1255,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   @Override
-  public void intializeStaticFieldsToDefaultValues() {
-    pointsToQuery.intializeStaticFieldsToDefaultValues();
-    super.intializeStaticFieldsToDefaultValues();
+  public boolean initializeStaticFieldsToDefaultValues() {    
+    return pointsToQuery.initializeStaticFieldsToDefaultValues() && 
+    super.initializeStaticFieldsToDefaultValues();
   }
 
   private Map<Constraint, Set<CGNode>> getModifiersForQueryHelper() {

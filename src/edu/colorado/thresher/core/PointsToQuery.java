@@ -2147,16 +2147,17 @@ public class PointsToQuery implements IQuery {
   }
   
   @Override
-  public void intializeStaticFieldsToDefaultValues() {
+  public boolean initializeStaticFieldsToDefaultValues() {
     for (PointsToEdge edge : this.constraints) {
       // if a constraint required a static field to point to something, that
       // constraint will never be satisfied. refute.
       if (edge.getSource().getInstanceKey() instanceof StaticFieldKey) {
         Util.Debug("refuted by default values for static fields!");
         this.feasible = false;
-        return;
+        return false;
       }
     }
+    return true;
   }
   
   private static boolean isDispatchFeasibleHelper(Set<PointsToEdge> edges, PointerVariable receiver, IClass calleeType, 

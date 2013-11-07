@@ -658,7 +658,7 @@ public class IPathInfo { // implements Comparable {
   }
 
   public void initializeStaticFieldsToDefaultValues() {
-    query.intializeStaticFieldsToDefaultValues();
+    query.initializeStaticFieldsToDefaultValues();
   }
 
   public List<DependencyRule> getWitnessList() {

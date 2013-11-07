@@ -1728,7 +1728,7 @@ public class PathQuery implements IQuery {
   }
 
   @Override
-  public void intializeStaticFieldsToDefaultValues() {
+  public boolean initializeStaticFieldsToDefaultValues() {
     Set<PointerVariable> toSub = HashSetFactory.make(); //new HashSet<PointerVariable>();
     for (PointerVariable var : pathVars) {
       if (var.getInstanceKey() instanceof StaticFieldKey)
@@ -1738,6 +1738,7 @@ public class PathQuery implements IQuery {
     for (PointerVariable var : toSub) {
       substituteExpForVar(new SimplePathTerm(0), var);
     }
+    return isFeasible();
   }
   
   @Override

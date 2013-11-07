@@ -103,7 +103,7 @@ public abstract class AbstractQuery implements IQuery {
   } // do nothing
 
   @Override
-  public void intializeStaticFieldsToDefaultValues() {
+  public boolean initializeStaticFieldsToDefaultValues() { return true;
   } // do nothing
 
   @Override
