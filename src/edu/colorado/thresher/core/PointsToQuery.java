@@ -38,14 +38,13 @@ import com.ibm.wala.ssa.SSAReturnInstruction;
 import com.ibm.wala.ssa.SSASwitchInstruction;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.FieldReference;
-import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.debug.Assertions;
 import com.ibm.wala.util.intset.BitVectorIntSet;
 import com.ibm.wala.util.intset.MutableIntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
-import com.sun.crypto.provider.HmacMD5;
 
 /**
  * query regarding feasability of heap state involving points-to edges
@@ -129,7 +128,7 @@ public class PointsToQuery implements IQuery {
   }
   
   // if true, we remove stale constraints rather than refuting because of them
-  static final boolean IGNORE_STALE_CONSTRAINTS = false;
+  static final boolean IGNORE_STALE_CONSTRAINTS = true;
   
   @Override
   public boolean containsStaleConstraints(CGNode node) {
@@ -208,6 +207,23 @@ public class PointsToQuery implements IQuery {
     return visitInternal(instr, currentPath, rulesAtLine);
   }
   
+  
+  private boolean isSimultaneousPointsTo(DependencyRule rule) {
+    if (!rule.getShown().getSource().isLocalVar() && !(rule.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
+      for (PointsToEdge toShow : rule.getToShow()) {
+        // if one of the preconditions for the rule is x -> A and we already have x -> B in our constraints,
+        // then we cannot add a rule not applied path because this would imply that x points to two different locations simultaneouly.
+        // even if A = B, this would imply that x points to two different instances of A, still giving us a refutation based on
+        // simultaneous points-to
+        if (toShow.getSource().isLocalVar() && (this.constraints.contains(toShow) || containsLocalVar(toShow.getSource()))) {
+        //if (toShow.getSource().isLocalVar() && this.constraints.contains(toShow)) {
+          return true;
+        }
+      }
+    }
+    return false;      
+  }
+  
   /**
    * @return
    */
@@ -228,6 +244,7 @@ public class PointsToQuery implements IQuery {
     int inconsistentRules = 0;
 
     int ruleCounter = 0; // debug only
+
     for (DependencyRule rule : rulesAtLine) {
       if (Options.DEBUG)
         Util.Debug("rule " + ++ruleCounter + " of " + rulesAtLine.size() + ": " + rule);
@@ -245,12 +262,13 @@ public class PointsToQuery implements IQuery {
 
     List<IQuery> caseSplits = new LinkedList<IQuery>();
     if (applicableRules.isEmpty()) {
-      if (inconsistentRules != 0) {// && caseSplits.isEmpty()) {
+      if (inconsistentRules != 0) {
         Util.Debug("refuted by pts-to constraint! " + currentPath);
         this.feasible = false;
         return IQuery.INFEASIBLE;
-      } else
+      } else {
         return IQuery.FEASIBLE; // else the current path is feasible as a
+      }
                                 // "rule not applied" path or no applicable
                                 // rules were found
     } else if (applicableRules.size() == 1) {
@@ -1327,7 +1345,8 @@ public class PointsToQuery implements IQuery {
     
     return false;
   }
-
+  
+  // return (null, _) if rule is definitely inconsistent, (rule, false) if consistent, (rule, true if we should consider a rule not applied case)
   DependencyRule isSymbolicRuleConsistent(DependencyRule rule, Set<PointsToEdge> constraints,
                                           List<PointsToEdge> unsatCore, CGNode currentNode) {
     TreeSet<PointsToEdge> checkMe = new TreeSet<PointsToEdge>();
@@ -1342,11 +1361,13 @@ public class PointsToQuery implements IQuery {
     // Map<SymbolicPointerVariable,PointerVariable> subMap = new
     // HashMap<SymbolicPointerVariable,PointerVariable>();
 
+    boolean considerNotApplied = false;
     for (PointsToEdge constraint : constraints) {
       // can't refuted based on non-local constraints in produced set
       if (producedSet && !constraint.getSource().isLocalVar()) continue;
       for (PointsToEdge edge : checkMe) {
         boolean lhsMatch;
+        //boolean lhsEq = edge.getSource().equals(constraint.getSource()); // def equal if they're the same var, but if they have the same set of values, we're not sure
         boolean fieldsEqualAndNotArrays;
         if (edge.getSource().isSymbolic() && constraint.getSource().isSymbolic()) { // both edges symbolic
           lhsMatch = edge.getSource().getPossibleValues().equals(constraint.getSource().getPossibleValues());
@@ -1358,16 +1379,7 @@ public class PointsToQuery implements IQuery {
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getFieldRef() == null || !(constraint.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS));
-          /*
-           * if (lhsMatch && fieldsEqualAndNotArrays) { PointerVariable sub =
-           * subMap.get(edge.getSource()); Util.Assert(sub == null ||
-           * sub.equals(constraint.getSource()),
-           * "more than one instantiation choice for " + edge.getSource() + ": "
-           * + sub + " and " + constraint.getSource()); if (sub == null) {
-           * Util.Debug("adding sub relationship " + edge.getSource() + " " +
-           * constraint.getSource()); subMap.put((SymbolicPointerVariable)
-           * edge.getSource(), constraint.getSource()); } }
-           */
+
         } else if (edge.getSource().isSymbolic()) { // rule edge symbolic, constraint edge concrete
           lhsMatch = edge.getSource().getPossibleValues().contains(constraint.getSource().getInstanceKey());
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
@@ -1407,7 +1419,7 @@ public class PointsToQuery implements IQuery {
       }
     }
     // sub out symbolic values for concrete ones
-    // return rule.substitute(subMap);
+    //return rule.substitute(subMap);
     return rule;
   }
 
@@ -1506,25 +1518,41 @@ public class PointsToQuery implements IQuery {
       } else {
         //if (rule.isSymbolic()) {
           Set<DependencyRule> newRules = bindSymbolicRule(rule, this, currentNode);
+          boolean considerNotApplied = false;
+
+          if (!newRules.contains(rule)) {
+            Util.Debug("considering rule not applied case.");
+            considerNotApplied = true;
+          }
+          
+          
           Util.Assert(!newRules.isEmpty(), "should not be empty here!");
           List<DependencyRule> toRemove = new LinkedList<DependencyRule>();
           for (DependencyRule newRule : newRules) {
+            if (isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode) == null) {
+              toRemove.add(newRule);
+              continue;
+            } //else if (resultPair.snd) {
+              //toRemove.add(newRule);
+              //considerNotApplied = true;
+              //continue;
+            //} // else, rule is consistent
+            
+            /*
             if (isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode) == null) {
               // DependencyRule newRule = isSymbolicRuleConsistent(rule,
               // currentQuery, this.constraints, currentNode);
               toRemove.add(newRule);
               continue;
-            }
-            // if (isSymbolicRuleConsistent(rule, currentQuery, this.produced,
-            // currentNode) == null) return null;
+            }*/
+
             if (isSymbolicRuleConsistent(newRule, this.produced, unsatCore, currentNode) == null) {
               toRemove.add(newRule);
               continue;
             }
           }
           newRules.removeAll(toRemove);
-          if (newRules.isEmpty())
-            return null;
+          if (newRules.isEmpty() && !considerNotApplied) return null;
           return newRules; 
       //}
       }

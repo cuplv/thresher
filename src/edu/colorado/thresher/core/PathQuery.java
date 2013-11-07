@@ -247,10 +247,10 @@ public class PathQuery implements IQuery {
     }
   }
   
-  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var, boolean mustHaveField) {
+  public List<AtomicPathConstraint> getConstraintsWithVar(PointerVariable var, boolean mustHaveNonLengthField) {
     List<AtomicPathConstraint> constraintsWithVar = new LinkedList<AtomicPathConstraint>();
     for (AtomicPathConstraint constraint : this.constraints) {
-      if (constraint.getVars().contains(var) && (!mustHaveField || !constraint.getFields().isEmpty())) {
+      if (constraint.getVars().contains(var) && (!mustHaveNonLengthField || (!constraint.getFields().isEmpty() && !constraint.isArrayLengthConstraint()))) {
         constraintsWithVar.add(constraint);
       }
     }
@@ -985,7 +985,7 @@ public class PathQuery implements IQuery {
       }
       if (nonConstantTerm != null) {
         for (AtomicPathConstraint c : this.constraints) {
-          if (c.isEqualityConstraint()) {
+          if (c.isEqualityConstraint()) { // if we have some constraint x == y
             SimplePathTerm lhs0 = (SimplePathTerm) c.getLhs(), rhs0 = (SimplePathTerm) c.getRhs();
             if (lhs0.isIntegerConstant() && lhs0.getIntegerConstant() != intTerm && rhs0.equals(nonConstantTerm)) {
               System.out.println("not adding " + constraint + " because we have " + c);
@@ -997,11 +997,11 @@ public class PathQuery implements IQuery {
               // we have x == y in the constraints, and our new constraint is y != c for some constant c
               // add constraint x != c as well
               AtomicPathConstraint addMe = new AtomicPathConstraint(lhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
-              Util.Print("adding extra constraint1 " + addMe);
+              Util.Print("adding extra constraint1 " + addMe + " because we have " + c + " and " + constraint);
               toAdd.add(addMe);
             } else if (lhs0.equals(nonConstantTerm)) {
               AtomicPathConstraint addMe = new AtomicPathConstraint(rhs0, new SimplePathTerm(intTerm), ConditionalBranchInstruction.Operator.NE);
-              Util.Print("adding extra constraint2 " + addMe);
+              Util.Print("adding extra constraint2 " + addMe + " because we have " + c + " and " + constraint);
               toAdd.add(addMe);
             }
           }
@@ -1215,8 +1215,8 @@ public class PathQuery implements IQuery {
                                                                    // infeasible
     } else { // no. extract the path constraint from the branch condition
       AtomicPathConstraint constraint = getPathConstraintFromGuard(instruction, tbl, node, !trueBranchFeasible);
-      if (addConstraint(constraint))
-        return isFeasible();
+      Util.Print("adding guard constraint " + constraint);
+      if (addConstraint(constraint)) return isFeasible();
       return true; // else, constraint already in set; no need to check
                    // feasibility
     }

@@ -13,7 +13,6 @@ import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.NewSiteReference;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Context;
@@ -546,7 +545,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
                 }
               } else {  
                 // sub out local.arrayField for the array ref pointed to by local.arrayField
-                arrayRef = this.pointsToQuery.getPointedTo(localPtr, this.depRuleGenerator.getClassHierarchy().resolveField(fld)); 
+                IField resolved =  this.depRuleGenerator.getClassHierarchy().resolveField(fld);
+                if (resolved != null) arrayRef = this.pointsToQuery.getPointedTo(localPtr, resolved); 
                 //if (arrayRef != null) toSub2.add(Pair.make(new SimplePathTerm(arrayRef), Pair.make(localPtr, fld)));                
                 if (arrayRef != null && Util.intersectionNonEmpty(arrayVar.getPointsToSet(this.depRuleGenerator.getHeapGraph()), 
                                                                 arrayRef.getPossibleValues())) {
