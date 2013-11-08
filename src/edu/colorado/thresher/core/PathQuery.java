@@ -880,8 +880,7 @@ public class PathQuery implements IQuery {
         newConstraint = constraint.substitute(toSub, subForTerm);
       if (newConstraint.substituted()) {
         if (newConstraint == AtomicPathConstraint.FALSE) {
-          if (Options.DEBUG)
-            Util.Debug("refuted by path constraint");
+          if (Options.DEBUG || Options.PRINT_REFS) Util.Print("refuted by path constraint");
           makeUnsatCore(constraint);
           this.feasible = false;
           return false;
@@ -913,8 +912,8 @@ public class PathQuery implements IQuery {
       AtomicPathConstraint newConstraint = constraint.substituteExpForFieldRead(toSub, subFor, fieldName);
       if (newConstraint.substituted()) {
         if (newConstraint == AtomicPathConstraint.FALSE) {
-          if (Options.DEBUG)
-            Util.Debug("refuted by path constraint");
+          if (Options.DEBUG) Util.Debug("refuted by path constraint");
+          else if (Options.PRINT_REFS) Util.Print("refuted by path constraint");
           makeUnsatCore(constraint);
           this.feasible = false;
           return;
@@ -1186,7 +1185,7 @@ public class PathQuery implements IQuery {
       return true; 
     } else if (status == Status.UNSATISFIABLE) {
       this.feasible = false;
-      if (Options.DEBUG) Util.Debug("refuted by path constraint!");
+      if (Options.DEBUG || Options.PRINT_REFS) Util.Debug("refuted by path constraint (z3)!");      
       //ctx.delete();
       // deleted = true;
       return false;

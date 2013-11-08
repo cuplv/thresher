@@ -183,7 +183,7 @@ public class PointsToQuery implements IQuery {
       for (PointsToEdge edge : this.constraints) {
         // TODO: need to check rhs here? it shouldn't ever be null...
         if (edge.getSource().equals(phiLHS)) {
-          Util.Debug("refuted by assignment to null");
+          Util.Print("refuted by assignment to null");
           return IQuery.INFEASIBLE;
         }
       }
@@ -229,8 +229,7 @@ public class PointsToQuery implements IQuery {
    */
   private List<IQuery> visitInternal(SSAInstruction instr, IPathInfo currentPath, Set<DependencyRule> rulesAtLine) {
     if (instr instanceof SSAGetCaughtExceptionInstruction) {
-      if (Options.DEBUG)
-        Util.Debug("refuted by exceptional path"); // we assume all thrown
+        Util.Print("refuted by exceptional path"); // we assume all thrown
                                                    // exception bubble to the
                                                    // top level
       this.feasible = false;
@@ -263,7 +262,8 @@ public class PointsToQuery implements IQuery {
     List<IQuery> caseSplits = new LinkedList<IQuery>();
     if (applicableRules.isEmpty()) {
       if (inconsistentRules != 0) {
-        Util.Debug("refuted by pts-to constraint! " + currentPath);
+        if (Options.DEBUG) Util.Debug("refuted by pts-to constraint! " + currentPath);
+        else Util.Print("refuted by pts-to constraint!");
         this.feasible = false;
         return IQuery.INFEASIBLE;
       } else {
@@ -439,6 +439,7 @@ public class PointsToQuery implements IQuery {
           if (tbl.isConstant(argUse)) {
             if (tbl.isNullConstant(argUse)) {
               if (Options.DEBUG) Util.Debug("refuted! " + formal + " must point to " + edge.getSink() + ", but it points to null.");
+              else Util.Print("refuted by parameter binding to null");
               this.feasible = false;
               return;// formalsAssigned;
             } else {
@@ -451,7 +452,8 @@ public class PointsToQuery implements IQuery {
           // get the points-to set of arg, intersect with the sink of edge
           Set<InstanceKey> possibleVals = arg.getPointsToSet(hg);
           if (possibleVals.isEmpty()) {
-            Util.Debug("refuted by parameter binding! pts-to set of " + arg + " is empty");
+            if (Options.DEBUG) Util.Debug("refuted by parameter binding! pts-to set of " + arg + " is empty");
+            else Util.Print("refuted by from constraints in parameter binding");
             this.feasible = false;
             return;
           }
@@ -462,7 +464,7 @@ public class PointsToQuery implements IQuery {
           if (merged == null) {
             if (Options.DEBUG) {
               Util.Debug("refuted by parameter binding! intersection of " + argVar + " and " + edge.getSink() + " empty old edge " + edge);
-            }
+            } else Util.Print("refuted by from constraints in parameter binding");
             this.feasible = false;
             return;
           }
@@ -480,7 +482,7 @@ public class PointsToQuery implements IQuery {
           subMap.put(edge.getSink(), merged);
           
           PointsToEdge newEdge = new PointsToEdge(arg, merged);
-          Util.Debug("here, adding " + newEdge + " and removing " + edge);
+          if (Options.DEBUG) Util.Debug("here, adding " + newEdge + " and removing " + edge);
           toAdd.add(newEdge);
           toRemove.add(edge);
           // need to check for an edge with arg on the LHS here
@@ -512,6 +514,7 @@ public class PointsToQuery implements IQuery {
           PointerVariable newRHS = SymbolicPointerVariable.mergeVars(edge.getSink(), addMe.getSink());
           if (newRHS == null) {
             if (Options.DEBUG) Util.Debug("refuted by multiple binding! " + edge + " and " + addMe);
+            else Util.Print("Refuted by from constraints in parameter binding");
             this.feasible = false;
             return;// formalsAssigned;
           }
@@ -556,8 +559,8 @@ public class PointsToQuery implements IQuery {
 
             if (!edge1Sink.isSymbolic() && !edge2Sink.isSymbolic()) { // both concrete
               // they can't be equal; we already checked for equality
-              if (Options.DEBUG)
-                Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+              if (Options.DEBUG) Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+              else Util.Print("refuted by parameter binding");
               this.feasible = false;
               return;// formalsAssigned;
             } 
@@ -583,8 +586,8 @@ public class PointsToQuery implements IQuery {
                 toAdd.add(new PointsToEdge(edge1.getSource(), SymbolicPointerVariable.makeSymbolicVar(intersectedValues)));
               } else {
                 // intersection is empty; refuted
-                if (Options.DEBUG)
-                  Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                if (Options.DEBUG) Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                else Util.Print("refuted by parameter binding");
                 this.feasible = false;
                 return;// formalsAssigned;
               }
@@ -593,8 +596,8 @@ public class PointsToQuery implements IQuery {
                 toRemove.add(edge1); // constraint to concrete value;
               } else {
                 // intersection is empty; refuted
-                if (Options.DEBUG)
-                  Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                if (Options.DEBUG) Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                else Util.Print("refuted by parameter binding");
                 this.feasible = false;
                 return;// formalsAssigned;
               }
@@ -603,8 +606,8 @@ public class PointsToQuery implements IQuery {
                 toRemove.add(edge2); // constraint to concrete value;
               } else {
                 // intersection is empty; refuted
-                if (Options.DEBUG)
-                  Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                if (Options.DEBUG) Util.Debug("refuted by parameter binding! " + edge1 + " " + edge2);
+                else Util.Print("refuted by parameter binding!");
                 this.feasible = false;
                 return;// formalsAssigned;
               }
@@ -690,7 +693,7 @@ public class PointsToQuery implements IQuery {
                     if (Options.DEBUG) {
                       Util.Debug("refuted by incompatible assignments to " + formal + " edge " 
                               + newEdge + " produced " + Util.constraintSetToString(produced));
-                    }
+                    } else Util.Print("refuted by from constraints in parameter binding");
                     // refuted
 
                     this.feasible = false;
@@ -1663,7 +1666,14 @@ public class PointsToQuery implements IQuery {
   public PointerVariable getPointedToOrPtSet(PointerVariable var, HeapGraph hg) {
     PointerVariable pt = getPointedTo(var);
     if (pt != null) return pt;
-    else return SymbolicPointerVariable.makeSymbolicVar(var.getPointsToSet(hg));
+    else {
+      Set<InstanceKey> ptSet = var.getPointsToSet(hg);
+      if (ptSet.isEmpty()) {
+        Util.Print("Odd case-- no pointed to or ptSet for " + var);
+        return null; 
+      }
+      return SymbolicPointerVariable.makeSymbolicVar(ptSet);
+    }
   }
   /*
   public PointerVariable getPointedToThrough(PointerVariable var, IField field, HeapGraph hg) {
@@ -1879,7 +1889,7 @@ public class PointsToQuery implements IQuery {
     List<PointsToEdge> toRemove = new ArrayList<PointsToEdge>();
     for (PointsToEdge edge : this.constraints) {
       if (vars.contains(edge.getSource()) || vars.contains(edge.getSink())) {
-        Util.Print("dropping constraint " + edge);
+        if (Options.DEBUG) Util.Debug("dropping constraint " + edge);
         toRemove.add(edge);
       }
     }
@@ -1891,7 +1901,7 @@ public class PointsToQuery implements IQuery {
     if (this.constraints.isEmpty()) return;
     Set<PointsToEdge> toRemove = getConstraintsRelevantToCall(instr, caller, callee, false); 
     for (PointsToEdge edge : toRemove) {
-      Util.Print("dropping constraint " + edge);
+      if (Options.DEBUG) Util.Debug("dropping constraint " + edge);
       //if (Options.DEBUG) Util.Debug("DROPPING " + edge);
       
       this.constraints.remove(edge);
@@ -2185,7 +2195,7 @@ public class PointsToQuery implements IQuery {
       // if a constraint required a static field to point to something, that
       // constraint will never be satisfied. refute.
       if (edge.getSource().getInstanceKey() instanceof StaticFieldKey) {
-        Util.Debug("refuted by default values for static fields!");
+        Util.Print("refuted by default values for static fields!");
         this.feasible = false;
         return false;
       }
@@ -2257,8 +2267,7 @@ public class PointsToQuery implements IQuery {
         if (!produced.contains(receiverConstraint))
           this.addConstraint(receiverConstraint);
       } else { // refuted!
-        if (Options.DEBUG)
-          Util.Debug("refuted by contextual constraints. newRules " + newRules);
+          Util.Print("refuted by contextual constraints");
         return false;
       }
     }

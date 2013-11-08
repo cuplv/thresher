@@ -100,7 +100,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         for (PointsToEdge edge : this.constraints) {
           if (lhs.equals(edge.getSource())) {
             // the path query says that lhs -> null, but in the pts-to query, we need lhs -> [non-null value]. refute
-            if (Options.DEBUG) Util.Debug("refuted by path/pts-to discrepancy");
+            if (Options.DEBUG || Options.PRINT_REFS) Util.Print("refuted by path/pts-to discrepancy on null");
             return null;
           }
         }
@@ -473,7 +473,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar, true);    
     if (arrConstraints.isEmpty()) return true; // can't affect us
     // TODO: generalize this to multiple constraints on arr; not expected for now
-    Util.Assert(arrConstraints.size() == 1, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size());
+    if (arrConstraints.size() > 1) {
+      Util.Assert(false, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size() + " " + Util.printCollection(arrConstraints));  
+    }
+    
     AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
     Pair<FieldReference, List<AtomicPathConstraint>> indexPair = getIndexConstraintsFor(arrConstraint);
     FieldReference indexField = indexPair.fst;
@@ -509,7 +512,9 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       // instruction does produce our constraint (with an additional equality constraint on the indices)
       // and one where this instruction does not produce our constraint (with an additional inequality 
       // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
-      Util.Unimp("case split due to ambiguous array write");
+      Util.Debug("dropping constraints on " + arrayVar + " we can't resolve the index: TODO: implement case splitting");
+      dropConstraintsContaining(arrayVar);
+      //Util.Unimp("case split due to ambiguous array write");      
     }
     return isFeasible();
   }
@@ -1220,8 +1225,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
           for (PointsToEdge edge : pointsToQuery.produced) {
             if (edge.getSource().equals(comparedToNull)) {
               if (op == ConditionalBranchInstruction.Operator.EQ) {
-                if (Options.DEBUG)
-                  Util.Debug("refuted by comparsion to null; pts-to constraints require var " + comparedToNull + " to be non-null!");
+                if (Options.DEBUG) Util.Debug("refuted by comparsion to null; pts-to constraints require var " + comparedToNull + " to be non-null!");
                 this.feasible = false;
                 return false;
               } else if (op == ConditionalBranchInstruction.Operator.NE) {

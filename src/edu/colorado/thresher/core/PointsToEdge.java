@@ -189,8 +189,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
     //Util.Print("getting subs from edge " + this + " and " + other);
     List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
     //if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
-    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)
-        && Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
+    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)) {
+        //&& Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
       //if (this.source.isSymbolic()) {
       if (this.source.isSymbolic() && !alreadySubbed.contains(this.source)) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
@@ -252,8 +252,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
           // Util.Assert(sub == null || sub.equals(other.getSink()),
           // "more than one instantiation choice for " + this.sink + ": " + sub
           // + " and " + other.getSink());
-          else if (sub == null && this.sink != other.getSink()) { //&& 
-              //Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
+          else if (sub == null && this.sink != other.getSink() && 
+              Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
             // Util.Debug("adding sub relationship " + this.sink + " " +
             // other.getSink());
             

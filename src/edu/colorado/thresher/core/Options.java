@@ -29,6 +29,9 @@ public class Options {
   @boolOpt(description = "print debug information (LOTS of printing)", _default = false)
   public static boolean DEBUG = false;
 
+  @boolOpt(description = "print reasons for refutations (work in progress)", _default = true)
+  public static boolean PRINT_REFS = true;
+  
   @boolOpt(description = "perform runtime assertion checks inside Thresher", _default = true)
   public static boolean DEBUG_ASSERTS = true; // crashes when assertion checks
                                               // fail if true
