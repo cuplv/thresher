@@ -478,10 +478,8 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
   @Override
   public Set<FieldReference> getFields() {
     Set<FieldReference> fields = HashSetFactory.make(); //new HashSet<FieldReference>();
-    if (lhs.getFields() != null)
-      fields.addAll(lhs.getFields());
-    if (rhs.getFields() != null)
-      fields.addAll(rhs.getFields());
+    if (lhs.getFields() != null) fields.addAll(lhs.getFields());
+    if (rhs.getFields() != null) fields.addAll(rhs.getFields());
     return fields;
   }
   

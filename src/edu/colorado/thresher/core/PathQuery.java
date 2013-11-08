@@ -294,7 +294,7 @@ public class PathQuery implements IQuery {
   
   @Override
   public List<AtomicPathConstraint> getIndexConstraintsFor(FieldReference fld) {
-    Util.Pre(isArrayIndexField(fld));
+    Util.Pre(isArrayIndexField(fld), "fld " + fld + " not an index constraint.");
     List<AtomicPathConstraint> indexConstraints = new LinkedList<>();
     for (AtomicPathConstraint constraint : this.constraints) {
       if (constraint.isArrayIndexConstraint() && 
@@ -770,6 +770,10 @@ public class PathQuery implements IQuery {
   public static boolean isArrayIndexField(FieldReference fld) {
     Util.Pre(fld != null);
     return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
+  }
+  
+  public static boolean isArrayContentsField(FieldReference fld) {
+    return fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS.getReference());
   }
   
   public static boolean isArrayLengthField(FieldReference fld) {
@@ -1705,7 +1709,8 @@ public class PathQuery implements IQuery {
           if (Options.INDEX_SENSITIVITY) {
             // special hack for array index constraints; if we remove the constraint 
             // on the array write, we have to remove the constraint on its index as well
-            for (FieldReference fld : this.getFields()) {
+            //for (FieldReference fld : this.getFields()) {
+            for (FieldReference fld : constraint.getFields()) {
               if (isArrayIndexField(fld)) indexFldsToRemove.add(fld);
             }
           }        

@@ -165,6 +165,9 @@ public class Options {
   @intOpt(description = "if we explore more paths than this while trying to refute/witness an edge, we report a timeout and (falsely) witness the edge", _default = 10000)
   public static int PATH_EXPLORE_LIMIT = 10000;
   
+  @intOpt(description = "time out and report a witness if we spend more time than this on a query", _default = 10)
+  public static int TIMEOUT = 10;  
+  
   @intOpt(description = "if we explore more paths than this while trying to refute/witness an edge, we report a timeout and (falsely) witness the edge", _default = 1000)
   // same name for the different thing; scwala's path budget
   public static int PATH_BUDGET = 100;
@@ -186,6 +189,9 @@ public class Options {
   
   @stringOpt(description = "run regression tests", _default = "")
   public static String REGRESSIONS;
+  
+  @stringOpt(description = "run a particular test", _default = "")
+  public static String TEST;
 
   // consider paths that use weak references?
   public static boolean INCLUDE_WEAK_REFERENCES = false;
