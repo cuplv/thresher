@@ -171,6 +171,9 @@ public class Options {
   @intOpt(description = "time out and report a witness if we spend more time than this on a query", _default = 10)
   public static int TIMEOUT = 10;  
   
+  @intOpt(description = "check a cast with a particular number", _default = -1)
+  public static int CAST = -1;
+  
   @intOpt(description = "if we explore more paths than this while trying to refute/witness an edge, we report a timeout and (falsely) witness the edge", _default = 1000)
   // same name for the different thing; scwala's path budget
   public static int PATH_BUDGET = 100;

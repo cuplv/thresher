@@ -1,6 +1,7 @@
 package edu.colorado.thresher.core;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -1045,6 +1046,8 @@ public class PathQuery implements IQuery {
   @Override
   public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
     Util.Debug("initializing fields to default values");
+    Collection<IField> needToDeclare = constructor.getMethod().getDeclaringClass().getDeclaredInstanceFields();
+    
     // returning from constructors is a special case because we have to
     // initialize all untouched fields to their default values
     // the "this" var is always v1
@@ -1054,7 +1057,8 @@ public class PathQuery implements IQuery {
     for (AtomicPathConstraint constraint : constraints) {
       Set<SimplePathTerm> terms = constraint.getTerms();
       for (SimplePathTerm term : terms) {
-        if (term.getObject() != null && term.hasField() && term.getObject().equals(thisVar)) {
+        if (term.getObject() != null && term.hasField() && needToDeclare.contains(this.depRuleGenerator.cha.resolveField(term.getFirstField())) &&
+            term.getObject().equals(thisVar)) {
           toSub.add(term.getFirstField());
         }
       }

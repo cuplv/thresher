@@ -1507,9 +1507,8 @@ public class PointsToQuery implements IQuery {
             }
           }
           
-          if (edge.getSource().equals(shown.getSink())) {
+          if (!IGNORE_STALE_CONSTRAINTS && edge.getSource().equals(shown.getSink())) {
             // if there are constraints on the fields of this instance, they can never be produced now, so we can refute
-            // TODO: this is the wrong way to do this...we should find the class initializer and symbolically execute it
             if (Options.DEBUG) Util.Debug("refuted by stale field on " + edge);
             return null;
           }
@@ -2165,11 +2164,12 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public boolean initializeInstanceFieldsToDefaultValues(CGNode constructor) {
+    Collection<IField> needToDeclare = constructor.getMethod().getDeclaringClass().getDeclaredInstanceFields();
     PointerVariable thisVar = new ConcretePointerVariable(constructor, 1, depRuleGenerator.hm);
     PointerVariable pt = getPointedTo(thisVar);
     if (pt != null) {
       for (PointsToEdge edge : this.constraints) {
-        if (edge.getSource().equals(pt)) {
+        if (edge.getSource().equals(pt) && edge.getFieldRef() != null && needToDeclare.contains(edge.getFieldRef())) {
             Util.Print("refuted by instance fields to default values! needed " + edge + ", but got initialization to null");
             this.feasible = false;
             return false;
