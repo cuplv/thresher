@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.ipa.callgraph.propagation.ArrayContentsKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
@@ -17,6 +18,8 @@ import com.ibm.wala.util.collections.HashSetFactory;
 
 public class PointsToEdge extends AbstractConstraint implements Comparable {
 
+  static boolean DEBUG = false;
+  
   private final PointerVariable source;
   private final PointerVariable sink;
   private final PointerKey field;
@@ -55,6 +58,22 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
       this.fieldId = NONE;
     }
     this.hash = makeHash();
+    if (DEBUG) doSanityChecks();
+  }
+  
+  private void doSanityChecks() {
+    if (this.fieldRef != null) {
+      Set<InstanceKey> possibleVals = source.getPossibleValues();
+      if (possibleVals != null) {
+        for (InstanceKey key : possibleVals) {
+          IClass type = key.getConcreteType();
+          if (type != null && !type.isArrayClass()) {
+            Util.Assert(type.getAllFields().contains(fieldRef), 
+                      "trying to create bad edge; " + this + ";" + key + " does not have field" + fieldRef);
+          }
+        }
+      }
+    }
   }
   
   public PointsToEdge(PointerVariable source, PointerVariable sink, PointerKey field) {
@@ -83,6 +102,7 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
       this.fieldId = NONE;
     }
     this.hash = makeHash();
+    if (DEBUG) doSanityChecks();
   }
 
   public static PointsToEdge make(PointerVariable source, PointerVariable sink, PointerKey field) {
@@ -166,9 +186,11 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
    */
   public void getSubsFromEdge(PointsToEdge other, List<Map<SymbolicPointerVariable, PointerVariable>> subMaps,
       Set<PointerVariable> alreadySubbed, boolean hard) {
+    //Util.Print("getting subs from edge " + this + " and " + other);
     List<Map<SymbolicPointerVariable, PointerVariable>> toAdd = new LinkedList<Map<SymbolicPointerVariable, PointerVariable>>();
     //if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef) && !alreadySubbed.contains(this.source)) {
-    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)) {
+    if (this.source.symbEq(other.getSource()) && Util.equal(this.fieldRef, other.fieldRef)
+        && Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
       //if (this.source.isSymbolic()) {
       if (this.source.isSymbolic() && !alreadySubbed.contains(this.source)) {
         for (Map<SymbolicPointerVariable, PointerVariable> subMap : subMaps) {
@@ -177,6 +199,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
           if (sub != null && !sub.equals(other.getSource())) { 
             Map<SymbolicPointerVariable, PointerVariable> copy = Util.copyMap(subMap);
             // the original map already has a value here; make a different choice
+            
+            //Util.Print("1: adding " + this.source + " -> " + other.getSource());
             copy.put((SymbolicPointerVariable) this.source, other.getSource());
             toAdd.add(copy);
           }
@@ -187,13 +211,19 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
               // compute intersection
               if (Options.NARROW_FROM_CONSTRAINTS) {
                 Set<InstanceKey> newKeys = Util.deepCopySet(this.source.getPossibleValues());
-                newKeys.retainAll(other.getSource().getPossibleValues());                
-                subMap.put((SymbolicPointerVariable) this.source, SymbolicPointerVariable.makeSymbolicVar(newKeys));
+                newKeys.retainAll(other.getSource().getPossibleValues());      
+                PointerVariable newVar = SymbolicPointerVariable.makeSymbolicVar(newKeys);
+                //Util.Print("2: adding " + this.source + " -> " + newVar);
+                subMap.put((SymbolicPointerVariable) this.source, newVar);
+                //subMap.put((SymbolicPointerVariable) this.source, SymbolicPointerVariable.makeSymbolicVar(newKeys));
               } else {
                 Set<InstanceKey> newKeys = Util.deepCopySet(other.getSource().getPossibleValues());
                 subMap.put((SymbolicPointerVariable) this.source, SymbolicPointerVariable.makeSymbolicVar(newKeys));
               }
-            } else subMap.put((SymbolicPointerVariable) this.source, other.getSource());
+            } else {
+              //Util.Print("3: adding " + this.source + " -> " + other.getSource());
+              subMap.put((SymbolicPointerVariable) this.source, other.getSource());
+            }
           }
         }
 
@@ -213,6 +243,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
             // " " + other.getSink());
             // the original map already has a value here; make a different
             // choice
+            //Util.Print("4: adding " + this.sink + " -> " + other.getSink());
+
             copy.put((SymbolicPointerVariable) this.sink, other.getSink());
             toAdd.add(copy);
           }
@@ -220,9 +252,14 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
           // Util.Assert(sub == null || sub.equals(other.getSink()),
           // "more than one instantiation choice for " + this.sink + ": " + sub
           // + " and " + other.getSink());
-          else if (sub == null && this.sink != other.getSink()) {
+          else if (sub == null && this.sink != other.getSink()) { //&& 
+              //Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues())) {
             // Util.Debug("adding sub relationship " + this.sink + " " +
             // other.getSink());
+            
+            //Util.Print("5: adding " + this.sink + " -> " + other.getSink());
+            //Util.Assert(Util.intersectionNonEmpty(this.sink.getPossibleValues(), other.getSink().getPossibleValues()));
+            
             subMap.put((SymbolicPointerVariable) this.sink, other.getSink());
             // hard constraints should not be mapped twice
             if (hard) alreadySubbed.add(this.sink); 

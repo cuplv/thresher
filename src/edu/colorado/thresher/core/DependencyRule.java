@@ -91,12 +91,22 @@ public class DependencyRule implements Comparable {
     
     // get new toShow set
     TreeSet<PointsToEdge> newToShow = new TreeSet<PointsToEdge>();
+    //Util.Print("toShow is " + Util.printCollection(toShow));
     for (PointsToEdge edge : this.toShow) {
+      //Util.Print("edge is " + edge);
       PointerVariable src = edge.getSource(), snk = edge.getSink();
       for (PointerVariable subFor : subMap.keySet()) {
         if (edge.getSource() == subFor) {
-          if (newMap.containsKey(subFor)) src = newMap.get(subFor);
-          else src = subMap.get(subFor);
+          //if (newMap.containsKey(subFor)) src = newMap.get(subFor);
+          //else src = subMap.get(subFor);
+          if (newMap.containsKey(subFor)) {
+            src = newMap.get(subFor);
+            //Util.Print("newMap: replacing " + edge.getSource() + " with " + src);
+          }
+          else {
+            src = subMap.get(subFor);
+            //Util.Print("subMap: replacing " + edge.getSource() + " with " + src);
+          }
         }
         if (edge.getSink() == subFor) {
           if (newMap.containsKey(subFor)) snk = newMap.get(subFor);
@@ -106,10 +116,10 @@ public class DependencyRule implements Comparable {
       newToShow.add(new PointsToEdge(src, snk, edge.getFieldRef()));
     }
      
-    Util.Assert(newToShow.size() == toShow.size(), "discrepancy in toShow set sizes! newToShow " + Util.printCollection(newToShow)
-        + " toShow " + Util.printCollection(toShow));
+    Util.Assert(newToShow.size() == toShow.size());//"discrepancy in toShow set sizes! newToShow " + Util.printCollection(newToShow)
+        //+ " toShow " + Util.printCollection(toShow));
     DependencyRule newRule = new DependencyRule(newShown, this.stmt, newToShow, this.node, this.blk);
-    Util.Debug("new rule is " + newRule);
+    if (Options.DEBUG) Util.Debug("new rule is " + newRule);
     return newRule;
   }
 

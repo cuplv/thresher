@@ -277,7 +277,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
       }
     }
     // this shouldn't be empty... indicates bad usage or problem with pts-to analysis
-    Util.Assert(!pointsToSet.isEmpty());//, " bad usage -- pts to set for " + Util.printCollection(keys) + "." + fld + " empty"); 
+    if (pointsToSet.isEmpty()) Util.Assert(false," bad usage -- pts to set for " + Util.printCollection(keys) + "." + fld + " empty");
     return pointsToSet;
   }
   

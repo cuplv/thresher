@@ -1064,7 +1064,6 @@ public class PointsToQuery implements IQuery {
         Set<InstanceKey> srcVals = src.getPossibleValues();
         Set<InstanceKey> snkVals = snk.getPossibleValues();
 
-        //Util.Debug("snkVals " + Util.printCollection(snkVals));
         Set<InstanceKey> srcPtsTo = src.getPointsToSet(hg, field);
         //Util.Debug("src pts-to " + Util.printCollection(srcPtsTo));
         srcPtsTo.retainAll(snkVals);
