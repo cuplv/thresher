@@ -239,7 +239,8 @@ public class PointsToQuery implements IQuery {
     if (rulesAtLine == null || rulesAtLine.isEmpty()) {
       return checkForNullRefutation(instr, currentPath.getCurrentNode());
     }
-    List<DependencyRule> applicableRules = new LinkedList<DependencyRule>();
+    //List<DependencyRule> applicableRules = new LinkedList<DependencyRule>();
+    Set<DependencyRule> applicableRules = HashSetFactory.make();
     int inconsistentRules = 0;
 
     int ruleCounter = 0; // debug only
@@ -272,7 +273,8 @@ public class PointsToQuery implements IQuery {
                                 // "rule not applied" path or no applicable
                                 // rules were found
     } else if (applicableRules.size() == 1) {
-      DependencyRule rule = applicableRules.get(0);
+      //DependencyRule rule = applicableRules.get(0);
+      DependencyRule rule = applicableRules.iterator().next();
       //if (!Options.ABSTRACT_DEPENDENCY_RULES) caseSplits.add(this.deepCopy()); 
       //if (!rule.getShown().getSource().isLocalVar()) {
       if (!rule.getShown().getSource().isLocalVar() && !(rule.getShown().getSource().getInstanceKey() instanceof StaticFieldKey)) {
@@ -1362,8 +1364,9 @@ public class PointsToQuery implements IQuery {
     // map from (symbolic pointer vars) -> (vars to sub, field)
     // Map<SymbolicPointerVariable,PointerVariable> subMap = new
     // HashMap<SymbolicPointerVariable,PointerVariable>();
-
-    boolean considerNotApplied = false;
+    
+    PointsToEdge toReplace = null;
+    
     for (PointsToEdge constraint : constraints) {
       // can't refuted based on non-local constraints in produced set
       if (producedSet && !constraint.getSource().isLocalVar()) continue;
@@ -1373,11 +1376,10 @@ public class PointsToQuery implements IQuery {
         boolean fieldsEqualAndNotArrays;
         if (edge.getSource().isSymbolic() && constraint.getSource().isSymbolic()) { // both edges symbolic
           lhsMatch = edge.getSource().getPossibleValues().equals(constraint.getSource().getPossibleValues());
-          
+
           // can't compare symbolic vars for equality if we can't narrow (only inequality). must soundly say NEQ
           if (!Options.NARROW_FROM_CONSTRAINTS) lhsMatch = false;
                                                            
-          
           fieldsEqualAndNotArrays = Util.equal(edge.getFieldRef(), constraint.getFieldRef())
               && (edge.getFieldRef() == null || !(edge.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS))
               && (constraint.getFieldRef() == null || !(constraint.getFieldRef() == AbstractDependencyRuleGenerator.ARRAY_CONTENTS));
@@ -1402,10 +1404,8 @@ public class PointsToQuery implements IQuery {
         if (lhsMatch && fieldsEqualAndNotArrays) {
           boolean rhsEq;
           if (edge.getSink().isSymbolic() && constraint.getSink().isSymbolic()) {
-            //if (Options.NARROW_FROM_CONSTRAINTS) {
               rhsEq = Util.intersectionNonEmpty(edge.getSink().getPossibleValues(), 
                                                constraint.getSink().getPossibleValues());
-            //} else rhsEq = true; // can't compare for equality without narrowing
           } else if (edge.getSink().isSymbolic()) {
             rhsEq = edge.getSink().getPossibleValues().contains(constraint.getSink().getInstanceKey());
            } else if (constraint.getSink().isSymbolic()) {
@@ -1414,14 +1414,36 @@ public class PointsToQuery implements IQuery {
             rhsEq = constraint.getSink().equals(edge.getSink());
           }
           if (!rhsEq) {
-            unsatCore.add(constraint);
-            return null;
+            if (edge == shown || (edge.getSource().isLocalVar() && constraint.getSource().isLocalVar())) {
+              unsatCore.add(constraint);
+              return null;
+            } else {
+              Util.Assert(toReplace == null);
+              toReplace = edge;
+            }
           }
         }
       }
     }
     // sub out symbolic values for concrete ones
     //return rule.substitute(subMap);
+
+    if (toReplace != null) {
+      TreeSet<PointsToEdge> newToShow = new TreeSet<PointsToEdge>();
+      for (PointsToEdge toShowEdge : rule.getToShow()) {
+        if (toShowEdge != toReplace) newToShow.add(toShowEdge);
+        else {
+          Set<InstanceKey> possibleVals = toShowEdge.getSource().getPossibleValues();//Collections.singleton((InstanceKey) toShowEdge.getSource().getInstanceKey());
+          // create a new shown edge difference instance of the LHS var
+          PointsToEdge newEdge = new PointsToEdge(new SymbolicPointerVariable(possibleVals), toShowEdge.getSink(), toShowEdge.getFieldRef());
+          newToShow.add(newEdge);
+        }
+      }             
+      // create a new rule with our safe toShow set
+      rule = new DependencyRule(shown, rule.getStmt(), newToShow, rule.getNode(), rule.getBlock());
+      //Util.Print("newest rule is " + rule);
+    }
+    
     return rule;
   }
 
@@ -1528,24 +1550,17 @@ public class PointsToQuery implements IQuery {
           
           
           Util.Assert(!newRules.isEmpty(), "should not be empty here!");
-          List<DependencyRule> toRemove = new LinkedList<DependencyRule>();
+          List<DependencyRule> toRemove = new LinkedList<DependencyRule>(), toAdd = new LinkedList<DependencyRule>();
           for (DependencyRule newRule : newRules) {
-            if (isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode) == null) {
+            DependencyRule maybeTransformed = isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode);            
+            if (maybeTransformed == null) {
               toRemove.add(newRule);
               continue;
-            } //else if (resultPair.snd) {
-              //toRemove.add(newRule);
-              //considerNotApplied = true;
-              //continue;
-            //} // else, rule is consistent
-            
-            /*
-            if (isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode) == null) {
-              // DependencyRule newRule = isSymbolicRuleConsistent(rule,
-              // currentQuery, this.constraints, currentNode);
+            } else if (maybeTransformed != newRule) {
               toRemove.add(newRule);
+              toAdd.add(maybeTransformed);
               continue;
-            }*/
+            }
 
             if (isSymbolicRuleConsistent(newRule, this.produced, unsatCore, currentNode) == null) {
               toRemove.add(newRule);
@@ -1553,6 +1568,7 @@ public class PointsToQuery implements IQuery {
             }
           }
           newRules.removeAll(toRemove);
+          newRules.addAll(toAdd);
           if (newRules.isEmpty() && !considerNotApplied) return null;
           return newRules; 
       //}

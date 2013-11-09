@@ -85,7 +85,7 @@ public class SymbolicPointerVariable implements PointerVariable {
 
   public SymbolicPointerVariable(Set<InstanceKey> possibleValues) {
     this.id = symbCounter++;
-    Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
+    //Util.Assert(possibleValues.size() > 1, "possible values is size 1; should make concrete var instead");
     this.possibleValues = possibleValues;
     
     //if (Options.DEBUG) {

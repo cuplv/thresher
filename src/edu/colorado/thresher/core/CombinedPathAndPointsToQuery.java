@@ -410,7 +410,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
       for (PointerVariable var : pathVars) {
         Set<InstanceKey> possibleValues = var.getPossibleValues();
         if (possibleValues != null && possibleValues.contains(allocatedKey)) {
-          Util.Assert(subFor == null, "more than one sub target!");
+          if (subFor != null) Util.Assert(false, "more than one sub target! " + subFor + " and " + var + " query " + this);
+          
           subFor = var;
         }
       }
@@ -467,54 +468,54 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   boolean visitArrayStoreInternal(SSAArrayStoreInstruction instr, CGNode node, SymbolTable tbl, PointerVariable arrayVar) {
     int storedVal = instr.getValue();
     SimplePathTerm stored;
-    if (tbl.isConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
+    if (tbl.isIntegerConstant(storedVal)) stored = new SimplePathTerm(tbl.getIntValue(storedVal));
     else stored = new SimplePathTerm(new ConcretePointerVariable(node, storedVal, this.heapModel));
     
     List<AtomicPathConstraint> arrConstraints = getConstraintsWithVar(arrayVar, true);    
-    if (arrConstraints.isEmpty()) return true; // can't affect us
-    // TODO: generalize this to multiple constraints on arr; not expected for now
-    if (arrConstraints.size() > 1) {
-      Util.Assert(false, "more than one array index constraint on " + arrayVar + " " + arrConstraints.size() + " " + Util.printCollection(arrConstraints));  
-    }
+    if (arrConstraints.isEmpty()) return true; // can't affect us   
     
-    AtomicPathConstraint arrConstraint = arrConstraints.iterator().next();
-    Pair<FieldReference, List<AtomicPathConstraint>> indexPair = getIndexConstraintsFor(arrConstraint);
-    FieldReference indexField = indexPair.fst;
-    List<AtomicPathConstraint> indexConstraints = indexPair.snd;
-    
-    if (indexConstraints.isEmpty()) {
-      Util.Debug("dropping constraints on " + arrayVar + " because we don't have an expression associated with the array index");
-      dropConstraintsContaining(arrayVar);
-      return true;
-    }
-    Util.Assert(indexConstraints.size() == 1, "more or less than 1 index constraint for index expr " + indexConstraints.size());
-    AtomicPathConstraint indexConstraint = indexConstraints.iterator().next();
-    // compare index constraint to index
-    PathTerm indexExpr = indexConstraint.getRhs();
-    int instrIndex = instr.getIndex();
-    // TODO: check inequality constraints also!
-    // TODO: check if rhs is wrong
-    if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
-      // both index expression and index of array store instruction are constants. we can determine
-      // unambiguously whether this instruction writes to the index of interest
-      if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
-        // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
-        // constraint
-        //Util.Print("instr " + instr + " does write to index " + indexExpr + ". subbing.");
-        removeConstraint(indexConstraint);
-        //Util.Unimp("need to extract this to avoid concurrent modification exception");
-        substituteExpForFieldRead(stored, arrayVar, indexField);
-        //toSub.add(Pair.make(stored, Pair.make(arrayRef, indexField)));
-      } // else, it definitely does not write to our index. fall through
-    } else {
-      // TODO:
-      // at least one of the indices is not a constant. we need to fork two cases: one where this
-      // instruction does produce our constraint (with an additional equality constraint on the indices)
-      // and one where this instruction does not produce our constraint (with an additional inequality 
-      // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
-      Util.Debug("dropping constraints on " + arrayVar + " we can't resolve the index: TODO: implement case splitting");
-      dropConstraintsContaining(arrayVar);
-      //Util.Unimp("case split due to ambiguous array write");      
+    for (AtomicPathConstraint arrConstraint : arrConstraints) {
+      Pair<FieldReference, List<AtomicPathConstraint>> indexPair = getIndexConstraintsFor(arrConstraint);
+      FieldReference indexField = indexPair.fst;
+      List<AtomicPathConstraint> indexConstraints = indexPair.snd;
+      
+      if (indexConstraints.isEmpty()) {
+        Util.Debug("dropping constraints on " + arrayVar + " because we don't have an expression associated with the array index");
+        dropConstraintsContaining(arrayVar);
+        return true;
+      }
+      
+      for (AtomicPathConstraint indexConstraint : indexConstraints) {
+        Util.Assert(indexConstraints.size() == 1, "more or less than 1 index constraint for index expr " + indexConstraints.size());
+        // compare index constraint to index
+        PathTerm indexExpr = indexConstraint.getRhs();
+        int instrIndex = instr.getIndex();
+        // TODO: check inequality constraints also!
+        // TODO: check if rhs is wrong
+        if (indexExpr.isIntegerConstant() && tbl.isIntegerConstant(instrIndex)) {
+          // both index expression and index of array store instruction are constants. we can determine
+          // unambiguously whether this instruction writes to the index of interest
+          if (((SimplePathTerm) indexExpr).getIntegerConstant() == tbl.getIntValue(instrIndex)) {
+            // yes, it writes to our index. sub out arrayRef[index] for stored and remove the index expression
+            // constraint
+            //Util.Print("instr " + instr + " does write to index " + indexExpr + ". subbing.");
+            removeConstraint(indexConstraint);
+            //Util.Unimp("need to extract this to avoid concurrent modification exception");
+            substituteExpForFieldRead(stored, arrayVar, indexField);
+            //toSub.add(Pair.make(stored, Pair.make(arrayRef, indexField)));
+          } // else, it definitely does not write to our index. fall through
+        } else {
+          // TODO:
+          // at least one of the indices is not a constant. we need to fork two cases: one where this
+          // instruction does produce our constraint (with an additional equality constraint on the indices)
+          // and one where this instruction does not produce our constraint (with an additional inequality 
+          // constraint on the indices). we can also ask z3 to prove that it definitely *is* or *isn't* our index?
+          Util.Debug("dropping constraints on " + arrayVar + " we can't resolve the index: TODO: implement case splitting");
+          dropConstraintsContaining(arrayVar);
+          return isFeasible();
+          //Util.Unimp("case split due to ambiguous array write");      
+        }
+      }
     }
     return isFeasible();
   }

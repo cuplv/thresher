@@ -66,6 +66,7 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
       Set<InstanceKey> possibleVals = source.getPossibleValues();
       if (possibleVals != null) {
         for (InstanceKey key : possibleVals) {
+          Util.Pre(key != null, "trying to create bad edge; " + this + "; source has no possible values");
           IClass type = key.getConcreteType();
           if (type != null && !type.isArrayClass()) {
             Util.Assert(type.getAllFields().contains(fieldRef), 
@@ -73,6 +74,8 @@ public class PointsToEdge extends AbstractConstraint implements Comparable {
           }
         }
       }
+    } else {
+      Util.Assert(source.isLocalVar(), "trying to create bad edge; " + this + " field null and non-local pt Var");
     }
   }
   
