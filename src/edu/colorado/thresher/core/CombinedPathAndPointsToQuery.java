@@ -151,6 +151,33 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     super(query.constraints, query.pathVars, query.witnessList, query.depRuleGenerator, query.ctx, query.solver);
     this.pointsToQuery = query.pointsToQuery;
   }
+  
+  public static CombinedPathAndPointsToQuery make(Set<Constraint> constraints, IQuery old) {
+    Util.Pre(old instanceof CombinedPathAndPointsToQuery);
+    CombinedPathAndPointsToQuery other = (CombinedPathAndPointsToQuery) old;    
+    Set<PointsToEdge> newPtEdges = HashSetFactory.make();
+    Set<AtomicPathConstraint> newPathConstraints = HashSetFactory.make();
+        
+    for (Constraint constraint : constraints) {
+      if (constraint instanceof PointsToEdge) {
+        newPtEdges.add((PointsToEdge) constraint);
+      } else if (constraint instanceof AtomicPathConstraint) {
+        newPathConstraints.add((AtomicPathConstraint) constraint);
+      } else Util.Assert(false, "odd constraint " + constraint);
+    }
+    
+    // add locals from old constraints
+    for (PointsToEdge edge : other.pointsToQuery.constraints) {
+      if (edge.getSource().isLocalVar()) newPtEdges.add(edge);
+    }
+    
+    Set<PointerVariable> newPathVars = HashSetFactory.make();
+    PathQuery newPathQuery = new PathQuery(newPathConstraints, newPathVars, Collections.EMPTY_LIST, other.depRuleGenerator, other.ctx, other.solver);
+    CombinedPathAndPointsToQuery newQuery = new CombinedPathAndPointsToQuery(newPathQuery);
+    newQuery.pointsToQuery.constraints.addAll(newPtEdges);
+    return newQuery;
+  }
+
 
   /**
    * @return true if the query has been successfully witnessed, false otherwise
@@ -483,6 +510,10 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         Util.Debug("dropping constraints on " + arrayVar + " because we don't have an expression associated with the array index");
         dropConstraintsContaining(arrayVar);
         return true;
+      }
+      
+      for (AtomicPathConstraint indexConstraint : indexConstraints) {
+        Util.Print("index constraint " + indexConstraint);
       }
       
       for (AtomicPathConstraint indexConstraint : indexConstraints) {

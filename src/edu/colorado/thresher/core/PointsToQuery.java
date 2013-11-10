@@ -377,7 +377,7 @@ public class PointsToQuery implements IQuery {
     // entering the call because they weren't relevant, but they are relevant now
     // TODO: is this heavy-handed? maybe we can just intelligently drop
     // constraints rather than re-entering the call...
-    caseSplits = enterCall(instr, callee, currentPath);
+    caseSplits = enterCallInternal(instr, callee, currentPath, true);
     if (caseSplits == IQuery.INFEASIBLE) {
       this.feasible = false;
       return IQuery.INFEASIBLE;
@@ -760,6 +760,10 @@ public class PointsToQuery implements IQuery {
 
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+    return enterCallInternal(instr, callee, currentPath, false);
+  }
+    
+  public List<IQuery> enterCallInternal(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, boolean backward) {
     if (Options.GEN_DEPENDENCY_RULES_EAGERLY) depRuleGenerator.generateRulesForNode(callee);
     // the call instruction occurs in the caller
     CGNode caller = currentPath.getCurrentNode(); 
@@ -792,8 +796,9 @@ public class PointsToQuery implements IQuery {
         //continue; // this formal is already spoken for
       //}
 
+      int paramId = rule.getShown().getSource().hashCode();
+
       if (isRuleRelevant(rule, currentPath)) {
-        int paramId = rule.getShown().getSource().hashCode();
         Set<DependencyRule> newRules = isRuleConsistent(rule, this.unsatCore, null);
         if (newRules != null) {
           // if (isRuleConsistent(rule, this, caseSplits, new
@@ -806,8 +811,21 @@ public class PointsToQuery implements IQuery {
           rulesForParam.addAll(newRules);
           inconsistentParams.remove(paramId);
           assignedParams.add(paramId);
-        } else if (!assignedParams.contains(paramId))
+        } else if (!assignedParams.contains(paramId)) {
           inconsistentParams.add(paramId);
+        }
+      } else {
+        if (!backward) {
+          // don't mess with the state of the caller; just constrain the state of the callee
+          rule.getToShow().clear(); 
+          List<DependencyRule> rulesForParam = idRuleMap.get(paramId);
+          if (rulesForParam == null) {
+            rulesForParam = new LinkedList<DependencyRule>();
+            idRuleMap.put(paramId, rulesForParam);
+          }
+          rulesForParam.add(rule);
+          assignedParams.add(paramId);
+        }
       }
     }
 
@@ -815,7 +833,8 @@ public class PointsToQuery implements IQuery {
       Util.Debug("Not all params can be assigned consistently, refuting");
       this.feasible = false;
       return IQuery.INFEASIBLE;
-    }
+    }        
+    
     unsatCore.clear();
     if (assignedParams.isEmpty()) {
       Util.Debug("Found no relevant rules for pts-to constraints...returning");
@@ -835,8 +854,9 @@ public class PointsToQuery implements IQuery {
         } // else, this is tricky. more than one parameter, and more than one
           // choice for one of them
           Util.Unimp("more than one rule for multiple parameters");
-      } else if (rulesForParam.size() == 1)
+      } else if (rulesForParam.size() == 1) {
         applicableRules.add(rulesForParam.get(0));
+      }
     }
 
     for (DependencyRule rule : applicableRules) { // apply each rule
@@ -1413,8 +1433,12 @@ public class PointsToQuery implements IQuery {
           } else { // concrete case
             rhsEq = constraint.getSink().equals(edge.getSink());
           }
-          if (!rhsEq) {
-            if (edge == shown || (edge.getSource().isLocalVar() && constraint.getSource().isLocalVar())) {
+          if (!rhsEq) {            
+            
+          
+            
+            if (edge == shown || (edge.getSource().isLocalVar() && constraint.getSource().isLocalVar()) || 
+                constraintsHaveLocalPointerTo(edge.getSource())) {
               unsatCore.add(constraint);
               return null;
             } else {
@@ -1445,6 +1469,14 @@ public class PointsToQuery implements IQuery {
     }
     
     return rule;
+  }
+  
+  private boolean constraintsHaveLocalPointerTo(PointerVariable var) {
+    Set<PointerVariable> ptsAt = getPointsAtSet(var);
+    for (PointerVariable ptr : ptsAt) {
+      if (ptr.isLocalVar()) return true;
+    }
+    return false;
   }
 
   public boolean isRuleRelevant(DependencyRule rule, IPathInfo currentPath) {
@@ -1543,15 +1575,26 @@ public class PointsToQuery implements IQuery {
           Set<DependencyRule> newRules = bindSymbolicRule(rule, this, currentNode);
           boolean considerNotApplied = false;
 
-          if (!rule.getShown().getSource().isLocalVar() && !newRules.contains(rule)) {
-            Util.Debug("considering rule not applied case.");
-            considerNotApplied = true;
-          }
-          
+          /*
+          if (!rule.getShown().getSource().isLocalVar() && !newRules.contains(rule)) { 
+              //&& !constraintsHaveLocalPointerTo(newRule.getShown().getSource())) {
+              Util.Debug("considering rule not applied case.");
+              considerNotApplied = true;
+          }*/
+         
           
           Util.Assert(!newRules.isEmpty(), "should not be empty here!");
           List<DependencyRule> toRemove = new LinkedList<DependencyRule>(), toAdd = new LinkedList<DependencyRule>();
           for (DependencyRule newRule : newRules) {
+            // TODO: if the constraints have *any* locals used in the rule, we need not do a rule not applied case
+            // TODO: are loops a problem here? must this reasoning be restricted to parameters?
+            if (!newRule.getShown().getSource().isLocalVar() && !newRules.contains(rule) 
+                && !constraintsHaveLocalPointerTo(newRule.getShown().getSource())) {
+              Util.Debug("considering rule not applied case.");
+              considerNotApplied = true;
+            }
+            
+            
             DependencyRule maybeTransformed = isSymbolicRuleConsistent(newRule, this.constraints, unsatCore, currentNode);            
             if (maybeTransformed == null) {
               toRemove.add(newRule);
@@ -2236,7 +2279,7 @@ public class PointsToQuery implements IQuery {
           }
         }
         // no instance key in the possible values could cause callee to be called 
-        Util.Debug("refuted by infeasible dispatch!");
+        if (Options.PRINT_REFS) Util.Print("refuted by infeasible dispatch");
         return false;
       }
       break;
@@ -2257,8 +2300,9 @@ public class PointsToQuery implements IQuery {
     Context context = callee.getContext();
     ContextItem receiverItem = context.get(ContextKey.RECEIVER);
     InstanceKey receiverKey = receiverItem instanceof InstanceKey ? (InstanceKey) receiverItem : null;
+    
     return isDispatchFeasibleHelper(this.constraints, receiver, calleeType, receiverKey, cha) &&
-           isDispatchFeasibleHelper(this.produced, receiver, calleeType, receiverKey, cha);
+                               isDispatchFeasibleHelper(this.produced, receiver, calleeType, receiverKey, cha);
   }
 
   @Override

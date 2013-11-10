@@ -145,7 +145,7 @@ public class PathQuery implements IQuery {
     this.currentPathAssumption = null;
     rebuildZ3Constraints();
   }
-
+  
   @Override
   public PathQuery deepCopy() {
     // return new PathQuery(Util.deepCopyTreeSet(constraints),
@@ -1076,18 +1076,16 @@ public class PathQuery implements IQuery {
   
   @Override
   public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
-    // if (callee.getMethod().isInit()) {
     if (WALACFGUtil.isConstructor(instr)) { // if this is a constructor
       if (!initializeInstanceFieldsToDefaultValues(callee)) return IQuery.INFEASIBLE;
     }
     if (WALACFGUtil.isClassInit(instr) || WALACFGUtil.isConstructor(instr)) {
-      if (Options.DEBUG)
-        Util.Debug("initializing static fields to default values");
+      if (Options.DEBUG) Util.Debug("initializing static fields to default values");
       List<PointerVariable> toSub = new LinkedList<PointerVariable>();
       // initialize static fields to default values
       for (AtomicPathConstraint constraint : constraints) {
         if (constraint.getLhs() instanceof SimplePathTerm) {
-          SimplePathTerm constraintLHS = (SimplePathTerm) constraint.getLhs();
+          SimplePathTerm constraintLHS = (SimplePathTerm) constraint.getLhs();      
           PointerKey ptr = constraintLHS.getPointer();
           if (ptr instanceof StaticFieldKey) {
             StaticFieldKey sfk = (StaticFieldKey) ptr;
@@ -1109,13 +1107,25 @@ public class PathQuery implements IQuery {
             }
           }
         }
-      }
+        
+      }      
+      
       for (PointerVariable var : toSub) {
         // we model 0 == null == false all as the integer 0. each is the default
         // value for its respective type
         this.substituteExpForVar(new SimplePathTerm(0), var);
       }
     }
+    /*
+    List<AtomicPathConstraint> toRemove = new LinkedList<>();
+    // remove constraints on args of callee
+    for (AtomicPathConstraint constraint : this.constraints) {
+      if (constraint.getLhs() instanceof SimplePathTerm) {
+        SimplePathTerm simpleLhs = (SimplePathTerm) constraint.getLhs();
+        if (simpleLhs.getObject().getNode().equals(callee)) toRemove.add(constraint);
+      }
+    }
+    this.constraints.removeAll(toRemove);*/
 
     // done initializing to default values; now do substitution
     if (!substituteActualsForFormals(instr, currentPath.getCurrentNode(), callee, currentPath.getCurrentNode().getIR()
@@ -1456,8 +1466,7 @@ public class PathQuery implements IQuery {
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
       PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.heapModel);
       int use = instr.getUse(i);
-      if (i == -1)
-        continue; // insurance for WALA crash that sometimes happens here
+      if (i == -1) continue; // insurance for WALA crash that sometimes happens here
       SimplePathTerm actual = null;
       if (callerSymbolTable.isIntegerConstant(use))
         actual = new SimplePathTerm(callerSymbolTable.getIntValue(use));
@@ -1479,20 +1488,29 @@ public class PathQuery implements IQuery {
     }
     return isFeasible();
   }
-
+  
   /**
    * substitute formals for actuals in our constraint set (i.e., when entering
    * call
    */
   boolean substituteFormalsForActuals(SSAInvokeInstruction instr, CGNode callerMethod, CGNode calleeMethod) {
     //Util.Pre(!calleeMethod.equals(callerMethod), "recursion should be handled elsewhere");
-    if (Options.DEBUG)
-      Util.Debug("substituting formals for actuals in path query");
+    if (Options.DEBUG) Util.Debug("substituting formals for actuals in path query");
+    
+    SymbolTable tbl = callerMethod.getIR().getSymbolTable();
     for (int i = 0; i < instr.getNumberOfParameters(); i++) {
-      PointerVariable actual = new ConcretePointerVariable(callerMethod, instr.getUse(i), this.heapModel);
+      int useNum = instr.getUse(i);
+      
+      PointerVariable actual = new ConcretePointerVariable(callerMethod, useNum, this.heapModel);
       PointerVariable formal = new ConcretePointerVariable(calleeMethod, i + 1, this.heapModel);
       SimplePathTerm formalTerm = new SimplePathTerm(formal);
-      substituteExpForVar(formalTerm, actual);
+      substituteExpForVar(formalTerm, actual); // don't want to muck with caller state
+      /*
+      // bind constant args
+      if (tbl.isIntegerConstant(useNum) || tbl.isBooleanConstant(useNum)) {
+        constraints.add(new AtomicPathConstraint(formalTerm,
+                        new SimplePathTerm(tbl.getIntValue(useNum)), ConditionalBranchInstruction.Operator.EQ));
+      } */
     }
     return isFeasible();
   }
@@ -1500,8 +1518,7 @@ public class PathQuery implements IQuery {
   @Override
   public List<IQuery> enterCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
     boolean result = substituteFormalsForActuals(instr, currentPath.getCurrentNode(), callee);
-    if (!result)
-      return IQuery.INFEASIBLE;
+    if (!result) return IQuery.INFEASIBLE;
     result = visit(instr, callee, currentPath.getCurrentNode());
     if (!result)
       return IQuery.INFEASIBLE;

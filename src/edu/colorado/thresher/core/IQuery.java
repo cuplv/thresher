@@ -55,6 +55,7 @@ public interface IQuery { // extends Comparable {
    * @return - true if the query has been refuted, false otherwise
    */
   public boolean isFeasible();
+  
 
   /**
    * drop parts of the query that are not shared by the current query and other
