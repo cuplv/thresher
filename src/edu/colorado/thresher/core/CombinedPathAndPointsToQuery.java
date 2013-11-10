@@ -827,11 +827,11 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
 
   @Override
-  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, boolean backward) {
     Util.Pre(currentPath.query == this);
-    List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath);
+    List<IQuery> ptResults = pointsToQuery.returnFromCall(instr, callee, currentPath, backward);
     if (ptResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
-    List<IQuery> pathResults = super.returnFromCall(instr, callee, currentPath);
+    List<IQuery> pathResults = super.returnFromCall(instr, callee, currentPath, backward);
     if (pathResults == IQuery.INFEASIBLE) return IQuery.INFEASIBLE;
     return combinePathAndPointsToQueries(ptResults, pathResults);
   }

@@ -104,12 +104,12 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
     vars.addAll(rhs.getVars());
     this.hash = makeHash();
     
-    if (Options.DEBUG) {
+    //if (Options.DEBUG) {
       // sanity check to make sure path conditions aren't growing extremely large
       if (lhs.size() > 8 || rhs.size() > 8) {
         Util.Assert(false, "unusually large path constraint " + this + "; possible nontermination");
       }
-    }
+    //}
     
   }
 

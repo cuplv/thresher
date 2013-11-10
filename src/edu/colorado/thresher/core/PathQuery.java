@@ -1075,7 +1075,7 @@ public class PathQuery implements IQuery {
   }
   
   @Override
-  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, boolean backward) {
     if (WALACFGUtil.isConstructor(instr)) { // if this is a constructor
       if (!initializeInstanceFieldsToDefaultValues(callee)) return IQuery.INFEASIBLE;
     }

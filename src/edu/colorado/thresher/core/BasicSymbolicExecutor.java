@@ -730,7 +730,7 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
    */
   boolean visitCallerWrapper(SSAAbstractInvokeInstruction instr, CGNode callee, IPathInfo info) {
     Util.Assert(instr instanceof SSAInvokeInstruction, "expecting invoke here");
-    List<IPathInfo> caseSplits = info.returnFromCall((SSAInvokeInstruction) instr, callee);
+    List<IPathInfo> caseSplits = info.returnFromCall((SSAInvokeInstruction) instr, callee, true);
     if (caseSplits == null)
       return false; // infeasible
     for (IPathInfo path : caseSplits)

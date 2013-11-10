@@ -111,7 +111,7 @@ public interface IQuery { // extends Comparable {
    * @param callee
    *          - method we are returning from
    */
-  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath);
+  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, boolean backward);
 
   /**
    * stale constraints are constraints that refer to locals of a method we are

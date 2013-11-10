@@ -56,7 +56,7 @@ public class PointsToQuery implements IQuery {
   final AbstractDependencyRuleGenerator depRuleGenerator;
   // constraints that have not been produced yet
   final Set<PointsToEdge> constraints; 
-  // constraints with that have already been produced and have not been invalidated 
+  // constraints that have already been produced and have not been invalidated 
   final Set<PointsToEdge> produced;
   // the constraints produced, in the order they were produced
   final List<DependencyRule> witnessList;
@@ -351,7 +351,7 @@ public class PointsToQuery implements IQuery {
    *          - target of call instruction that we have just finished executing
    */
   @Override
-  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath) {
+  public List<IQuery> returnFromCall(SSAInvokeInstruction instr, CGNode callee, IPathInfo currentPath, boolean backward) {
     List<IQuery> caseSplits;
     
     if (callee.getMethod().isInit() && !initializeInstanceFieldsToDefaultValues(callee)) {
@@ -377,7 +377,7 @@ public class PointsToQuery implements IQuery {
     // entering the call because they weren't relevant, but they are relevant now
     // TODO: is this heavy-handed? maybe we can just intelligently drop
     // constraints rather than re-entering the call...
-    caseSplits = enterCallInternal(instr, callee, currentPath, true);
+    caseSplits = enterCallInternal(instr, callee, currentPath, backward);
     if (caseSplits == IQuery.INFEASIBLE) {
       this.feasible = false;
       return IQuery.INFEASIBLE;
@@ -721,7 +721,6 @@ public class PointsToQuery implements IQuery {
         if (edge.getSource().equals(arg)) {
           // Util.Debug("binding " + formal + " to " + edge.getSink());
           PointsToEdge newEdge = new PointsToEdge(formal, edge.getSink());
-          // produced.add(newEdge);
           toAdd.add(newEdge);
           formalsAssigned.add(formal);
         }
@@ -769,7 +768,7 @@ public class PointsToQuery implements IQuery {
     CGNode caller = currentPath.getCurrentNode(); 
     // need to do this even if there are no rules at the line because the return
     // value may be important (and is not represented in the dependency rules)
-    if (bindFormalsToActuals(instr, caller, callee) == null) {
+    if (backward && bindFormalsToActuals(instr, caller, callee) == null) {
       return IQuery.INFEASIBLE;
     }
 
@@ -788,9 +787,8 @@ public class PointsToQuery implements IQuery {
     Set<Integer> inconsistentParams = HashSetFactory.make();
     // set of function parameters for which there is a relevant and consistent rule
     Set<Integer> assignedParams = HashSetFactory.make(); 
-
     for (DependencyRule rule : rulesAtLine) { // create map of rules to parameters
-      Util.Debug("trying rule for call " + rule);
+      if (Options.DEBUG) Util.Debug("trying rule for call " + rule);
       //if (formalsAlreadyAssigned.contains(rule.getShown().getSource())) {
         //Util.Debug("formal already assigned; continuing");
         //continue; // this formal is already spoken for
@@ -817,6 +815,7 @@ public class PointsToQuery implements IQuery {
       } else {
         if (!backward) {
           // don't mess with the state of the caller; just constrain the state of the callee
+          /*
           rule.getToShow().clear(); 
           List<DependencyRule> rulesForParam = idRuleMap.get(paramId);
           if (rulesForParam == null) {
@@ -824,20 +823,21 @@ public class PointsToQuery implements IQuery {
             idRuleMap.put(paramId, rulesForParam);
           }
           rulesForParam.add(rule);
-          assignedParams.add(paramId);
+          assignedParams.add(paramId);*/
+          this.addConstraint(rule.getShown());
         }
       }
     }
 
     if (!inconsistentParams.isEmpty()) {
-      Util.Debug("Not all params can be assigned consistently, refuting");
+      if (Options.DEBUG) Util.Debug("Not all params can be assigned consistently, refuting");
       this.feasible = false;
       return IQuery.INFEASIBLE;
     }        
     
     unsatCore.clear();
     if (assignedParams.isEmpty()) {
-      Util.Debug("Found no relevant rules for pts-to constraints...returning");
+      if (Options.DEBUG) Util.Debug("Found no relevant rules for pts-to constraints...returning");
       return IQuery.FEASIBLE;
     }
 
@@ -858,10 +858,15 @@ public class PointsToQuery implements IQuery {
         applicableRules.add(rulesForParam.get(0));
       }
     }
-
-    for (DependencyRule rule : applicableRules) { // apply each rule
-      if (!applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return IQuery.INFEASIBLE;
+    if (!backward) {
+      for (DependencyRule rule : applicableRules) { // apply each rule
+        if (!applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return IQuery.INFEASIBLE;
+      }      
+    } else {
+      for (DependencyRule rule : applicableRules) this.addConstraint(rule.getShown());
     }
+    
+    
     return IQuery.FEASIBLE;
   }
 
@@ -885,7 +890,9 @@ public class PointsToQuery implements IQuery {
         for (PointsToEdge edge : this.constraints) {
           if (edge.getSource().symbEq(paramPointedTo)) {
             Util.Assert(!edge.getSource().isSymbolic(), "unimp: need to bind symbolic var here");
-            this.produced.add(new PointsToEdge(param, paramPointedTo));
+            PointsToEdge newEdge = new PointsToEdge(param, paramPointedTo); 
+            this.produced.add(newEdge);
+            this.constraints.add(newEdge);
             boolean added = bound.add(params[i]);
             Util.Assert(added, "more than one binding for v" + params[i] + Util.printCollection(this.produced)); 
           }
@@ -986,8 +993,8 @@ public class PointsToQuery implements IQuery {
         
 
     if (rule.getShown().getSource().isParameter() ||
-        !WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());
-    //else Util.Debug("not adding " + rule.getShown() + " because in loop body");
+      !WALACFGUtil.isInLoopBody(rule.getBlock(), rule.getNode().getIR())) query.produced.add(rule.getShown());    
+
     toRemove.clear();
     
     for (PointsToEdge edge : rule.getToShow()) {
@@ -1243,7 +1250,7 @@ public class PointsToQuery implements IQuery {
     }
 
     if (subMaps.size() != 1) {
-      for (Map map : subMaps) Util.Debug(Util.printMap(map));
+      for (Map map : subMaps) Util.Print(Util.printMap(map));
       Util.Assert(subMaps.size() == 1, "more than one instantiation choice for shown! have " + subMaps.size()
           + " this shouldn't happen, since we've only considered local constraints");      
     }
@@ -1813,7 +1820,9 @@ public class PointsToQuery implements IQuery {
     PointerVariable pointed = getPointedTo(var, constraints);
     if (pointed != null) return pointed;
     if (checkProduced) {
-      return getPointedTo(var, produced);
+      PointerVariable producedVar = getPointedTo(var, produced);
+      //Util.Assert(producedVar == null, "got produced var " + var + " constraints " + constraints + " produced " + produced);
+      return producedVar;
     }
     return null;
   }
@@ -1832,7 +1841,9 @@ public class PointsToQuery implements IQuery {
     PointerVariable found = null;
     for (PointsToEdge edge : set) {
       if (edge.getSource().equals(var)) {
-        Util.Assert(found == null, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        if (found != null) Util.Assert(false, "should only find var on LHS of one points-to relation! got " + found + " and " + 
+                                               edge.getSink() + " in " + Util.printCollection(set));
+        
         found = edge.getSink();
       }
     }
@@ -2324,8 +2335,7 @@ public class PointsToQuery implements IQuery {
       Set<DependencyRule> newRules = isRuleConsistent(rule, unsatCore,
                                                       currentPath.getCurrentNode());
       if (newRules != null) { 
-        if (!produced.contains(receiverConstraint))
-          this.addConstraint(receiverConstraint);
+        if (!produced.contains(receiverConstraint)) this.addConstraint(receiverConstraint);
       } else { // refuted!
           Util.Print("refuted by contextual constraints");
         return false;

@@ -184,7 +184,7 @@ public class IPathInfo { // implements Comparable {
   public boolean simulateQueryReturnFromCall(SSAInvokeInstruction instruction, CGNode callee) {
     // Util.Debug("simulating return from callee " + callee + " via call instr "
     // + instruction);
-    List<IQuery> caseSplits = this.query.returnFromCall(instruction, callee, this);
+    List<IQuery> caseSplits = this.query.returnFromCall(instruction, callee, this, true);
     return caseSplits == IQuery.INFEASIBLE ? false : true;
   }
 
@@ -221,7 +221,7 @@ public class IPathInfo { // implements Comparable {
     this.currentBlock = frame.getBlock();
     this.currentLineNum = frame.getLineNum();
     // reflect return in query
-    List<IQuery> caseSplits = this.query.returnFromCall(frame.getCallInstr(), callee, this);
+    List<IQuery> caseSplits = this.query.returnFromCall(frame.getCallInstr(), callee, this, true);
     // we should never have case splits here because the arguments to the callee
     // were already known before we entered it
     Util.Post(caseSplits == IQuery.INFEASIBLE || caseSplits.isEmpty(), "Shouldn't have case splits after leaving callee!");
@@ -235,13 +235,13 @@ public class IPathInfo { // implements Comparable {
    * @param callee
    *          - method we are returning from
    */
-  public List<IPathInfo> returnFromCall(SSAInvokeInstruction instr, CGNode callee) {
+  public List<IPathInfo> returnFromCall(SSAInvokeInstruction instr, CGNode callee, boolean backward) {
     Util.Pre(this.callStack.isEmpty(), "Should only call this method with empty call stack!");
     // cleanup: forget which loop heads we have seen. otherwise, if we come back
     // to this method later, we will neglect to execute loops we've already seen
     loopHeadSet.clear();
     // have query reflect return from call
-    List<IQuery> caseSplits = query.returnFromCall(instr, callee, this);
+    List<IQuery> caseSplits = query.returnFromCall(instr, callee, this, backward);
     return handleQueryCaseSplitReturn(caseSplits);
   }
 
