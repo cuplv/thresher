@@ -378,6 +378,9 @@ public class PointsToQuery implements IQuery {
     // TODO: is this heavy-handed? maybe we can just intelligently drop
     // constraints rather than re-entering the call...
     caseSplits = enterCallInternal(instr, callee, currentPath, backward);
+    
+    this.produced.clear();
+    
     if (caseSplits == IQuery.INFEASIBLE) {
       this.feasible = false;
       return IQuery.INFEASIBLE;
