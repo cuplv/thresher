@@ -909,6 +909,32 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     return true;
   }
 
+  // TODO: get pointer chains starting with flds and keep them
+  public void dropConstraintsNotContaining(Set<IField> flds) {
+    List<PointsToEdge> toRemove = new LinkedList<>();
+    for (PointsToEdge edge : this.pointsToQuery.constraints) {
+      IField fld = edge.getFieldRef(); 
+      if (fld == null || !flds.contains(fld)) {
+        toRemove.add(edge);
+      }
+    }
+    this.pointsToQuery.constraints.removeAll(toRemove);        
+    
+    List<AtomicPathConstraint> pathToRemove = new LinkedList<>();
+    outer:
+    for (AtomicPathConstraint constraint : this.constraints) {
+      Set<FieldReference> fields = constraint.getFields();
+      if (fields == null) pathToRemove.add(constraint);
+      else {
+        for (IField fld : flds) {
+          if (fields.contains(fld.getReference())) continue outer;
+        }
+        pathToRemove.add(constraint);
+      }
+    }
+    this.constraints.removeAll(pathToRemove);
+  }
+  
   @Override
   public boolean isCallRelevant(SSAInvokeInstruction instr, CGNode caller, CGNode callee, CallGraph cg) {
     return pointsToQuery.isCallRelevant(instr, caller, callee, cg)
