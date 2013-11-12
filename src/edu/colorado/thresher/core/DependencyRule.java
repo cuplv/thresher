@@ -262,6 +262,16 @@ public class DependencyRule implements Comparable {
     edges.addAll(toShow);
     return edges;
   }
+  
+  public DependencyRule flip() {
+    Util.Pre(toShow.size() == 1);
+    PointsToEdge oldToShow = toShow.iterator().next();
+    PointsToEdge oldShown = shown;
+    TreeSet<PointsToEdge> newToShow = new TreeSet<>();
+    newToShow.add(shown);
+    return new DependencyRule(oldToShow, this.stmt, newToShow, this.node, this.blk);
+    
+  }
 
   /*
    * // return a copy of this dependency rule with toSub subbed for subFor in

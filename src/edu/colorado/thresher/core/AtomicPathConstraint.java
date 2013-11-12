@@ -563,18 +563,7 @@ public class AtomicPathConstraint extends AbstractConstraint implements Constrai
                 PointerKey fieldKey = hm.getPointerKeyForInstanceField((InstanceKey) next, fld);
                 if (fieldKey == null) continue;
                 keysForConstraint.add(fieldKey);
-              }
-                /*
-              } else if (next instanceof InstanceFieldKey) {
-                InstanceFieldKey fieldKey = (InstanceFieldKey) next;
-                // only add if the field matches the field of the path term
-                if (fieldKey.getField().equals(fld)) keysForConstraint.add((InstanceFieldKey) next);
-              } else if (next instanceof StaticFieldKey) {
-                StaticFieldKey fieldKey = (StaticFieldKey) next;
-                // only add if the field matches the field of the path term
-                if (fieldKey.getField().equals(fld)) keysForConstraint.add((StaticFieldKey) next);
-              } 
-              */
+              }           
             }
           }
         }

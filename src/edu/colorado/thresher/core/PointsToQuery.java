@@ -796,10 +796,15 @@ public class PointsToQuery implements IQuery {
         //Util.Debug("formal already assigned; continuing");
         //continue; // this formal is already spoken for
       //}
+      //if (backward) rule = rule.flip();
+      //Util.Debug("after flipping " + rule);
 
       int paramId = rule.getShown().getSource().hashCode();
 
-      if (isRuleRelevant(rule, currentPath)) {
+      //if (isRuleRelevant(rule, currentPath)) {
+      if (isRuleRelevant(rule, currentPath)) { //||
+          // special hack for return value rules -- the caller's constraint on the retval appears in toShow 
+          //hasLhsVar(rule.getToShow().iterator().next().getSource())) {
         Set<DependencyRule> newRules = isRuleConsistent(rule, this.unsatCore, null);
         if (newRules != null) {
           // if (isRuleConsistent(rule, this, caseSplits, new
@@ -861,13 +866,13 @@ public class PointsToQuery implements IQuery {
         applicableRules.add(rulesForParam.get(0));
       }
     }
-    if (!backward) {
+    //if (!backward) {
       for (DependencyRule rule : applicableRules) { // apply each rule
         if (!applyRule(rule, this, this.depRuleGenerator.getHeapGraph())) return IQuery.INFEASIBLE;
       }      
-    } else {
-      for (DependencyRule rule : applicableRules) this.addConstraint(rule.getShown());
-    }
+    //} else {
+      //for (DependencyRule rule : applicableRules) this.addConstraint(rule.getShown());
+    //}
     
     
     return IQuery.FEASIBLE;
@@ -905,9 +910,11 @@ public class PointsToQuery implements IQuery {
   }
 
   static boolean applyRule(DependencyRule rule, PointsToQuery query, HeapGraph hg) {
-    //Util.Debug("before applying rule " + rule + " query is " + query);
+    Util.Debug("before applying rule " + rule + " query is " + query);
     // TODO: this is a giant mess that's impossible to reason about. clean it up
     List<PointsToEdge> toRemove = new LinkedList<PointsToEdge>();
+    Map<SymbolicPointerVariable,PointerVariable> subMap = HashMapFactory.make();
+
     // special case for when the constraints contain a symbolic edge that
     // matches a concrete edge in the constraints
     for (PointsToEdge ruleEdge : rule.getToShow()) {
@@ -918,6 +925,7 @@ public class PointsToQuery implements IQuery {
           if (edge.getSink().symbContains(ruleEdge.getSink())) {
             // remove the symbolic edge; it should be replaced with the concrete
             // one from this rule
+            subMap.put((SymbolicPointerVariable) edge.getSink(), ruleEdge.getSink());
             toRemove.add(edge);
           }
         }
@@ -939,25 +947,29 @@ public class PointsToQuery implements IQuery {
     for (PointsToEdge removeMe : toRemove) query.produced.remove(removeMe);
     toRemove.clear();
         
-    Map<SymbolicPointerVariable,PointerVariable> subMap = HashMapFactory.make();
 
+    List<PointsToEdge> checkMe = new ArrayList<>(3);
+    checkMe.add(rule.getShown());
+    checkMe.addAll(rule.getToShow());
+    
     //Util.Debug("removing " + rule.getShown());
     query.constraints.remove(rule.getShown());
+    Util.Debug("after removing show, query is " + query);
     // special case for if shown removes a symbolic edge from the constraints
-    for (PointsToEdge edge : query.constraints) {
-      //if (edge.isSymbolic() && edge.symbContains(rule.getShown())) {
-      if (edge.isSymbolic() && edge.symbEq(rule.getShown())) {
-        toRemove.add(edge);
-        // look for other instances of the symbolic var to subsitute
-        if (edge.getSource().isSymbolic()) {
-          subMap.put((SymbolicPointerVariable) edge.getSource(), rule.getShown().getSource());
-          //Util.Debug("replacing symbolic src " + edge.getSource() + " with shown src " + rule.getShown().getSource());
+    for (PointsToEdge edge : query.constraints) {      
+        //if (edge.isSymbolic() && edge.symbContains(rule.getShown())) {
+        if (edge.isSymbolic() && edge.symbEq(rule.getShown())) {
+          toRemove.add(edge);
+          // look for other instances of the symbolic var to subsitute
+          if (edge.getSource().isSymbolic()) {
+            subMap.put((SymbolicPointerVariable) edge.getSource(), rule.getShown().getSource());
+            //Util.Debug("replacing symbolic src " + edge.getSource() + " with shown src " + rule.getShown().getSource());
+          }
+          if (edge.getSink().isSymbolic()) {
+            subMap.put((SymbolicPointerVariable) edge.getSink(), rule.getShown().getSink());
+            //Util.Debug("replacing symbolic snk " + edge.getSink() + " with shown snk " + rule.getShown().getSink());
+          }
         }
-        if (edge.getSink().isSymbolic()) {
-          subMap.put((SymbolicPointerVariable) edge.getSink(), rule.getShown().getSink());
-          //Util.Debug("replacing symbolic snk " + edge.getSink() + " with shown snk " + rule.getShown().getSink());
-        }
-      }
     }
     for (PointsToEdge removeMe : toRemove) {
       //Util.Debug("removing " + removeMe);
@@ -1013,6 +1025,7 @@ public class PointsToQuery implements IQuery {
         }
         
         for (PointsToEdge queryEdge : query.constraints) {
+          //if (edge.symbContains(queryEdge)) {
           if (edge.symbContains(queryEdge)) {
             // query edge is already more specific
             add = false;
@@ -1766,7 +1779,8 @@ public class PointsToQuery implements IQuery {
     Util.Assert(ref != null);
     for (PointsToEdge edge : this.constraints) {
       if (edge.getSource().equals(ref) && edge.getFieldRef() != null && edge.getFieldRef().equals(field)) {
-        Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
+        // TODO: fix
+        //Util.Assert(found == null);//, "should only find var on LHS of one points-to relation! got " + found + " and " + edge.getSink());
         found = edge.getSink();
       }
     }
@@ -1799,6 +1813,15 @@ public class PointsToQuery implements IQuery {
       }
     }
     return pt;
+  }
+  
+  public boolean hasLhsVar(PointerVariable var) {
+    for (PointsToEdge edge : this.constraints) {
+      if (edge.getSource().equals(var)) {
+        return true;
+      }
+    }
+    return false;
   }
   
   public Set<PointerVariable> getPointsAtSet(PointerVariable var) {
@@ -1940,7 +1963,7 @@ public class PointsToQuery implements IQuery {
     if (this.constraints.isEmpty()) return false;
     return !getConstraintsRelevantToCall(instr, caller, callee, true).isEmpty();
   }
-  
+    
   @Override
   public void dropReturnValueConstraintsForCall(SSAInvokeInstruction instr, CGNode caller) {
     if (instr.hasDef()) {
