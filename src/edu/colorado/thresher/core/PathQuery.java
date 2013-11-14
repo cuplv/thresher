@@ -769,16 +769,15 @@ public class PathQuery implements IQuery {
   }
   
   public static boolean isArrayIndexField(FieldReference fld) {
-    Util.Pre(fld != null);
-    return fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
+    return fld != null && fld.getDeclaringClass().getName().toString().equals(ARRAY_INDEX);
   }
   
-  public static boolean isArrayContentsField(FieldReference fld) {
-    return fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS.getReference());
+  public static boolean isArrayContentsField(IField fld) {
+    return  fld.equals(AbstractDependencyRuleGenerator.ARRAY_CONTENTS);
   }
   
   public static boolean isArrayLengthField(FieldReference fld) {
-    return fld == SimplePathTerm.LENGTH;
+    return fld == null || fld == SimplePathTerm.LENGTH;
   }
   
   public static boolean isArrayIndexVariable(PointerVariable var) {

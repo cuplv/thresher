@@ -217,6 +217,25 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
   }
   
   @Override
+  boolean visit(SSAPutInstruction instr, CGNode node, SymbolTable tbl) {
+    if (!super.visit(instr, node, tbl)) return false;
+    // help the points-to constraints spot assignments to null--we don't generate dependency rules for these
+    if (tbl.isNullConstant(instr.getVal())) {      
+      PointerVariable varName = new ConcretePointerVariable(node, instr.getRef(), this.heapModel);
+      PointerVariable heapVar = this.pointsToQuery.getPointedTo(varName);
+      if (heapVar == null) return true;// pts-to constraints do not contain varName
+      FieldReference fieldName = instr.getDeclaredField();
+      for (PointsToEdge edge : this.pointsToQuery.constraints) {
+        if (edge.getSource().equals(heapVar) && edge.getFieldRef() != null && edge.getFieldRef().getReference().equals(fieldName)) {
+          if (Options.PRINT_REFS) Util.Print("refuted by assignment of field to null!");
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  
+  @Override
   boolean visitStaticPut(SSAPutInstruction instr, CGNode node, SymbolTable tbl) {
     if (!super.visitStaticPut(instr, node, tbl)) return false;
     PointerVariable localVar = new ConcretePointerVariable(node, instr.getUse(0), depRuleGenerator.getHeapModel());
@@ -411,7 +430,8 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
         }
       }
       if (toRemove != null) ptConstraints.remove(toRemove);
-      ptConstraints.add(new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(newKeys)));
+      PointsToEdge instanceOfConstrainedEdge = new PointsToEdge(checkedVar, SymbolicPointerVariable.makeSymbolicVar(newKeys)); 
+      ptConstraints.add(instanceOfConstrainedEdge);
     }
     return true;
   }
@@ -908,6 +928,50 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     }
     return true;
   }
+  /*
+  // TODO: get pointer chains starting with flds and keep them
+  public void dropConstraintsNotContaining(Set<IField> flds) {
+    Set<PointerVariable> keepVars = HashSetFactory.make();    
+    List<PointsToEdge> toKeep = new LinkedList<>();
+
+    int keepFldSize = -1;
+    int keepVarsSize = -1;
+    do {
+      keepFldSize = flds.size();
+      keepVarsSize = keepVars.size();
+      for (PointsToEdge edge : this.pointsToQuery.constraints) {
+        IField fld = edge.getFieldRef(); 
+        if (fld != null || flds.contains(fld)) {
+          toKeep.add(edge);
+          keepVars.add(edge.getSink());
+        } else if (keepVars.contains(edge.getSource())) {
+          Util.Assert(fld != null);
+          flds.add(fld);
+        }      
+      }
+    } while(flds.size() != keepFldSize || keepVars.size() != keepVarsSize);
+    
+    List<PointsToEdge> toRemove = new LinkedList<>();
+    for (PointsToEdge edge : this.pointsToQuery.constraints) {
+      if (!toKeep.contains(edge)) toRemove.add(edge);
+    }
+    this.pointsToQuery.constraints.removeAll(toRemove);   
+    
+    
+    List<AtomicPathConstraint> pathToRemove = new LinkedList<>();
+    outer:
+    for (AtomicPathConstraint constraint : this.constraints) {
+      Set<FieldReference> fields = constraint.getFields();
+      if (fields == null) pathToRemove.add(constraint);
+      else {
+        for (IField fld : flds) {
+          if (fields.contains(fld.getReference())) continue outer;
+        }
+        pathToRemove.add(constraint);
+      }
+    }
+    this.constraints.removeAll(pathToRemove);
+  }*/
 
   // TODO: get pointer chains starting with flds and keep them
   public void dropConstraintsNotContaining(Set<IField> flds) {

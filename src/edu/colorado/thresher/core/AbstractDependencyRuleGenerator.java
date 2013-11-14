@@ -32,6 +32,7 @@ import com.ibm.wala.ssa.SSAArrayStoreInstruction;
 import com.ibm.wala.ssa.SSACFG;
 import com.ibm.wala.ssa.SSACheckCastInstruction;
 import com.ibm.wala.ssa.SSAGetInstruction;
+import com.ibm.wala.ssa.SSAInstanceofInstruction;
 import com.ibm.wala.ssa.SSAInstruction;
 import com.ibm.wala.ssa.SSAInvokeInstruction;
 import com.ibm.wala.ssa.SSALoadMetadataInstruction;
@@ -610,6 +611,38 @@ public class AbstractDependencyRuleGenerator {
         rules.addAll(generateAbstractRulesForArrayLoad(instruction, node, lineId, lineNum));
       }
     }
+    
+    /*
+    else if (instr instanceof SSAInstanceofInstruction) {
+      SSAInstanceofInstruction instanceCheck = (SSAInstanceofInstruction) instr;
+      PointerKey lhsKey = hm.getPointerKeyForLocal(node, instanceCheck.getDef());
+      PointerKey rhsKey = hm.getPointerKeyForLocal(node, instanceCheck.getRef());      
+      PointerVariable lhs = Util.makePointerVariable(lhsKey);
+      PointerVariable rhsPointer = Util.makePointerVariable(rhsKey);
+      PointerStatement stmt = new PointerStatement(instr, lhs, rhsPointer, PointerStatement.EdgeType.Assign, null, lineId,
+          lineNum);
+      
+      
+      // generate dependency rule for each possible value of rhs
+      // Iterator<Object> ptValues = hg.getSuccNodes(lhsKey);
+      Iterator<Object> ptValues = hg.getSuccNodes(rhsKey);
+      Set<InstanceKey> possibleKeys = HashSetFactory.make();// new HashSet<InstanceKey>();
+      while (ptValues.hasNext()) {
+        Object next = ptValues.next();
+        Util.Assert(next instanceof InstanceKey, "found non-instance key " + next);
+        possibleKeys.add((InstanceKey) next);
+      }
+      if (possibleKeys.isEmpty()) return rules;
+      PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(possibleKeys);
+      PointsToEdge shown = new PointsToEdge(lhs, rhs, staticLhs);
+      PointsToEdge toShow = new PointsToEdge(rhsPointer, rhs, staticRhs);
+      TreeSet<PointsToEdge> toShowSet = new TreeSet<PointsToEdge>();
+      toShowSet.add(toShow);
+      DependencyRule rule = new DependencyRule(shown, stmt, toShowSet, node, (SSACFG.BasicBlock) node.getIR()
+          .getBasicBlockForInstruction(instr));
+      rules.add(rule
+      
+    }*/
 
     else if (instr instanceof SSAInvokeInstruction) {
       SSAInvokeInstruction instruction = (SSAInvokeInstruction) instr;

@@ -31,6 +31,7 @@ public class DependencyRule implements Comparable {
     this.toShow = toShow;// (TreeSet) Collections.unmodifiableSet(toShow);
     this.node = node;
     this.blk = blk;
+    
     // Util.Assert(toShow.size() < 3,
     // "TRYING TO CONSTRUCT BOGUS DEPENDECY RULE");
 
