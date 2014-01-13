@@ -1001,7 +1001,7 @@ public class Main {
       //File exclusionsFile = new File("config/synthesis_exclusions.txt");
       File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
       if (exclusionsFile.exists()) {
-        scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+        scope.setExclusions(new FileOfClasses(new FileInputStream(exclusionsFile)));
       }
       
       final MethodReference DACAPO_MAIN =
@@ -1017,7 +1017,7 @@ public class Main {
       //File exclusionsFile = new File("config/synthesis_exclusions.txt");
       File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
       if (exclusionsFile.exists()) {
-        scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+        scope.setExclusions(new FileOfClasses(new FileInputStream(exclusionsFile)));
       }
       
       cha = ClassHierarchy.make(scope);
@@ -1694,7 +1694,7 @@ public class Main {
     //File exclusionsFile = new File("config/exclusions.txt");
     File exclusionsFile = new File(Options.EXCLUSIONS);
     if (exclusionsFile.exists()) {
-      scope.setExclusions(FileOfClasses.createFileOfClasses(exclusionsFile));
+      scope.setExclusions(new FileOfClasses(new FileInputStream(exclusionsFile)));
     }
     IClassHierarchy cha = ClassHierarchy.make(scope);
     Collection<Entrypoint> entryPoints = new ArrayList<Entrypoint>();
