@@ -442,7 +442,7 @@ public class CombinedPathAndPointsToQuery extends PathQuery {
     InstanceKey allocatedKey = null;
     try {
       allocatedKey = this.heapModel.getInstanceKeyForAllocation(node, instr.getNewSite());
-    } catch (NullPointerException e) {} // hack to get around WALA bug -- see AbstractDependencyRuleGenerator for descripton
+    } catch (NullPointerException e) {} // hack to get around WALA bug -- see AbstractDependencyRuleGenerator for description
     if (allocatedKey == null) { // this can happen due to exclusions
       if (Options.DEBUG) Util.Debug("can't find key for allocation instr " + instr);
       dropConstraintsContaining(local);

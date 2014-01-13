@@ -257,11 +257,10 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
         CombinedPathAndPointsToQuery qry = (CombinedPathAndPointsToQuery) path.query;
         if (qry.constraints.isEmpty()) {
           // don't need any external constraints for witness; "definite" (up to imprecision) assertion failure
-          // TODO: printsome sort of witness
+          // TODO: print some sort of witness
           return true;
         }
         
-        //Z3Context ctx = qry.ctx;
         Context ctx = qry.ctx;
         // map from free variables in our representation to free variables in the theorem prover
         Map<SimplePathTerm,AST> termVarMap = HashMapFactory.make();
@@ -289,15 +288,13 @@ public class BasicSymbolicExecutor implements ISymbolicExecutor {
             //ctx.assertCnstr(ast);
           }
   
-          //Model model = qry.ctx.mkModel();
           // get assignments for the free environment variables from the theorem prover
-          //if (qry.ctx.checkAndGetModel(model)) { // sat
           if (solver.Check() == Status.SATISFIABLE) {
             Model model = solver.Model();
             // map from free variables -> the value they should be assigned according to the prover
             Map<SimplePathTerm,String> termValMap = HashMapFactory.make();
             for (SimplePathTerm term : termVarMap.keySet()) {
-              termValMap.put(term, "" + model.Evaluate((Expr) termVarMap.get(term), false)); // convert to string 
+              termValMap.put(term, "" + model.Evaluate((Expr) termVarMap.get(term), false)); // get model and convert to string 
             }
             
             System.out.println("Can fail if: ");

@@ -1131,7 +1131,8 @@ public class PointsToQuery implements IQuery {
         srcPtsTo.retainAll(snkVals);
         //Util.Debug("after inter " + Util.printCollection(srcPtsTo));
         if (srcPtsTo.isEmpty()) {
-          if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+          if (Options.DEBUG) Util.Debug("(1) refuted by intersection of pts-to set and symbolic var on " + edge); //+ " snk (" + snkVals.size() + ")\n" + 
+                //Util.printCollection(snkVals) + "\nand other (" + g.size() + ")\n" + Util.printCollection(g));
           return false;
         }
         
@@ -1146,7 +1147,7 @@ public class PointsToQuery implements IQuery {
             Set<InstanceKey> newVals = newVar.getPossibleValues();
             newVals.retainAll(mapping.getPossibleValues());
             if (newVals.isEmpty()) {
-              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              if (Options.DEBUG) Util.Debug("(2) refuted by intersection of pts-to set and symbolic var on " + edge);
               return false;
             }
             newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);
@@ -1164,7 +1165,7 @@ public class PointsToQuery implements IQuery {
         //Util.Debug("after inter " + Util.printCollection(snkPtsAt));
         
         if (snkPtsAt.isEmpty()) {
-          if (Options.DEBUG) Util.Debug("refuted by intersection of pts-at set and symbolic var on " + edge);
+          if (Options.DEBUG) Util.Debug("(3) refuted by intersection of pts-at set and symbolic var on " + edge);
           return false;
         }
         
@@ -1179,7 +1180,7 @@ public class PointsToQuery implements IQuery {
             Set<InstanceKey> newVals = newVar.getPossibleValues();
             newVals.retainAll(mapping.getPossibleValues());
             if (newVals.isEmpty()) {
-              if (Options.DEBUG) Util.Debug("refuted by intersection of pts-to set and symbolic var on " + edge);
+              if (Options.DEBUG) Util.Debug("(4) refuted by intersection of pts-to set and symbolic var on " + edge);
               return false;
             }
             newVar = SymbolicPointerVariable.makeSymbolicVar(newVals);

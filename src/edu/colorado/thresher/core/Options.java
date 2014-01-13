@@ -160,6 +160,9 @@ public class Options {
   
   @boolOpt(description = "should the pointer analysis use pi nodes to handle instanceOf intelligently?", _default = false)
   public static boolean USE_PI_NODES = false;
+  
+  @boolOpt(description = "Should we use ptBy information and recursive simplification to further narrow from constraints?", _default = false)
+  public static boolean AGGRESSIVE_FROM_NARROWING = false;
 
   @intOpt(description = "if the path constraints are larger than this, we (soundly) refuse to collect new constraints", _default = 2)
   // how large do we allow the path constraints to grow?

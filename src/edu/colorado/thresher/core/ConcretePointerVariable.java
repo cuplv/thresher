@@ -77,7 +77,7 @@ public class ConcretePointerVariable implements PointerVariable { // implements
 
     // this.instanceNum = PointerVariable.ANY_INSTANCE_NUM;
     this.method = null;
-  }
+  }  
 
   public ConcretePointerVariable(Object key, CGNode node) {
     this.node = node;

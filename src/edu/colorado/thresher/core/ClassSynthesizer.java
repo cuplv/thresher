@@ -89,9 +89,7 @@ public class ClassSynthesizer {
               } catch (NumberFormatException e) {
                 // do nothing... this just means it was an instance
               }
-              //if (returnValue.equals("0") && method.getReturnType().isReferenceType()) returnValue = "null";
               
-              //String methodBody = synthesizeMethod(method, extraMethodBody, termValMap.get(term));
               String methodBody = synthesizeMethod(method, extraMethodBody, returnValue);
               synthesizeInterfaceMethod(methodBody, clazz, fld, term, termValMap);
               termValMap.put(term, synthesizeTypedValFromInt(1, method.getDeclaringClass()));
@@ -135,15 +133,12 @@ public class ClassSynthesizer {
       int paramIndex = ((LocalPointerKey) key).getValueNumber() - 1;
       IMethod termMethod = term.getObject().getNode().getMethod();
       Util.Assert(termMethod.isPublic()); // can't call this method to pass our param unless it's public
-      //Map<Integer,Integer> indexMap = methodParamsMap.get(termMethod);
       Map<Integer,String> indexMap = methodParamsMap.get(termMethod);
       if (indexMap == null) {
         indexMap = HashMapFactory.make();
         methodParamsMap.put(termMethod, indexMap);
       }
       // can't assign multiple values to same param
-      //Util.Assert(!indexMap.containsKey(paramIndex) || ((synthesizeMethodOrField && indexMap.get(paramIndex) == 1) || 
-                                                        //(!synthesizeMethodOrField && indexMap.get(paramIndex) == termValMap.get(term))));
       // bind the param index to the value of the term or to an instance of the synthesized class
       if (instanceWithWrittenField != null) indexMap.put(paramIndex, instanceWithWrittenField); // we created some instance and wrote to its field--pass that
       else if (!synthesizeMethodOrField) indexMap.put(paramIndex, termValMap.get(term) + ""); // convert int to string
@@ -154,7 +149,6 @@ public class ClassSynthesizer {
     // have synthesized implementations for all methods that matter. 
     // now, synthesize the rest of the methods and the class itself (needed for compilation)
     for (IClass clazz : methodBodies.keySet()) {
-      //String newClassName = implementedInstances.get(clazz.getReference());
       String newClassName = implementedInstances.get(clazz.getReference().getName());
       Util.Assert(newClassName != null);
       String classText = synthesizeImplementsOrExtendsClass(newClassName, clazz);
@@ -185,7 +179,6 @@ public class ClassSynthesizer {
     if (!methodSet.add(method.getName())) return;
       
     // turn integer assignment from prover into String representation of typed object
-    //String val = synthesizeTypedValFromInt(termValMap.get(term), method.getReturnType());
     String val = termValMap.get(term);
     if (body == null) body = synthesizeMethod(method, val);
     if (Options.DEBUG) Util.Debug("method body is " + body);
@@ -255,11 +248,10 @@ public class ClassSynthesizer {
   private String synthesizeParamBinding(IMethod method, Map<Integer,String> indexValMap) {
     StringBuffer buf = new StringBuffer();
     buf.append('(');
-    // skip first parameter; is always the receiver
+    // skip first parameter; it is always the receiver
     for (int i = 1; i < method.getNumberOfParameters(); i++) {
       TypeReference type = method.getParameterType(i);
       if (indexValMap.containsKey(i)) {
-        //buf.append(synthesizeTypedValFromInt(indexValMap.get(i), type));
         buf.append(indexValMap.get(i));
       } else {
         if (type.isPrimitiveType()) {
@@ -327,8 +319,6 @@ public class ClassSynthesizer {
     newMethods.addAll(methods);
     newMethods.add(synthesizeEmptyConstructor(newClassName));
     TypeName type = toImplement.getReference().getName();
-    //Util.Assert(!implementedInstances.containsKey(type), 
-      //  "already have instance of type " + type + ": " + implementedInstances.get(type));
     if (!implementedInstances.containsKey(type)) {
       implementedInstances.put(type, newClassName);
     }
@@ -508,7 +498,6 @@ public class ClassSynthesizer {
     if (clazz.isInterface()) {
       Util.Debug("have synthesized instance of " + type.getName() + "?");
       // first, check if we've synthesized some version of this. use that one if so.
-      //String implemented = implementedInstances.get(type);
       String implemented = implementedInstances.get(type.getName());
       if (implemented != null) {
         // found our implementation; can create an instance using the empty constructor
@@ -535,7 +524,6 @@ public class ClassSynthesizer {
         Util.Assert(!impl.getReference().equals(type));
         String instance = synthesizeInstanceOf(impl.getReference());
         if (instance != null) {
-          //return makeCast(type, instance);
           return instance;
         }
       }
@@ -546,8 +534,6 @@ public class ClassSynthesizer {
       synthesizedClasses.add(newClassName);
       implementedInstances.put(type.getName(), newClassName);
       return "new " + newClassName + "()";
-      // this call should now succeed
-     // return synthesizeInstanceOf(type);
     } else if (clazz.isAbstract()) {
       Util.Unimp("synthesizing instance abstract class " + clazz);
     }
@@ -557,7 +543,6 @@ public class ClassSynthesizer {
     // TODO: consider methods outside of this class as well
     for (IMethod method : clazz.getAllMethods()) {
       // TODO: handle protected correctly as well
-      //if (method.isPrivate() || method.isAbstract()) continue; // can't call this method to get our type
       if (!method.isPublic()) continue; // can't call this method to get our type
       if (method.isInit()) {
         // we have a constructor. now we must initialize each of its arguments
@@ -603,7 +588,6 @@ public class ClassSynthesizer {
     buf.append('.');
     buf.append(field.getName().toString());
     buf.append(" = ");
-    //buf.append(synthesizeTypedValFromInt(value, field.getFieldTypeReference()));
     buf.append(value);
     buf.append(";");
     return buf.toString();

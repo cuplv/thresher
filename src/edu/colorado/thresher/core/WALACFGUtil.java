@@ -592,8 +592,7 @@ public class WALACFGUtil {
 
   public static CGNode getClassInitializerFor(IClass clazz, CallGraph callGraph) {
     IMethod classInit = clazz.getClassInitializer();
-    if (classInit == null)
-      return null;
+    if (classInit == null) return null;
     Set<CGNode> classInits = callGraph.getNodes(classInit.getReference());
     Util.Assert(classInits.size() == 1, "should be exactly one class init!");
     return classInits.iterator().next();

@@ -138,6 +138,7 @@ public class Main {
       if (Options.IMMUTABILITY) runImmutabilityRegressionTests();
       else if (Options.SYNTHESIS) runSynthesizerRegressionTests();
       else if (Options.CHECK_CASTS) runCastCheckingRegressionTests();
+      else if (Options.ANDROID_LEAK) runAndroidLeakRegressionTests();
       else runAllRegressionTests();
     } else {
       File targetFile = new File(target);
@@ -220,7 +221,7 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    String[] tests0 = new String[] { "BranchRefute" };
+    String[] tests0 = new String[] { "SimpleHashMapRefute" };
 
     String mainClass = "LAct";
     for (String test : tests0) {
@@ -1573,7 +1574,7 @@ public class Main {
         }
 
         AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(filename, mainClass, mainMethod);
-        Collection<String> synthesizedClasses = checkAssertions(depRuleGenerator);//runSynthesizer(filename);
+        Collection<String> synthesizedClasses = checkAssertions(depRuleGenerator);
         // tests with NoTest contain assertions that cannot fail, so no test should be generated
         if (test.contains("NoTest")) {
           Util.Assert(synthesizedClasses == null || synthesizedClasses.isEmpty());
@@ -1605,11 +1606,9 @@ public class Main {
           Process p = Runtime.getRuntime().exec(s);
           InputStream stream = p.getInputStream();
           p.waitFor();
-          //BufferedReader reader = new BufferedReader (new InputStreamReader(stream));
           BufferedReader reader = new BufferedReader (new InputStreamReader(p.getErrorStream()));
           String output = reader.readLine();
           System.out.println("output is " + output);
-          //if (ASSERTION_FAILURE.equals(output)) {
           if (output.contains(ASSERTION_FAILURE)) {
             // running generated test triggered assertion failure
             Util.Print("generated test caused assertion failure!");
