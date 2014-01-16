@@ -6,8 +6,7 @@ class Main {
     
     static class Instr {
 	static final int NONE = 0, FOO = 1, BAR = 2, OBJ = 3;
-	// only difference from refutable version is that order of FOO and BAR are switched in this array
-	static int[] opcxMap = new int[]{ NONE, BAR, FOO, OBJ};
+	static int[] opcxMap = new int[]{ NONE, FOO, BAR, OBJ};
 	int opcode;
 	Object operand;
 
@@ -15,7 +14,8 @@ class Main {
 	    this.opcode = opcode;
 	    this.operand = operand;
 	}
-	public Instr(int opc) {
+	public Instr(int input) {
+	    int opc = makeOpc(input);
 	    switch (opc) {
 	    case 1:
 		this.operand = new Foo();
@@ -32,8 +32,12 @@ class Main {
 	    this.opcode = opcxMap[opc];
 	}
 
+	int makeOpc(int input) {
+	    return input << 3 + 2 * 7;
+	}
+
 	public static Instr getInstr0() {
-	    return new Instr(BAR);	
+	    return new Instr(0);	
 	}
 
 	public static Instr getInstr1() {
@@ -46,12 +50,9 @@ class Main {
 	List<Instr> lst = new LinkedList<Instr>();
 	lst.add(Instr.getInstr0());
 	lst.add(Instr.getInstr1());
-	//Instr i = Instr.getInstr0();
-	for (Instr i : lst) {
 
-	    if (i.opcode == Instr.FOO) {
-		Foo f = (Foo) i.operand;
-	    }
+	for (Instr i : lst) {
+	    Foo f = (Foo) i.operand;
 	}
     }
 
