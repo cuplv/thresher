@@ -86,7 +86,6 @@ import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.Selector;
 import com.ibm.wala.types.TypeReference;
 import com.ibm.wala.types.annotations.Annotation;
-import com.ibm.wala.util.WalaException;
 import com.ibm.wala.util.collections.CollectionFilter;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -97,7 +96,6 @@ import com.ibm.wala.util.graph.traverse.BFSPathFinder;
 import com.ibm.wala.util.intset.IntIterator;
 import com.ibm.wala.util.intset.IntSet;
 import com.ibm.wala.util.intset.OrdinalSet;
-import com.ibm.wala.viz.DotUtil;
 
 public class Main {
   
@@ -190,7 +188,7 @@ public class Main {
     CallGraphBuilderCancelException {
     Options.ANDROID_JAR = "android/android-2.3.jar"; // use non-annotated JAR
     Options.ANDROID_LEAK = true;
-    final String[] tests = new String[] { "IntraproceduralStrongUpdate", "SimpleNoRefute", "FunctionCallRefute",
+    String[] tests = new String[] { "IntraproceduralStrongUpdate", "SimpleNoRefute", "FunctionCallRefute",
         "FunctionCallNoRefute", "BranchRefute", "BranchNoRefute", "HeapRefute", "HeapNoRefute", "InterproceduralRefute",
         "PathValueUpdateRefute", "PathValueUpdateNoRefute", "SharedStaticMapNoRefute", "ManuNoRefute2", "MultiWayBranchNoRefute",
         "MultiWayBranchRefute", "SubBranchRefute", "MultiBranchUpdateRefute", "IrrelevantLoopRefute", "IrrelevantLoopNoRefute",
@@ -221,10 +219,10 @@ public class Main {
     int failures = 0;
     long start = System.currentTimeMillis();
     
-    String[] tests0 = new String[] { "SimpleHashMapRefute" };
+    if (Options.TEST != null) tests = new String[] { Options.TEST };
 
     String mainClass = "LAct";
-    for (String test : tests0) {
+    for (String test : tests) {
       Util.Print("Running test " + testNum + ": " + test);
       long testStart = System.currentTimeMillis();
       try {
@@ -450,8 +448,10 @@ public class Main {
     File appFile = new File(appPath);
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
     scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.ANDROID_JAR));
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(appFile));
+    if (appPath.endsWith(".jar")) scope.addToScope(scope.getApplicationLoader(), new JarFile(appFile));
+    else scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(appFile));
     
+    /*
     // look for jars hiding in the bin/ directory
     File binDir = new File(appPath + "/bin/");
     for (File f : Util.listFilesRec(binDir)) {
@@ -459,7 +459,7 @@ public class Main {
         Util.Print("Found JAR file " + f + "; adding to application scope");
         scope.addToScope(scope.getApplicationLoader(), new JarFile(f));
       }
-    }
+    }*/
     
     //if (Options.USE_EXCLUSIONS) {
       //File exclusionsFile = new File("config/exclusions.txt");
@@ -1004,8 +1004,11 @@ public class Main {
         scope.setExclusions(new FileOfClasses(new FileInputStream(exclusionsFile)));
       }
       
-      final MethodReference DACAPO_MAIN =
-          MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
+      final MethodReference DACAPO_MAIN = appName == "hsqldb" ? 
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/PseudoJDBCBench"), 
+            "main", "([Ljava/lang/String;)V")
+      :
+        MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
               "main", "([Ljava/lang/String;)V");
       
       cha = ClassHierarchy.make(scope);
@@ -1657,16 +1660,18 @@ public class Main {
   public static AbstractDependencyRuleGenerator buildCGAndPT(String appPath, String mainClass, String mainMethod)
       throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-    // TODO: TMP!
+    // TODO: TMP! but needed to run regressions
     Options.ANDROID_JAR = "../thresher/" + Options.ANDROID_JAR;
-    appPath = "../thresher/" + appPath;
+    String modifiedAppPath = "../thresher/" + appPath;
+    //String modifiedAppPath = appPath;
+    String appName = "";
+
     
     if (Options.ANDROID_LEAK) {
       JarFile androidJar = new JarFile(Options.ANDROID_JAR);
       // add Android code      
       scope.addToScope(scope.getPrimordialLoader(), androidJar);
     } else if (Options.DACAPO) {
-      String appName;
       // removing trailing slash if needed
       if (appPath.endsWith("/")) appName = appPath.substring(0, appPath.length() - 1);
       else appName = appPath;
@@ -1679,17 +1684,32 @@ public class Main {
       scope.addToScope(scope.getPrimordialLoader(), appDepsJar);
       scope.addToScope(scope.getApplicationLoader(), appJar);
       //File exclusionsFile = new File("config/synthesis_exclusions.txt");
-      mainClass =  "Ldacapo/" + appName + "/Main";
+      mainClass = appName.equals("hsqldb") ? ("Ldacapo/" + appName + "/PseudoJDBCBench") : ("Ldacapo/" + appName + "/Main");
       mainMethod = "main";
+      System.out.println("Main class is " + mainClass);
       //final MethodReference DACAPO_MAIN =
         //  MethodReference.findOrCreate(TypeReference.findOrCreate(ClassLoaderReference.Application, "Ldacapo/" + appName + "/Main"), 
           //    "main", "([Ljava/lang/String;)V");      
     } else {
-      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));    
-      scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(ASSERTIONS_AND_ANNOTATIONS_BIN)));
+      scope.addToScope(scope.getPrimordialLoader(), new JarFile(getJVMLibFile()));
+      File annotsAndAssertsFile = new File(ASSERTIONS_AND_ANNOTATIONS_BIN);
+      if (annotsAndAssertsFile.exists()) scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(annotsAndAssertsFile));
+      else Util.Print("Warning: couldn't find assertions file  " + ASSERTIONS_AND_ANNOTATIONS_BIN);
     }
+    
+    if (!Options.LIB.equals("")) scope.addToScope(scope.getPrimordialLoader(), new JarFile(Options.LIB));
 
-    scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(new File(appPath)));
+    File appFile = new File(modifiedAppPath);
+    if (appFile.exists()) scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(appFile));
+    else {
+      appFile = new File(appPath);
+      Util.Assert(appFile.exists(), "App " + appPath + " doesn't exist");
+      if (appFile.isDirectory()) scope.addToScope(scope.getApplicationLoader(), new BinaryDirectoryTreeModule(appFile));
+      else if (appFile.getName().endsWith(".jar")) scope.addToScope(scope.getApplicationLoader(), new JarFile(appFile));
+      else Util.Assert(false, "Don't understand appFile " + appPath);
+    }
+    
+    
     //File exclusionsFile = new File(WALA_REGRESSION_EXCLUSIONS);
     //File exclusionsFile = new File("config/exclusions.txt");
     File exclusionsFile = new File(Options.EXCLUSIONS);
@@ -1703,7 +1723,6 @@ public class Main {
       
       // skip non-application classes
       if (!scope.isApplicationLoader(c.getClassLoader())) continue;
-
       if (Options.ANDROID_LEAK) {
         for (IMethod m : c.getDeclaredMethods()) { // for each method in the class
           if (REGRESSIONS) {
@@ -1752,8 +1771,14 @@ public class Main {
     else if (Options.PRIM_ARRAY_SENSITIVITY) builder = Main.makePrimArraySensitiveZeroOneContainer(options, cache, cha, scope);
     else builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
     
+    if (appName.equals("chart")) {
+      Util.Print("chart special case--using cheap cg builder");
+      builder = com.ibm.wala.ipa.callgraph.impl.Util.makeZeroOneCFABuilder(options, cache, cha, scope);
+    }
+    
     Util.Print("Building call graph.");
     CallGraph cg = builder.makeCallGraph(options, null);  
+    Util.Print(CallGraphStats.getStats(cg));
     /*
     try {
       DotUtil.dotify(cg, null, "graph.dot", "graph.pdf", "/usr/bin/dot");

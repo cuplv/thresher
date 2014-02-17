@@ -26,6 +26,9 @@ public class Options {
     String _default();
   }
 
+  @boolOpt(description = "print debug info (scala)", _default = false)
+  public static boolean SCALA_DEBUG = false;  
+  
   @boolOpt(description = "print debug information (LOTS of printing)", _default = false)
   public static boolean DEBUG = false;
 
@@ -97,7 +100,7 @@ public class Options {
                                                                // errors in heap
   @boolOpt(description = "are we running one of the dacapo benchmarks", _default = false)
   public static boolean DACAPO = false;
-
+  
   // if true, generate dependency rules for all statements in a method when we
   // generate rules for one statement in that method (cache all rules)
   // otherwise, generate dependency rules for each statement as we encounter it
@@ -183,7 +186,13 @@ public class Options {
 
   @stringOpt(description = "usage: -app <path to directory of .class files to analyze>", _default = "")
   public static String APP;
+  
+  @stringOpt(description = "JAR of library files to load", _default = "")
+  public static String LIB = "";
 
+  @stringOpt(description = "Pointer to res/ directory for Android app", _default = "")
+  public static String ANDROID_RES = "";
+  
   @stringOpt(description = "usage: -android_jar <path to jar file for version of android libraries>", _default = "android/android-2.3_annotated.jar")
   public static String ANDROID_JAR = "android/android-2.3_annotated.jar";
 

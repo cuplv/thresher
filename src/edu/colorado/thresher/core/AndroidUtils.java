@@ -105,8 +105,10 @@ public class AndroidUtils {
     // see if res is where we expect it to be
     File res = new File(appPath + "/res/");
     if (!res.exists()) {
-    	appPath += "/out/";
-    	Util.Assert(new File(appPath + "res/").exists(), " directory " + appPath + "res/ doesn't exist.");
+      appPath = Options.ANDROID_RES;
+    	//appPath += "/out/";
+      Util.Assert(new File(appPath + "/res/").exists(), "Res directory " + appPath + "/res/ doesn't exist.");
+      //Util.Assert(new File(appPath + "res/").exists(), " directory " + appPath + "res/ doesn't exist.");
     }
     
     // for each file in res/layout

@@ -43,7 +43,7 @@ public class AndroidUIChecker {
   public static void runUICheck(String appPath) 
     throws IOException, ClassHierarchyException, CallGraphBuilderCancelException {
     Options.FULL_WITNESSES = true;    
-    Util.Unimp("TODO: remove all uses of cg.getNodes()! behaves badly with subclassing");
+    //Util.Unimp("TODO: remove all uses of cg.getNodes()! behaves badly with subclassing");
     // BEGIN PHASE 1
     // (1) parse buttons from the manifest
     Collection<AndroidUtils.AndroidButton> buttons = AndroidUtils.parseButtonInfo(appPath);
