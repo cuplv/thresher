@@ -52,7 +52,7 @@ public class AndroidUIChecker {
     
     //getActivities(drg);
     // TMP
-    emitEntrypointSinkPairs(drg);
+    emitEntrypointSinkPairs(drg.getCallGraph());
     System.exit(1);
     // END TMP
     
@@ -87,10 +87,9 @@ public class AndroidUIChecker {
 	// END PHASE 3
   }  
   
-  private static void emitEntrypointSinkPairs(AbstractDependencyRuleGenerator drg) {
-    CallGraph cg = drg.getCallGraph();
+  public static void emitEntrypointSinkPairs(CallGraph cg) {
     List<CGNode> snks = new ArrayList<CGNode>();
-    for (Iterator<CGNode> iter = drg.getCallGraph().iterator(); iter.hasNext();) {
+    for (Iterator<CGNode> iter = cg.iterator(); iter.hasNext();) {
       CGNode node = iter.next();
       IClass clazz = node.getMethod().getDeclaringClass();
       if (clazz.getClassLoader().getReference().equals(ClassLoaderReference.Primordial) &&
