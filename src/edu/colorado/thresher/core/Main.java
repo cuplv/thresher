@@ -1261,6 +1261,7 @@ public class Main {
       return this.numSafe == results.numSafe && this.numMightFail == results.numMightFail &&
           this.numThresherProvedSafe == results.numThresherProvedSafe;
     }
+    
   }
   
   //public static CastCheckingResults runCastChecker(String appPath) 

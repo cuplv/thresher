@@ -17,7 +17,7 @@ import com.ibm.wala.util.debug.Assertions;
 // chooses *all* possible allocation sites that have the same type as a given parameter (rather than just picking one)
 public class SharedAllocationEntrypoint extends SameReceiverEntrypoint {
 
-  final static boolean DEBUG = false;
+  final static boolean DEBUG = true;
   final private TypeReference[][] paramTypes;
   
   public SharedAllocationEntrypoint(IMethod method, IClassHierarchy cha) {
@@ -96,7 +96,7 @@ public class SharedAllocationEntrypoint extends SameReceiverEntrypoint {
     return result;
   }
   
-  private TypeReference[] chooseAllImplementors(IClass iface, IClassHierarchy cha) {
+  protected TypeReference[] chooseAllImplementors(IClass iface, IClassHierarchy cha) {
     Set<IClass> implementors = cha.getImplementors(iface.getReference());
     int i = 0;
     TypeReference[] implementorTypeArr = new TypeReference[implementors.size()];
@@ -106,7 +106,7 @@ public class SharedAllocationEntrypoint extends SameReceiverEntrypoint {
     return implementorTypeArr;
   }
 
-  private TypeReference[] chooseAllConcreteSubClasses(IClass klass, IClassHierarchy cha) {
+  protected TypeReference[] chooseAllConcreteSubClasses(IClass klass, IClassHierarchy cha) {
     Collection<IClass> subclasses = cha.computeSubClasses(klass.getReference());
     List<TypeReference> subclassTypes = new ArrayList<TypeReference>(subclasses.size());
     for (IClass c : cha.computeSubClasses(klass.getReference())) {

@@ -47,6 +47,7 @@ public class SameReceiverEntrypoint extends DefaultEntrypoint {
         // haven't seen an arg of type ref yet; allocate a new one
         // TODO: calling addAllocation invokes the default constructor for ref, but we may want to try a bit harder and invoke a more interesting one
         SSANewInstruction n = m.addAllocation(ref);
+        if (n == null) System.out.println("Failed to add allocation for " + ref);
         arg = n.getDef();
         cachedArgs.put(ref, arg);
       } else arg = result.intValue();

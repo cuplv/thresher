@@ -234,7 +234,7 @@ public class Options {
     }
   }
 
-  // return path to dir to perform analyis on or _REGRESSION if regressions
+  // return path to dir to perform analysis on or _REGRESSION if regressions
   public static String parseArgs(String[] args) {
     if (args.length == 0)
       dumpHelpInfo();
