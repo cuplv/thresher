@@ -17,7 +17,7 @@ import com.ibm.wala.util.debug.Assertions;
 // chooses *all* possible allocation sites that have the same type as a given parameter (rather than just picking one)
 public class SharedAllocationEntrypoint extends SameReceiverEntrypoint {
 
-  final static boolean DEBUG = true;
+  final static boolean DEBUG = false;
   final private TypeReference[][] paramTypes;
   
   public SharedAllocationEntrypoint(IMethod method, IClassHierarchy cha) {

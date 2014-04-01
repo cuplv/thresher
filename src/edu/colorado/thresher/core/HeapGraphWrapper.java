@@ -84,10 +84,8 @@ public class HeapGraphWrapper extends BasicHeapGraph {
   
   @Override
   public Iterator<Object> iterator() {
-    return this.iterator();
-  }
-  
-
+    return super.iterator();
+  }  
   
   @Override
   public IntSet getPredNodeNumbers(Object node) {
