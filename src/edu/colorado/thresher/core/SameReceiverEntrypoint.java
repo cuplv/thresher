@@ -2,6 +2,7 @@ package edu.colorado.thresher.core;
 
 import java.util.Map;
 
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.impl.AbstractRootMethod;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
@@ -33,9 +34,11 @@ public class SameReceiverEntrypoint extends DefaultEntrypoint {
   
   private static final Map<TypeReference,Integer> cachedArgs = HashMapFactory.make();
   public static void clearCachedArgs() { cachedArgs.clear(); }
-      
+  private final IClassHierarchy cha;    
+  
   public SameReceiverEntrypoint(IMethod method, IClassHierarchy cha) {
     super(method, cha);
+    this.cha = cha;
   }
 
   protected int getOrCreateCachedArg(TypeReference ref, AbstractRootMethod m) {
@@ -45,11 +48,19 @@ public class SameReceiverEntrypoint extends DefaultEntrypoint {
       int arg;
       if (result == null) {
         // haven't seen an arg of type ref yet; allocate a new one
-        // TODO: calling addAllocation invokes the default constructor for ref, but we may want to try a bit harder and invoke a more interesting one
-        SSANewInstruction n = m.addAllocation(ref);
-        if (n == null) System.out.println("Failed to add allocation for " + ref);
-        arg = n.getDef();
-        cachedArgs.put(ref, arg);
+        IClass clazz = cha.lookupClass(ref);
+        if (clazz == null || clazz.isInterface()) {
+          // it's an interface type -- tring to allocated it would be bad
+          SSANewInstruction n = m.addAllocation(TypeReference.JavaLangObject);
+          arg = m.addCheckcast(new TypeReference[] { ref }, n.getDef(), false);
+          cachedArgs.put(ref, arg);
+        } else {
+          // TODO: calling addAllocation invokes the default constructor for ref, but we may want to try a bit harder and invoke a more interesting one
+          SSANewInstruction n = m.addAllocation(ref);
+          if (n == null) System.out.println("Failed to add allocation for " + ref);
+          arg = n.getDef();
+          cachedArgs.put(ref, arg);
+        }               
       } else arg = result.intValue();
       Util.Post(arg != -1, "bad arg");
       return arg;
@@ -60,8 +71,9 @@ public class SameReceiverEntrypoint extends DefaultEntrypoint {
   protected int makeArgument(AbstractRootMethod m, int i) {
     TypeReference[] p = getParameterTypes(i);
     if (p.length == 0) return -1;
-    else if (p.length == 1) return getOrCreateCachedArg(p[0], m);
-    else {
+    else if (p.length == 1) {
+      return getOrCreateCachedArg(p[0], m);
+    } else {
       int[] values = new int[p.length];
       int countErrors = 0;
       for (int j = 0; j < p.length; j++) {
