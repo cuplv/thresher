@@ -198,8 +198,8 @@ public class DemandCastChecker {
       builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
       heapModel = (HeapModel) builder;
     }
-    ProgressMaster master = ProgressMaster.make(new NullProgressMonitor());
-    master.setMillisPerWorkItem(360000);
+    ProgressMaster master = ProgressMaster.make(new NullProgressMonitor(), 360000, false);
+    //master.setMillisPerWorkItem(360000);
     master.beginTask("runSolver", 1);
     try {
       retCG = builder.makeCallGraph(options, master);
@@ -302,7 +302,7 @@ public class DemandCastChecker {
               ", line " + edu.colorado.thresher.core.Util.getSourceLineNumber(ir, i));
           //System.err.println("CHECKING " + castInstr +  " #" + ++count + " in " + node.getMethod());
           PointerKey castedPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
-          OrdinalSet<InstanceKey> pointsToSet = pa.getPointsToSet(castedPk);
+          OrdinalSet<InstanceKey> pointsToSet = (OrdinalSet<InstanceKey>) pa.getPointsToSet(castedPk);
           
           Predicate<InstanceKey> castPred = new Predicate<InstanceKey>() {
 

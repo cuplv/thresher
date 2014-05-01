@@ -227,7 +227,7 @@ public class Main {
       long testStart = System.currentTimeMillis();
       try {
         String path = regressionDir + test;
-        AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(path, mainClass, "");
+        AbstractDependencyRuleGenerator depRuleGenerator = buildCGAndPT(path, mainClass, "main");
         result = checkAnnotations(path, mainClass, depRuleGenerator);
         //result = runAnalysisActivityFieldsOnly(regressionDir + test, true, false);
       } catch (Exception e) {
@@ -326,7 +326,8 @@ public class Main {
     Options.SKIP_DYNAMIC_DISPATCH = false;
     String[] tests = new String[] { "BasicCastRefute", "BasicCastNoRefute", "InstanceOfRefute", "InstanceOfNoRefute", 
                                     "NegatedInstanceOfRefute", "NegatedInstanceOfNoRefute", "FieldCastRefute", "FieldCastNoRefute",
-                                    "ArrayListRefute", "ArrayListNoRefute", "IteratorRefute", "IteratorNoRefute", 
+                                    //"ArrayListRefute", 
+				    "ArrayListNoRefute", "IteratorRefute", "IteratorNoRefute", 
                                     "HashtableEnumeratorRefute", "HashtableEnumeratorNoRefute", "SwitchRefute", "SwitchNoRefute" };
     // results for tests whose casts are not all safe or all unsafe
     Map<String,CastCheckingResults> resultsMap = HashMapFactory.make();
@@ -845,7 +846,7 @@ public class Main {
             int startLineBlkIndex = WALACFGUtil.findInstrIndexInBlock(invoke, startBlk);
             PointerKey receiverKey = hm.getPointerKeyForLocal(eventHandlerNode, invoke.getUse(0));
             PointerVariable lhs = Util.makePointerVariable(receiverKey);
-            PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar(hg.getPointerAnalysis().getPointsToSet(receiverKey));
+            PointerVariable rhs = SymbolicPointerVariable.makeSymbolicVar((OrdinalSet<InstanceKey>) hg.getPointerAnalysis().getPointsToSet(receiverKey));
             PointsToEdge startEdge = new PointsToEdge(lhs, rhs);
             // TODO: make special query that stops at function boundary
             IQuery query = new CombinedPathAndPointsToQuery(startEdge, depRuleGenerator);
@@ -1408,7 +1409,7 @@ public class Main {
           if (Options.DEBUG) Util.Debug("Checking " + castInstr + " in " + node.getMethod() + 
                                         ", line " + Util.getSourceLineNumber(ir, i));
           PointerKey castPk = heapModel.getPointerKeyForLocal(node, castInstr.getUse(0));
-          OrdinalSet<InstanceKey> keys = pointerAnalysis.getPointsToSet(castPk);
+          OrdinalSet<InstanceKey> keys = (OrdinalSet<InstanceKey>) pointerAnalysis.getPointsToSet(castPk);
           Set<InstanceKey> badKeys = HashSetFactory.make();
           for (InstanceKey key : keys) { // for each instance key in the points-to set
             TypeReference ikTypeRef = key.getConcreteType().getReference();
