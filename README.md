@@ -14,7 +14,7 @@ Go to step (2) if this works. Otherwise, go to step (3).
 
     make deps
 
-If this works, all dependencies have been installed and built and Thresher should build without a hitch.
+If this works, all dependencies have been installed and built and Thresher should build without a hitch. However, Thresher will only run "out-of-the-box" on Linux. On OSX, you'll need to build Z3 for Java on your Mac using these [instructions](http://leodemoura.github.io/blog/2012/12/10/z3-for-java.html). Move the .dylib files from this build to the lib/z3 directory and modify the thresher.sh file to use DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH. We have not tried building or running Thresher on Windows
 
 (5) Once all dependencies have been built successfully, return to the top-level Thresher directory and run
   
