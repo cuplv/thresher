@@ -49,7 +49,7 @@ public final class WALACallGraphUtil {
    * @param caller
    * @param callee
    * @param cg
-   * @return all instruction indices corresponding to possilble calls of @param calle in @caller according to @param cg
+   * @return all instruction indices corresponding to possible calls of @param callee in @caller according to @param cg
    */
   public static Collection<Integer> getCallInstrIndices(CGNode caller, CGNode callee, CallGraph cg) {
     Set<Integer> siteIndices = HashSetFactory.make();

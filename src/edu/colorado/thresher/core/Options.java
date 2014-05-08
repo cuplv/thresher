@@ -88,6 +88,9 @@ public class Options {
   @boolOpt(description = "check downcast safety", _default = false)
   public static boolean CHECK_CASTS = false;
   
+  @boolOpt(description = "check array bounds", _default = false)
+  public static boolean CHECK_ARRAY_BOUNDS = false;
+  
   // should we use Manu's demand cast checker to easily prove the safety of casts requiring context-sensitivity?
   @boolOpt(description = "filter cast checking results using demand cast checker", _default = false)
   public static boolean USE_DEMAND_CAST_CHECKER = false;
@@ -213,7 +216,13 @@ public class Options {
 
   // consider paths that use weak references?
   public static boolean INCLUDE_WEAK_REFERENCES = false;
-
+  
+  // TMP! just for UI client
+  @boolOpt(description = "", _default = false)
+  public static boolean GEN_HARNESS;
+  @boolOpt(description = "", _default = false)
+  public static boolean USE_GENERATED_HARNESS;
+  
   public static void restoreDefaults() {
     try {
       for (Field field : Options.class.getFields()) {
