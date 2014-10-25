@@ -1,3 +1,5 @@
+UPDATE: Thresher has been replaced by [Hopper](https://github.com/cuplv/hopper). Hopper reimplements all of Thresher's functionality in Scala, fixes an immense number of Thresher bugs, adds many more features, and is just generally better. We highly recommend you use Hopper instead of Thresher. This repository is no longer supported.
+
 See the project page at http://pl.cs.colorado.edu/projects/thresher/ for more information on the Thresher project.
 
 Installation
